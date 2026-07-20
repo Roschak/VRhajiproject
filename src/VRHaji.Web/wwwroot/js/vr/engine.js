@@ -1009,7 +1009,7 @@ export class Engine {
         this.renderer.setPixelRatio(this._pr);
         this.renderer.setSize(container.clientWidth, container.clientHeight);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.shadowMap.type = THREE.PCFShadowMap;
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 0.85;
         container.appendChild(this.renderer.domElement);
@@ -1047,7 +1047,8 @@ export class Engine {
         this.pmrem = new THREE.PMREMGenerator(this.renderer);
         this._roomEnv = this.pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
-        this.clock = new THREE.Clock();
+        this._lastTime = performance.now();
+        this._elapsedTime = 0;
         this.keys = {};
         this.updaters = [];
         this.interactables = [];
@@ -1813,8 +1814,11 @@ export class Engine {
     onUpdate(fn) { this.updaters.push({ done: false, fn }); }
 
     _tick() {
-        const dt = Math.min(this.clock.getDelta(), 0.05);
-        const t = this.clock.elapsedTime;
+        const now = performance.now();
+        const dt = Math.min((now - this._lastTime) / 1000, 0.05);
+        this._lastTime = now;
+        this._elapsedTime += dt;
+        const t = this._elapsedTime;
         const inVR = this.renderer.xr.isPresenting;
         if (!this.paused) {
             if (!inVR && this._camTargetYaw !== undefined) {

@@ -45,6 +45,8 @@ export async function start() {
             return Promise.resolve();
         },
         async complete() {
+            const skipSceneBtn = document.getElementById('vr-skip-scene-btn');
+            if (skipSceneBtn) skipSceneBtn.remove();
             engine.narrator.stop();
             engine.setObjective('');
             await engine.dotnet.invokeMethodAsync('OnSceneCompleted');
@@ -53,6 +55,23 @@ export async function start() {
     };
 
     try {
+        const skipSceneBtn = document.createElement('button');
+        skipSceneBtn.id = 'vr-skip-scene-btn';
+        skipSceneBtn.className = 'btn btn--gold btn--small';
+        skipSceneBtn.innerHTML = `⏭ Skip Scene`;
+        skipSceneBtn.style.position = 'absolute';
+        skipSceneBtn.style.top = '70px';
+        skipSceneBtn.style.right = '20px';
+        skipSceneBtn.style.zIndex = '9999';
+        skipSceneBtn.style.pointerEvents = 'auto';
+        skipSceneBtn.onclick = () => {
+            if (engine) {
+                engine.audio.sfx('click');
+                ctx.complete();
+            }
+        };
+        document.getElementById('vr-root').appendChild(skipSceneBtn);
+
         await sceneDef.run(engine, ctx);
     } catch (e) {
         if (engine) console.error('Scene runner error:', e);
@@ -65,6 +84,8 @@ export function setUiOpen(open) {
 }
 
 export function dispose() {
+    const skipSceneBtn = document.getElementById('vr-skip-scene-btn');
+    if (skipSceneBtn) skipSceneBtn.remove();
     if (engine) {
         try { engine.dispose(); } catch { }
         engine = null;
