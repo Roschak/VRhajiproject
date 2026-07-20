@@ -165,12 +165,12 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        await using (var userModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/user.js"))
+        await using (var userModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/user.js"))
         {
             _userId = await userModule.InvokeAsync<string>("getUserId");
         }
         _selfRef = DotNetObjectReference.Create(this);
-        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/vr/main.js");
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/vr/main.js");
         await _module.InvokeVoidAsync("preload", "vr-container", Urutan, _selfRef);
         _loading = false;
         StateHasChanged();
@@ -204,6 +204,13 @@
         await SetUiOpen(false);
     }
 
+    /// <summary>Notifikasi singkat dari engine JS.</summary>
+    [JSInvokable]
+    public void OnNotify(string message, string type)
+    {
+        Notify(message, type);
+    }
+
     /// <summary>Dipanggil engine JS saat seluruh alur scene selesai.</summary>
     [JSInvokable]
     public async Task OnSceneCompleted()
@@ -213,13 +220,6 @@
         _showComplete = true;
         await SetUiOpen(true);
         StateHasChanged();
-    }
-
-    /// <summary>Notifikasi singkat dari engine JS.</summary>
-    [JSInvokable]
-    public void OnNotify(string message, string type)
-    {
-        Notify(message, type);
     }
 
     private void Notify(string message, string type)
