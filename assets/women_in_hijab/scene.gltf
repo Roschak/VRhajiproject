@@ -1,0 +1,792 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2176,
+      "max": [
+        2.070563316345215,
+        9.049041748046875,
+        1.102863073348999
+      ],
+      "min": [
+        -2.0416698455810547,
+        -2.1629207134246826,
+        -1.656796932220459
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 26112,
+      "componentType": 5126,
+      "count": 2176,
+      "max": [
+        0.9998196959495544,
+        0.999701976776123,
+        0.9988495111465454
+      ],
+      "min": [
+        -0.9999037981033325,
+        -0.9799293875694275,
+        -0.9993804097175598
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2176,
+      "max": [
+        1.0,
+        0.6338227391242981
+      ],
+      "min": [
+        -1.7486520675902284e-08,
+        -4.1144858187180944e-08
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 12819,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 52224,
+      "componentType": 5126,
+      "count": 3930,
+      "max": [
+        6.523202419281006,
+        8.34495735168457,
+        2.1064095497131348
+      ],
+      "min": [
+        -6.446652889251709,
+        -11.727139472961426,
+        -2.340268611907959
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 99384,
+      "componentType": 5126,
+      "count": 3930,
+      "max": [
+        0.999970018863678,
+        0.99729984998703,
+        0.9999903440475464
+      ],
+      "min": [
+        -0.9996698498725891,
+        -0.9799274206161499,
+        -0.9999374151229858
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 17408,
+      "componentType": 5126,
+      "count": 3930,
+      "max": [
+        0.9909170269966125,
+        0.9844310283660889
+      ],
+      "min": [
+        0.006785000208765268,
+        0.012543976306915283
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 51276,
+      "componentType": 5125,
+      "count": 20778,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 146544,
+      "componentType": 5126,
+      "count": 4650,
+      "max": [
+        2.3575491905212402,
+        -9.586800575256348,
+        1.921263337135315
+      ],
+      "min": [
+        -2.29121994972229,
+        -15.35029125213623,
+        -1.961418628692627
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 202344,
+      "componentType": 5126,
+      "count": 4650,
+      "max": [
+        0.9994928240776062,
+        0.9754318594932556,
+        0.9997276067733765
+      ],
+      "min": [
+        -0.9995762705802917,
+        -0.9998680949211121,
+        -0.9999038577079773
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 48848,
+      "componentType": 5126,
+      "count": 4650,
+      "max": [
+        0.9882150292396545,
+        0.9885429739952087
+      ],
+      "min": [
+        0.03813600167632103,
+        0.13036799430847168
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 134388,
+      "componentType": 5125,
+      "count": 26754,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 258144,
+      "componentType": 5126,
+      "count": 8187,
+      "max": [
+        1.056878924369812,
+        -12.214977264404297,
+        0.8171919584274292
+      ],
+      "min": [
+        -1.1232330799102783,
+        -14.97061824798584,
+        -1.8457053899765015
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 356388,
+      "componentType": 5126,
+      "count": 8187,
+      "max": [
+        0.9999938607215881,
+        0.999999463558197,
+        0.999911904335022
+      ],
+      "min": [
+        -0.9999938607215881,
+        -0.999755322933197,
+        -0.9999948740005493
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 86048,
+      "componentType": 5126,
+      "count": 8187,
+      "max": [
+        0.9927379488945007,
+        0.5593670010566711
+      ],
+      "min": [
+        0.007261999417096376,
+        0.018092989921569824
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 241404,
+      "componentType": 5125,
+      "count": 48048,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 454632,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        0.6046717166900635,
+        -13.429598808288574,
+        -0.9729004502296448
+      ],
+      "min": [
+        0.17694157361984253,
+        -13.858037948608398,
+        -1.412529706954956
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 458208,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        0.9998548030853271,
+        0.9990170001983643,
+        0.9984089732170105
+      ],
+      "min": [
+        -0.9999921917915344,
+        -0.9989436268806458,
+        -0.9947457313537598
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 151544,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        4.988100051879883,
+        1.0
+      ],
+      "min": [
+        4.009099960327148,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 433596,
+      "componentType": 5125,
+      "count": 1776,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 461784,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        -0.23320245742797852,
+        -13.429643630981445,
+        -0.9744783043861389
+      ],
+      "min": [
+        -0.6609326004981995,
+        -13.85808277130127,
+        -1.413263201713562
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 465360,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        0.9999922513961792,
+        0.9990156888961792,
+        0.9967483282089233
+      ],
+      "min": [
+        -0.9998435974121094,
+        -0.998943030834198,
+        -0.9942042231559753
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 153928,
+      "componentType": 5126,
+      "count": 298,
+      "max": [
+        4.988100051879883,
+        1.0
+      ],
+      "min": [
+        4.009099960327148,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 440700,
+      "componentType": 5125,
+      "count": 1776,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 468936,
+      "componentType": 5126,
+      "count": 6423,
+      "max": [
+        7.186014175415039,
+        -4.637778282165527,
+        -1.0413546562194824
+      ],
+      "min": [
+        -7.064428806304932,
+        -6.742940902709961,
+        -3.925957202911377
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 546012,
+      "componentType": 5126,
+      "count": 6423,
+      "max": [
+        0.9991949796676636,
+        0.9990262389183044,
+        0.8847503662109375
+      ],
+      "min": [
+        -0.9995169639587402,
+        -0.9997138381004333,
+        -0.9993369579315186
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 156312,
+      "componentType": 5126,
+      "count": 6423,
+      "max": [
+        2.9905710220336914,
+        0.978835940361023
+      ],
+      "min": [
+        2.0094289779663086,
+        0.6532859206199646
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 447804,
+      "componentType": 5125,
+      "count": 35028,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "Abdullah5007 (https://sketchfab.com/Abdullah5007)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/women-in-hijab-f64bee7d870e46c7b4a4df96f5100f56",
+      "title": "women in hijab"
+    },
+    "generator": "Sketchfab-16.64.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 587916,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 207696,
+      "byteOffset": 587916,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 623088,
+      "byteOffset": 795612,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1418700,
+      "uri": "scene.bin"
+    }
+  ],
+  "images": [
+    {
+      "uri": "textures/Maraleg2.002_baseColor.jpeg"
+    },
+    {
+      "uri": "textures/Material.002_baseColor.jpeg"
+    },
+    {
+      "uri": "textures/Maraface2.002_baseColor.jpeg"
+    },
+    {
+      "uri": "textures/Maraeye2.002_baseColor.jpeg"
+    },
+    {
+      "uri": "textures/Maraarm2.002_baseColor.jpeg"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Maraleg2.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9479723661411964
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "hijab_C_low1blin.002",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.8,
+          0.8,
+          0.8,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.8591534172458057
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Material.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.8211145618000169
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Maraface2.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9479723661411964
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Maraeye2.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9479723661411964
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Maraeye2_0.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9479723661411964
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Maraarm2.002",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9479723661411964
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Maraleg2.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_hijab_C_low1blin.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Material.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Maraface2.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 13,
+            "POSITION": 12,
+            "TEXCOORD_0": 14
+          },
+          "indices": 15,
+          "material": 3,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Maraeye2.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 17,
+            "POSITION": 16,
+            "TEXCOORD_0": 18
+          },
+          "indices": 19,
+          "material": 4,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Maraeye2_0.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 21,
+            "POSITION": 20,
+            "TEXCOORD_0": 22
+          },
+          "indices": 23,
+          "material": 5,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "Female Legs 3d Model Good Topology.002_Maraarm2.002_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 25,
+            "POSITION": 24,
+            "TEXCOORD_0": 26
+          },
+          "indices": 27,
+          "material": 6,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        2.220446049250313e-16,
+        -1.0,
+        0.0,
+        0.0,
+        1.0,
+        2.220446049250313e-16,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.009999999776482582,
+        0.0,
+        0.0,
+        -0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "cdc1481dd7c7426486db7fc4b720e826.fbx"
+    },
+    {
+      "children": [
+        3
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "matrix": [
+        36.0828742980957,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -36.08287429809298,
+        1.4051190026391673e-05,
+        0.0,
+        0.0,
+        -1.4051190026391673e-05,
+        -36.08287429809298,
+        0.0,
+        1538.407958984375,
+        325.3717041015625,
+        0.0,
+        1.0
+      ],
+      "name": "Female Legs 3d Model Good Topology.002"
+    },
+    {
+      "mesh": 0,
+      "name": "Female Legs 3d Model Good Topology.002_Maraleg2.002_0"
+    },
+    {
+      "mesh": 1,
+      "name": "Female Legs 3d Model Good Topology.002_hijab_C_low1blin.002_0"
+    },
+    {
+      "mesh": 2,
+      "name": "Female Legs 3d Model Good Topology.002_Material.002_0"
+    },
+    {
+      "mesh": 3,
+      "name": "Female Legs 3d Model Good Topology.002_Maraface2.002_0"
+    },
+    {
+      "mesh": 4,
+      "name": "Female Legs 3d Model Good Topology.002_Maraeye2.002_0"
+    },
+    {
+      "mesh": 5,
+      "name": "Female Legs 3d Model Good Topology.002_Maraeye2_0.002_0"
+    },
+    {
+      "mesh": 6,
+      "name": "Female Legs 3d Model Good Topology.002_Maraarm2.002_0"
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 4
+    }
+  ]
+}

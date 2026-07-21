@@ -1,0 +1,11 @@
+Model Information:
+* title:	arab man
+* source:	https://sketchfab.com/3d-models/arab-man-4351f8dd5b894d2592aaf66df2b40870
+* author:	yossif (https://sketchfab.com/yossif)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "arab man" (https://sketchfab.com/3d-models/arab-man-4351f8dd5b894d2592aaf66df2b40870) by yossif (https://sketchfab.com/yossif) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

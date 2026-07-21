@@ -1,0 +1,11 @@
+Model Information:
+* title:	Barber shop
+* source:	https://sketchfab.com/3d-models/barber-shop-12fe15300eb14238bfc44bcd60816185
+* author:	burstblaster134 (https://sketchfab.com/burstblaster134)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Barber shop" (https://sketchfab.com/3d-models/barber-shop-12fe15300eb14238bfc44bcd60816185) by burstblaster134 (https://sketchfab.com/burstblaster134) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

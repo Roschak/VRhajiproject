@@ -1,0 +1,11 @@
+Model Information:
+* title:	Middle Eastern Hajj
+* source:	https://sketchfab.com/3d-models/middle-eastern-hajj-be478aca634c48e3a4ce11741720a345
+* author:	trisutrisno (https://sketchfab.com/trisutrisno)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Middle Eastern Hajj" (https://sketchfab.com/3d-models/middle-eastern-hajj-be478aca634c48e3a4ce11741720a345) by trisutrisno (https://sketchfab.com/trisutrisno) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
