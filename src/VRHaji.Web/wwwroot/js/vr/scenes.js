@@ -37,8 +37,9 @@ async function tawafMechanic(engine, { namaTawaf = 'Tawaf', duas = [] }) {
     let lap = 0, accum = 0;
     let prev = Math.atan2(engine.camera.position.z, engine.camera.position.x);
     engine.setCounter(`🕋 Putaran<br>0 / 7`);
-    await new Promise(resolve => {
-        engine.onUpdate((dt, t, self) => {
+    let lapUpdater = null;
+    const laps = new Promise(resolve => {
+        lapUpdater = engine.onUpdate((dt, t, self) => {
             const p = engine.camera.position;
             const a = Math.atan2(p.z, p.x);
             let d = a - prev;
@@ -57,6 +58,11 @@ async function tawafMechanic(engine, { namaTawaf = 'Tawaf', duas = [] }) {
                 if (lap >= 7) { self.done = true; resolve(); }
             }
         });
+    });
+    await engine.skippable(laps, () => {
+        if (lapUpdater) lapUpdater.done = true;
+        engine.setCounter('');
+        engine.setHint('');
     });
     engine.setCounter('');
     engine.setHint('');
@@ -77,8 +83,9 @@ async function saiMechanic(engine, refs, { namaSai = "Sa'i" } = {}) {
     let target = 'marwah';
     engine.setCounter(`🏃 Perjalanan<br>0 / 7`);
     engine.showWaypoint(refs.marwahX - 4, 0);
-    await new Promise(resolve => {
-        engine.onUpdate((dt, t, self) => {
+    let tripUpdater = null;
+    const trip7 = new Promise(resolve => {
+        tripUpdater = engine.onUpdate((dt, t, self) => {
             const x = engine.camera.position.x;
             engine.setHint(Math.abs(x) < 15 ? '💚 Area lampu hijau — laki-laki disunnahkan berlari-lari kecil' : '');
             if (trips >= 7) {
@@ -110,7 +117,13 @@ async function saiMechanic(engine, refs, { namaSai = "Sa'i" } = {}) {
             }
         });
     });
-    
+    await engine.skippable(trip7, () => {
+        if (tripUpdater) tripUpdater.done = true;
+        engine.hideWaypoint();
+        engine.setCounter('');
+        engine.setHint('');
+    });
+
     engine.setCounter('');
     engine.setHint('');
     engine.audio.sfx('success');
@@ -134,7 +147,7 @@ async function throwStones(engine, pillarGroup, { need = 7, nama = 'Jumrah Aqaba
     const pPos = pillarGroup.getWorldPosition(new THREE.Vector3());
     engine.showWaypoint(pPos.x, pPos.z, 0xd95757); // Warna merah/orange penanda Jumrah
     
-    await new Promise(resolve => {
+    const allThrown = new Promise(resolve => {
         engine.addInteractable(pillarGroup, {
             label: `Lontar batu — "Bismillahi Allahu Akbar"`,
             once: false, radius: 30,
@@ -172,6 +185,11 @@ async function throwStones(engine, pillarGroup, { need = 7, nama = 'Jumrah Aqaba
             }
         });
     });
+    await engine.skippable(allThrown, () => {
+        engine.removeInteractable(pillarGroup);
+        engine.hideWaypoint();
+        engine.setCounter('');
+    });
     engine.setCounter('');
     engine.audio.sfx('success');
     await engine.narrate(`Alhamdulillah, ${need} lontaran ke ${nama} telah sempurna.`,
@@ -204,7 +222,7 @@ async function throwStonesTriple(engine, jamarat, { need = 7 } = {}) {
         engine.scene.add(beacon);
         beacons[d.key] = beacon;
     }
-    await new Promise(resolve => {
+    const allTripleThrown = new Promise(resolve => {
         for (const d of defs) {
             engine.addInteractable(jamarat[d.key], {
                 label: `Lontar batu — ${d.nama}`, once: false, radius: 30,
@@ -238,6 +256,13 @@ async function throwStonesTriple(engine, jamarat, { need = 7 } = {}) {
                 }
             });
         }
+    });
+    await engine.skippable(allTripleThrown, () => {
+        for (const d of defs) {
+            engine.removeInteractable(jamarat[d.key]);
+            if (beacons[d.key]) engine.scene.remove(beacons[d.key]);
+        }
+        engine.setCounter('');
     });
     engine.setCounter(''); engine.setObjective(''); engine.setHint('');
     engine.audio.sfx('success');
@@ -338,7 +363,7 @@ const scene01 = {
 const scene02 = {
     env: 'goldenHour', ambient: 'airport',
     build(engine) {
-        const refs = B.airport(engine, { nameSign: 'مطار الأمير محمد بن عبدالعزيز — MADINAH', arabic: true });
+        const refs = B.airport(engine, { nameSign: 'مطار الأمير محمد بن عبدالعزيز — MADINAH', arabic: true, madinah: true });
         refs.nabawiOrigin = { x: 0, z: 600 };
         // Masjid Nabawi dibangun di "dunia" terpisah — dibangun saat transisi
         new Crowd(engine.scene, { count: 20, mode: 'wander', area: { x: 4, z: -1, w: 50, d: 12 }, colors: CASUAL });
@@ -710,7 +735,7 @@ const scene07 = {
         engine.setObjective('Kumpulkan 7 batu kerikil untuk melontar Jumrah Aqabah besok pagi');
         engine.setCounter('🪨 Batu<br>0 / 7');
         let stones = 0;
-        await new Promise(resolve => {
+        const allCollected = new Promise(resolve => {
             for (const cluster of engine._sceneRefs.clusters) {
                 engine.addInteractable(cluster, {
                     label: 'Ambil batu kerikil', once: true, radius: 4,
@@ -738,6 +763,10 @@ const scene07 = {
                     }
                 });
             }
+        });
+        await engine.skippable(allCollected, () => {
+            for (const c of engine._sceneRefs.clusters) engine.removeInteractable(c);
+            engine.setCounter('');
         });
         engine.setCounter('');
         engine.audio.sfx('success');

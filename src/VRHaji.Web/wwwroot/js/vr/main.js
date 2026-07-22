@@ -9,6 +9,13 @@ let engine = null;
 let sceneDef = null;
 let started = false;
 
+/** Lepas tombol-tombol skip (skip scene & lewati langkah) dari DOM. */
+function removeSkipButtons() {
+    for (const id of ['vr-skip-scene-btn', 'vr-skip-step-btn']) {
+        document.getElementById(id)?.remove();
+    }
+}
+
 /** Muat scene (tanpa memulai alur) agar 3D siap saat intro tampil. */
 export function preload(containerId, sceneNo, dotnetRef) {
     try {
@@ -45,8 +52,7 @@ export async function start() {
             return Promise.resolve();
         },
         async complete() {
-            const skipSceneBtn = document.getElementById('vr-skip-scene-btn');
-            if (skipSceneBtn) skipSceneBtn.remove();
+            removeSkipButtons();
             engine.narrator.stop();
             engine.setObjective('');
             await engine.dotnet.invokeMethodAsync('OnSceneCompleted');
@@ -72,6 +78,20 @@ export async function start() {
         };
         document.getElementById('vr-root').appendChild(skipSceneBtn);
 
+        // Lewati hanya langkah yang sedang ditunggu (narasi / berjalan / interaksi /
+        // mekanik tawaf-sa'i-lontar batu). Sisa scene tetap berjalan normal.
+        const skipStepBtn = document.createElement('button');
+        skipStepBtn.id = 'vr-skip-step-btn';
+        skipStepBtn.className = 'btn btn--ghost btn--small vr-skip-btn';
+        skipStepBtn.innerHTML = `⏩ Lewati Langkah`;
+        skipStepBtn.title = 'Selesaikan langkah yang sedang berjalan dan lanjut ke langkah berikutnya';
+        skipStepBtn.onclick = () => {
+            if (!engine) return;
+            engine.audio.sfx('click');
+            engine.skipStep();
+        };
+        document.getElementById('vr-root').appendChild(skipStepBtn);
+
         await sceneDef.run(engine, ctx);
     } catch (e) {
         if (engine) console.error('Scene runner error:', e);
@@ -84,8 +104,7 @@ export function setUiOpen(open) {
 }
 
 export function dispose() {
-    const skipSceneBtn = document.getElementById('vr-skip-scene-btn');
-    if (skipSceneBtn) skipSceneBtn.remove();
+    removeSkipButtons();
     if (engine) {
         try { engine.dispose(); } catch { }
         engine = null;

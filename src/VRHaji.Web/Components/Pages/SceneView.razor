@@ -21,10 +21,14 @@
             <div class="hud__progress"><div id="vr-progressbar"></div></div>
             <div class="hud__top-right">
                 <div id="vr-compass" class="hud__compass"><div id="vr-compass-dial">U</div></div>
+                @* Tombol WebXR: engine JS yang memasang handler-nya (requestSession
+                   wajib di sisi client). Disembunyikan sampai isSessionSupported true. *@
+                <button id="btn-enter-vr" class="btn btn--gold btn--small vr-enter-btn" hidden disabled>🥽 Masuk VR</button>
                 <button class="btn btn--ghost btn--small" @onclick="ToggleEdukasi">📖 Materi</button>
                 <a class="btn btn--ghost btn--small" href="/">✕ Menu</a>
             </div>
         </div>
+        <div id="vr-fallback-message" class="hud__vr-fallback" hidden></div>
         <div id="vr-objective" class="hud__objective"></div>
         <div id="vr-crosshair" class="hud__crosshair">+</div>
         <div id="vr-interact-label" class="hud__interact-label"></div>
@@ -32,6 +36,10 @@
         <div id="vr-hint" class="hud__hint"></div>
         <canvas id="vr-minimap" class="hud__minimap" width="200" height="200"></canvas>
         <div id="vr-counter" class="hud__counter"></div>
+        @if (_vrActive)
+        {
+            <div class="hud__vr-badge">🥽 Mode VR aktif — layar ini hanya cermin dari headset</div>
+        }
     </div>
 
     @if (_showIntro)
@@ -143,6 +151,7 @@
     private bool _loading = true;
     private bool _showEdukasi;
     private bool _showComplete;
+    private bool _vrActive;
     private string? _notification;
     private string _notificationType = "info";
     private string _activeTab = "Penjelasan";
@@ -210,6 +219,22 @@
     {
         Notify(message, type);
     }
+
+    /// <summary>Sesi WebXR dimulai di sisi client — state Blazor menyusul (§5 panduan VR).</summary>
+    [JSInvokable]
+    public Task OnVRSessionStarted() => InvokeAsync(() =>
+    {
+        _vrActive = true;
+        Notify("Mode VR aktif. Gunakan thumbstick untuk berjalan, trigger untuk berinteraksi.", "success");
+    });
+
+    /// <summary>Sesi WebXR berakhir (user keluar / headset dilepas).</summary>
+    [JSInvokable]
+    public Task OnVRSessionEnded() => InvokeAsync(() =>
+    {
+        _vrActive = false;
+        Notify("Mode VR selesai. Kembali ke tampilan layar.", "info");
+    });
 
     /// <summary>Dipanggil engine JS saat seluruh alur scene selesai.</summary>
     [JSInvokable]

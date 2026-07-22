@@ -35,6 +35,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAntiforgery();
 
+// Fallback: sajikan file wwwroot yang belum masuk manifest MapStaticAssets
+// (asset baru yang ditambahkan tanpa rebuild — mis. model glTF).
+app.UseStaticFiles();
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

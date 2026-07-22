@@ -4,6 +4,7 @@
  * agar tanpa dependensi asset eksternal namun tetap berkualitas tinggi.
  */
 import { THREE, Tex } from './engine.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const DEG = Math.PI / 180;
 
@@ -17,7 +18,31 @@ function mesh(geo, mat, x = 0, y = 0, z = 0, { cast = true, receive = true, ry =
 }
 
 
-export function palmTree(mats, scale = 1) {
+/* Loader glTF generik: tiap URL di-load sekali (di-cache) lalu di-clone per
+ * pemakaian. Prototype dinormalisasi — dasar di y=0, terpusat di sumbu XZ —
+ * dengan ukuran asli tersimpan di userData.size. */
+const _gltfCache = {};
+function loadGltf(url) {
+    if (!_gltfCache[url]) {
+        _gltfCache[url] = new GLTFLoader().loadAsync(url).then(gltf => {
+            const s = gltf.scene;
+            s.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+            const box = new THREE.Box3().setFromObject(s);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            s.position.x -= center.x;
+            s.position.z -= center.z;
+            s.position.y -= box.min.y;
+            const wrap = new THREE.Group();
+            wrap.add(s);
+            wrap.userData.size = size;
+            return wrap;
+        });
+    }
+    return _gltfCache[url];
+}
+
+function _proceduralPalm(mats, scale) {
     const g = new THREE.Group();
     const trunk = mesh(new THREE.CylinderGeometry(0.12 * scale, 0.2 * scale, 4 * scale, 7), mats.wood, 0, 2 * scale, 0);
     g.add(trunk);
@@ -29,6 +54,21 @@ export function palmTree(mats, scale = 1) {
         frond.geometry.translate(0, 1.1 * scale, 0);
         g.add(frond);
     }
+    return g;
+}
+
+export function palmTree(mats, scale = 1) {
+    const g = new THREE.Group();
+    loadGltf('/assets/date_palm/scene.gltf').then(proto => {
+        const c = proto.clone(true);
+        // samakan tinggi dengan versi prosedural (~6.4 m pada scale 1)
+        c.scale.setScalar(6.4 * scale / proto.userData.size.y);
+        c.rotation.y = Math.random() * Math.PI * 2; // variasi arah pelepah
+        g.add(c);
+    }).catch(err => {
+        console.warn('Gagal memuat model pohon kurma, memakai versi prosedural:', err);
+        g.add(_proceduralPalm(mats, scale));
+    });
     return g;
 }
 
@@ -100,7 +140,55 @@ export function arcade(mats, { count, spacing = 6, height = 9, depth = 2.5 }) {
 
 export function kaaba(mats) {
     // Skala nyata (§6): tinggi 13.1 m; sisi 12.86 m (sumbu X, sisi Hajar Aswad & pintu)
-    // dan 11.03 m (sumbu Z). Detail emas (hizam, kaligrafi, qanadil, pintu) sesuai foto Ka'bah.
+    // dan 11.03 m (sumbu Z). Visual memakai model glTF (wwwroot/assets/kaaba);
+    // bila gagal dimuat, jatuh kembali ke versi prosedural lama.
+    const W = 12.86, D = 11.03, H = 13.1;
+    const hw = W / 2, hd = D / 2;
+    const g = new THREE.Group();
+    loadGltf('/assets/kaaba/scene.gltf').then(proto => {
+        // Efek "lampu sorot" seperti aslinya: material dicerahkan dan diberi
+        // pendar lembut mengikuti teksturnya agar hizam & kaligrafi emas
+        // tetap terbaca di scene malam (tawaf).
+        proto.traverse(o => {
+            if (o.isMesh && o.material) {
+                o.material.envMapIntensity = 1.4;
+                if (o.material.map) {
+                    // Hizam, kaligrafi, pintu: berpendar mengikuti teksturnya
+                    o.material.emissiveMap = o.material.map;
+                    o.material.emissive = new THREE.Color(0xffffff);
+                    o.material.emissiveIntensity = 0.4;
+                } else if (o.material.color.r + o.material.color.g + o.material.color.b < 0.25) {
+                    // Kain kiswah hitam pekat → arang gelap + pendar tipis agar
+                    // tetap tampak hitam namun terbaca di scene malam
+                    o.material.color.setHex(0x26262c);
+                    o.material.emissive = new THREE.Color(0x0b0b10);
+                    o.material.emissiveIntensity = 1;
+                }
+                o.material.needsUpdate = true;
+            }
+        });
+        const c = proto.clone(true);
+        c.scale.setScalar(H / proto.userData.size.y);
+        g.add(c);
+    }).catch(err => {
+        console.warn("Gagal memuat model Ka'bah, memakai versi prosedural:", err);
+        g.add(_proceduralKaaba(mats));
+    });
+
+    // Hajar Aswad — sudut timur (frame perak), ± 1.5 m — tetap prosedural
+    // karena jadi penanda arah/interaksi tawaf di scene.
+    const hajar = new THREE.Group();
+    hajar.add(mesh(new THREE.TorusGeometry(0.45, 0.14, 10, 20), mats.steel, 0, 0, 0, { cast: false }));
+    hajar.add(mesh(new THREE.SphereGeometry(0.26, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.3 }), 0, 0, 0, { cast: false }));
+    hajar.position.set(hw - 0.1, 1.5, hd - 0.1);
+    g.add(hajar);
+    g.userData.hajarAswad = hajar;
+    g.userData.footprint = { hw, hd };
+    return g;
+}
+
+function _proceduralKaaba(mats) {
     const W = 12.86, D = 11.03, H = 13.1;
     const hw = W / 2, hd = D / 2;
     const g = new THREE.Group();
@@ -175,14 +263,6 @@ export function kaaba(mats) {
     const rFace = buildFace(hd, false); rFace.position.set(hw, 0, 0);  rFace.rotation.y =  Math.PI / 2; g.add(rFace);
     const lFace = buildFace(hd, false); lFace.position.set(-hw, 0, 0); lFace.rotation.y = -Math.PI / 2; g.add(lFace);
 
-    // Hajar Aswad — sudut timur (frame perak), ± 1.5 m di atas lantai
-    const hajar = new THREE.Group();
-    hajar.add(mesh(new THREE.TorusGeometry(0.45, 0.14, 10, 20), mats.steel, 0, 0, 0, { cast: false }));
-    hajar.add(mesh(new THREE.SphereGeometry(0.26, 12, 10),
-        new THREE.MeshStandardMaterial({ color: 0x0c0c10, roughness: 0.3 }), 0, 0, 0, { cast: false }));
-    hajar.position.set(hw - 0.1, 1.5, hd - 0.1);
-    g.add(hajar);
-    g.userData.hajarAswad = hajar;
     // Talang emas (mizab) di puncak dinding barat laut
     g.add(mesh(new THREE.BoxGeometry(0.6, 0.3, 2.4), goldEmb, 0, H + 0.2, -hd - 0.6, { cast: false }));
     // Hijr Ismail — dinding setengah lingkaran (Hatim) di sisi barat laut
@@ -191,7 +271,6 @@ export function kaaba(mats) {
     g.add(hijr);
     // Shadharwan (alas marmer miring) sedikit lebih lebar dari denah Ka'bah
     g.add(mesh(new THREE.BoxGeometry(W + 1.0, 0.5, D + 1.0), mats.marble, 0, 0.25, 0));
-    g.userData.footprint = { hw, hd };
     return g;
 }
 
@@ -287,6 +366,10 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
 
     const kb = kaaba(mats);
     scene.add(kb);
+    // Lampu sorot Ka'bah — menerangi kiswah agar tidak pekat di scene malam
+    for (const [lx, lz] of [[-16, -16], [-16, 16], [16, -16], [16, 16]]) {
+        engine.addPointLamp(lx, 9, lz, { color: 0xfff2d8, intensity: 60, distance: 50 });
+    }
 
     // Garis coklat mulai tawaf — dari sudut Hajar Aswad ke arah luar
     const line = mesh(new THREE.BoxGeometry(0.5, 0.02, 34),
@@ -735,7 +818,7 @@ export function masaa(engine) {
 }
 
 
-export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINAL 2U', arabic = false } = {}) {
+export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINAL 2U', arabic = false, madinah = false } = {}) {
     const { scene, mats } = engine;
     engine.ground(500, mats.tarmac, -0.02);
 
@@ -747,6 +830,10 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     scene.add(floor);
 
     const H = 12;
+    // Struktur Madinah serba putih (kolom pohon + kisi atap); bandara generik memakai baja
+    const structMat = madinah
+        ? new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.45, metalness: 0.2 })
+        : mats.steel;
     // Dinding kaca keliling
     for (const [w, d, x, z, ry] of [
         [90, 0.4, 0, -30, 0], [90, 0.4, 0, 30, 0], [0.4, 60, -45, 0, 0], [0.4, 60, 45, 0, 0]
@@ -757,7 +844,7 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     // Mullion (rangka vertikal) dinding kaca
     const mullGeo = new THREE.BoxGeometry(0.16, H, 0.16);
     const nMullX = 19, nMullZ = 13;
-    const mulls = new THREE.InstancedMesh(mullGeo, mats.steel, nMullX * 2 + nMullZ * 2);
+    const mulls = new THREE.InstancedMesh(mullGeo, structMat, nMullX * 2 + nMullZ * 2);
     const m4 = new THREE.Matrix4();
     const q4 = new THREE.Quaternion();
     const ONE = new THREE.Vector3(1, 1, 1);
@@ -781,34 +868,119 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     scene.add(mulls);
 
     // Kolom & plafon
-    const colGeo = new THREE.CylinderGeometry(0.55, 0.55, H, 12);
-    const cols = new THREE.InstancedMesh(colGeo, mats.steel, 10);
-    let ci = 0;
-    for (const cx of [-30, -10, 10, 30]) {
-        for (const cz of [-15, 15]) {
-            if (ci < 10) { m4.makeTranslation(cx, H / 2, cz); cols.setMatrixAt(ci++, m4); }
+    if (madinah) {
+        /* Kolom "pohon" putih khas Terminal Madinah: batang kluster 4 pipa,
+         * mahkota kipas lengkung dua tingkat (rusuk utama + rusuk tipis di sela
+         * + tingkat dalam dari puncak menara kecil) yang merekah ke plafon. */
+        const colXs = [-30, -10, 10, 30], colZs = [-15, 15];
+        const nCol = colXs.length * colZs.length;
+        const R1 = 6, R2 = 4.5, yTop = H - R1;
+        const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.26, yTop - 0.5, 10), structMat, nCol * 4);
+        const cores = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.4, 0.5, yTop, 12), structMat, nCol);
+        const caps = new THREE.InstancedMesh(new THREE.BoxGeometry(1.25, 0.6, 1.25), structMat, nCol);
+        const bases = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 0.5, 1.5), structMat, nCol);
+        const spires = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.14, 0.3, R1 - R2, 10), structMat, nCol);
+        const mains = new THREE.InstancedMesh(new THREE.TorusGeometry(R1, 0.13, 8, 18, Math.PI / 2), structMat, nCol * 8);
+        const thins = new THREE.InstancedMesh(new THREE.TorusGeometry(R1, 0.055, 6, 16, Math.PI / 2), structMat, nCol * 8);
+        const mids = new THREE.InstancedMesh(new THREE.TorusGeometry(R2, 0.065, 6, 14, Math.PI / 2), structMat, nCol * 8);
+        let ti = 0, coI = 0, arcI = 0;
+        for (const cx of colXs) {
+            for (const cz of colZs) {
+                setInst(cores, coI, cx, yTop / 2, cz);
+                setInst(caps, coI, cx, yTop - 0.15, cz);
+                setInst(bases, coI, cx, 0.25, cz);
+                setInst(spires, coI, cx, yTop + (R1 - R2) / 2, cz);
+                coI++;
+                for (const [ox, oz] of [[-0.3, -0.3], [-0.3, 0.3], [0.3, -0.3], [0.3, 0.3]]) {
+                    setInst(trunks, ti++, cx + ox, (yTop - 0.5) / 2, cz + oz);
+                }
+                for (let k = 0; k < 8; k++) {
+                    const th = k * Math.PI / 4, th2 = th + Math.PI / 8;
+                    // Lengkung: torus seperempat — ujung bawah menempel kolom, ujung atas rata plafon
+                    setInst(mains, arcI, cx - R1 * Math.cos(th), yTop, cz + R1 * Math.sin(th), th);
+                    setInst(thins, arcI, cx - R1 * Math.cos(th2), yTop, cz + R1 * Math.sin(th2), th2);
+                    setInst(mids, arcI, cx - R2 * Math.cos(th), H - R2, cz + R2 * Math.sin(th), th);
+                    arcI++;
+                }
+                engine.addBlocker(cx - 0.8, cz - 0.8, cx + 0.8, cz + 0.8);
+            }
         }
+        trunks.castShadow = cores.castShadow = mains.castShadow = true;
+        scene.add(trunks, cores, caps, bases, spires, mains, thins, mids);
+    } else {
+        const colGeo = new THREE.CylinderGeometry(0.55, 0.55, H, 12);
+        const cols = new THREE.InstancedMesh(colGeo, mats.steel, 10);
+        let ci = 0;
+        for (const cx of [-30, -10, 10, 30]) {
+            for (const cz of [-15, 15]) {
+                if (ci < 10) { m4.makeTranslation(cx, H / 2, cz); cols.setMatrixAt(ci++, m4); }
+            }
+        }
+        while (ci < 10) { m4.makeTranslation(0, -50, 0); cols.setMatrixAt(ci++, m4); }
+        cols.castShadow = true;
+        scene.add(cols);
     }
-    while (ci < 10) { m4.makeTranslation(0, -50, 0); cols.setMatrixAt(ci++, m4); }
-    cols.castShadow = true;
-    scene.add(cols);
     scene.add(mesh(new THREE.BoxGeometry(92, 0.8, 62), mats.white, 0, H + 0.4, 0, { cast: false }));
-    // Rangka atap (truss) melintang
-    const trussGeo = new THREE.BoxGeometry(0.28, 0.55, 59);
-    const trusses = new THREE.InstancedMesh(trussGeo, mats.steel, 9);
-    for (let i = 0; i < 9; i++) setInst(trusses, i, -40 + i * 10, H - 0.45, 0);
-    scene.add(trusses);
-    // Skylight strip emissive
-    for (let i = -3; i <= 3; i++) {
-        scene.add(mesh(new THREE.BoxGeometry(86, 0.1, 2.2), mats.emissiveCool, 0, H - 0.1, i * 8, { cast: false }));
+    if (madinah) {
+        // Plafon kisi (coffer) putih dua arah + downlight bulat, seperti atap terminal Madinah
+        const beamX = new THREE.InstancedMesh(new THREE.BoxGeometry(0.22, 0.5, 59), structMat, 17);
+        for (let i = 0; i < 17; i++) setInst(beamX, i, -40 + i * 5, H - 0.35, 0);
+        const beamZ = new THREE.InstancedMesh(new THREE.BoxGeometry(86, 0.5, 0.22), structMat, 11);
+        for (let i = 0; i < 11; i++) setInst(beamZ, i, 0, H - 0.35, -25 + i * 5);
+        scene.add(beamX, beamZ);
+        const lamps = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.3, 0.3, 0.08, 10), mats.emissiveCool, 60);
+        let li = 0;
+        for (let ix = 0; ix < 10; ix++) {
+            for (let iz = 0; iz < 6; iz++) setInst(lamps, li++, -38 + ix * 8.5, H - 0.14, -22.5 + iz * 9);
+        }
+        scene.add(lamps);
+        for (const lx of [-20, 20]) {
+            engine.addPointLamp(lx, H - 2, -10, { intensity: 60, distance: 40 });
+            engine.addPointLamp(lx, H - 2, 10, { intensity: 60, distance: 40 });
+        }
+    } else {
+        // Rangka atap (truss) melintang
+        const trussGeo = new THREE.BoxGeometry(0.28, 0.55, 59);
+        const trusses = new THREE.InstancedMesh(trussGeo, mats.steel, 9);
+        for (let i = 0; i < 9; i++) setInst(trusses, i, -40 + i * 10, H - 0.45, 0);
+        scene.add(trusses);
+        // Skylight strip emissive
+        for (let i = -3; i <= 3; i++) {
+            scene.add(mesh(new THREE.BoxGeometry(86, 0.1, 2.2), mats.emissiveCool, 0, H - 0.1, i * 8, { cast: false }));
+        }
     }
 
     // Papan nama besar
-    const signTex = Tex.sign(nameSign, { w: 2048, h: 160, bg: '#0d2b4d', font: 'bold 72px "Segoe UI", sans-serif' });
+    const signTex = Tex.sign(nameSign, { w: 2048, h: 160, bg: madinah ? '#12352a' : '#0d2b4d', font: 'bold 72px "Segoe UI", sans-serif' });
     const sign = mesh(new THREE.BoxGeometry(40, 3, 0.4),
         new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.8 }),
         0, 9, -29.5, { cast: false });
     scene.add(sign);
+
+    if (madinah) {
+        // Frisa motif geometris (lengkung runcing + lingkaran emas) di sepanjang dinding atas
+        const fc = document.createElement('canvas');
+        fc.width = 1024; fc.height = 64;
+        const fg2 = fc.getContext('2d');
+        fg2.fillStyle = '#efe9dc'; fg2.fillRect(0, 0, 1024, 64);
+        fg2.strokeStyle = '#b99a4f'; fg2.lineWidth = 3;
+        for (let x = 0; x < 1024; x += 64) {
+            fg2.beginPath();
+            fg2.moveTo(x, 56);
+            fg2.quadraticCurveTo(x + 8, 12, x + 32, 8);
+            fg2.quadraticCurveTo(x + 56, 12, x + 64, 56);
+            fg2.stroke();
+            fg2.beginPath(); fg2.arc(x + 32, 38, 9, 0, Math.PI * 2); fg2.stroke();
+        }
+        const ft = new THREE.CanvasTexture(fc);
+        ft.wrapS = THREE.RepeatWrapping;
+        ft.repeat.set(12, 1);
+        ft.colorSpace = THREE.SRGBColorSpace;
+        const friezeMat = new THREE.MeshStandardMaterial({ map: ft, roughness: 0.7 });
+        for (const [fw, fx, fz, fry] of [[90, 0, -29.7, 0], [90, 0, 29.7, 0], [60, -44.7, 0, Math.PI / 2], [60, 44.7, 0, Math.PI / 2]]) {
+            scene.add(mesh(new THREE.BoxGeometry(fw, 0.9, 0.12), friezeMat, fx, H - 1.2, fz, { cast: false, ry: fry }));
+        }
+    }
 
     // Papan jadwal penerbangan (FIDS) menggantung di tengah hall
     const fidsTex = Tex.fids(arabic ? 'DEPARTURES — المغادرة' : 'KEBERANGKATAN — DEPARTURES');
@@ -844,18 +1016,34 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     const STAFF_BARISTA = 0x6b3f22; // barista kafe — cokelat
     const staffSpots = [];
 
-    // Counter check-in (4 buah)
+    // Counter check-in (4 buah) — gaya Madinah: meja gelap SAUDIA + totem layar biru "C6…C9"
     const counters = new THREE.Group();
+    const deskMat = madinah ? new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.6, metalness: 0.2 }) : mats.wood;
+    const totemScreenMat = madinah
+        ? new THREE.MeshStandardMaterial({ color: 0x9cc8ff, emissive: 0x2f8bff, emissiveIntensity: 1.5 })
+        : null;
     for (let i = 0; i < 4; i++) {
         const c = new THREE.Group();
-        c.add(mesh(new THREE.BoxGeometry(5, 1.15, 1.6), mats.wood, 0, 0.575, 0));
+        c.add(mesh(new THREE.BoxGeometry(5, 1.15, 1.6), deskMat, 0, 0.575, 0));
         c.add(mesh(new THREE.BoxGeometry(5, 0.08, 1.9), mats.steel, 0, 1.2, 0, { cast: false }));
-        const scrTex = Tex.sign(`CHECK-IN ${String.fromCharCode(65 + i)}`, { bg: '#123c1e', fg: '#7dffa5', w: 512, h: 96 });
-        c.add(mesh(new THREE.BoxGeometry(3.6, 0.9, 0.12),
-            new THREE.MeshStandardMaterial({ map: scrTex, emissive: 0xffffff, emissiveMap: scrTex, emissiveIntensity: 1.4 }),
-            0, 3.0, 0, { cast: false }));
-        c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, -1.6, 1.8, 0));
-        c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, 1.6, 1.8, 0));
+        if (madinah) {
+            const st = Tex.sign('السعودية — SAUDIA', { bg: '#f5f2e9', fg: '#1c5c34', w: 512, h: 96 });
+            c.add(mesh(new THREE.BoxGeometry(3.6, 0.7, 0.06),
+                new THREE.MeshStandardMaterial({ map: st, roughness: 0.6 }), 0, 0.62, 0.82, { cast: false }));
+            c.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.95, 8), mats.steel, 0, 1.66, 0, { cast: false }));
+            c.add(mesh(new THREE.BoxGeometry(0.85, 1.5, 0.1), totemScreenMat, 0, 2.85, 0, { cast: false }));
+            const ht = Tex.sign(`C${6 + i}`, { bg: '#0b0e13', fg: '#f2f5f9', w: 256, h: 128, font: 'bold 88px "Segoe UI", sans-serif' });
+            c.add(mesh(new THREE.BoxGeometry(0.95, 0.5, 0.12),
+                new THREE.MeshStandardMaterial({ map: ht, emissive: 0xffffff, emissiveMap: ht, emissiveIntensity: 0.9 }),
+                0, 3.85, 0, { cast: false }));
+        } else {
+            const scrTex = Tex.sign(`CHECK-IN ${String.fromCharCode(65 + i)}`, { bg: '#123c1e', fg: '#7dffa5', w: 512, h: 96 });
+            c.add(mesh(new THREE.BoxGeometry(3.6, 0.9, 0.12),
+                new THREE.MeshStandardMaterial({ map: scrTex, emissive: 0xffffff, emissiveMap: scrTex, emissiveIntensity: 1.4 }),
+                0, 3.0, 0, { cast: false }));
+            c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, -1.6, 1.8, 0));
+            c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, 1.6, 1.8, 0));
+        }
         // timbangan bagasi di samping counter
         c.add(mesh(new THREE.BoxGeometry(0.9, 0.32, 1.2), mats.darkGrey, 3.0, 0.16, 0.2));
         const cx = -24 + i * 8.5;
@@ -1170,17 +1358,6 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     plane.position.set(78, 6, 8);
     plane.rotation.y = 30 * DEG;
     scene.add(plane);
-
-    // Tanaman pot (palem + pot tanah liat)
-    const potMat = new THREE.MeshStandardMaterial({ color: 0x9a5b3c, roughness: 0.85 });
-    for (const [px2, pz2] of [[-40, -24], [-40, 24], [40, 24], [-20, 26], [20, 26], [-30, 14], [-36, -2], [33, -6]]) {
-        const pot = mesh(new THREE.CylinderGeometry(0.5, 0.64, 0.55, 12), potMat, px2, 0.275, pz2);
-        scene.add(pot);
-        const t = palmTree(mats, 0.55);
-        t.position.set(px2, 0.45, pz2);
-        scene.add(t);
-        engine.addBlocker(px2 - 0.65, pz2 - 0.65, px2 + 0.65, pz2 + 0.65);
-    }
 
     engine.addWalkRect(-42, -27, 42, 27);
     engine.addWalkRect(30, 10, 44, 26); // area gate

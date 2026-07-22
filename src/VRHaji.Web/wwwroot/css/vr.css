@@ -48,6 +48,13 @@ html, body {
 .btn--big { font-size: 1.1rem; padding: .9rem 2.2rem; }
 .btn--small { font-size: .8rem; padding: .35rem .9rem; }
 
+/* Tombol "Lewati Langkah" — tepat di bawah tombol Skip Scene (top: 70px). */
+.vr-skip-btn {
+    position: absolute; top: 118px; right: 20px;
+    z-index: 9999; pointer-events: auto;
+    backdrop-filter: blur(4px);
+}
+
 kbd {
     background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
     border-bottom-width: 3px; border-radius: 6px;
@@ -193,6 +200,31 @@ kbd {
     color: var(--c-gold-light); text-align: center; min-width: 120px;
 }
 .hud__counter:empty { display: none; }
+
+/* ---------- WebXR: tombol masuk VR & umpan balik ---------- */
+.vr-enter-btn[hidden] { display: none; }
+.vr-enter-btn { letter-spacing: .04em; }
+/* dipakai saat engine berjalan di luar Blazor (tanpa #btn-enter-vr di markup) */
+.vr-enter-btn--floating {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 45;
+    padding: .6rem 1.4rem; border: 0; border-radius: 999px; cursor: pointer;
+    font: 700 .9rem/1 "Segoe UI", sans-serif; color: #1b1503;
+    background: var(--c-gold, #c9a227); box-shadow: 0 4px 16px rgba(0,0,0,.45);
+    pointer-events: auto;
+}
+.hud__vr-fallback {
+    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+    max-width: min(680px, 90vw); text-align: center; pointer-events: none;
+    background: rgba(120,60,10,.9); border: 1px solid rgba(232,182,79,.55);
+    padding: .6rem 1.2rem; border-radius: 12px; font-size: .88rem; line-height: 1.45;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5); z-index: 45;
+}
+.hud__vr-fallback[hidden] { display: none; }
+.hud__vr-badge {
+    position: absolute; top: 72px; right: 20px;
+    background: rgba(14,107,79,.9); border: 1px solid rgba(46,204,113,.55);
+    padding: .4rem 1rem; border-radius: 999px; font-size: .82rem; font-weight: 600;
+}
 
 /* ---------- Overlay & kartu ---------- */
 .overlay {

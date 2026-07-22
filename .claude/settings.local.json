@@ -71,7 +71,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5199/scene/7)",
       "Bash(cp src/VRHaji.Web/wwwroot/js/vr/builders.js /tmp/b9.mjs)",
       "Bash(node --check /tmp/b9.mjs)",
-      "Bash(node cap_mosque2.mjs)"
+      "Bash(node cap_mosque2.mjs)",
+      "Bash(xargs wc -l)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "mcpmarket-me"
+  ]
 }

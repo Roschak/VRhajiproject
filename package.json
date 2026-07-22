@@ -1,0 +1,23 @@
+{
+  "name": "vrhajiproject",
+  "version": "1.0.0",
+  "description": "",
+  "main": "temp_engine.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Roschak/VRhajiproject.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Roschak/VRhajiproject/issues"
+  },
+  "homepage": "https://github.com/Roschak/VRhajiproject#readme",
+  "dependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}

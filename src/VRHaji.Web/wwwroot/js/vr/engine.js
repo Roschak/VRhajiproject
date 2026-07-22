@@ -1012,6 +1012,9 @@ const _eul = new THREE.Euler(0, 0, 0, 'YXZ');
 const _eulB = new THREE.Euler(0, 0, 0, 'YXZ');
 const _vec = new THREE.Vector3();
 const _prevPos = new THREE.Vector3();
+const _playerW = new THREE.Vector3();   // posisi pemain di dunia (desktop & VR)
+const _quatW = new THREE.Quaternion();
+const _matW = new THREE.Matrix4();
 
 export class Engine {
     constructor(container) {
@@ -1067,6 +1070,7 @@ export class Engine {
         this.keys = {};
         this.updaters = [];
         this.interactables = [];
+        this._skipHandlers = new Set();   // pembatal langkah yang sedang ditunggu
         this.walkRects = [];
         this.walkCircles = [];
         this.blockers = [];
@@ -1346,9 +1350,10 @@ export class Engine {
     _agentWalkable(agent, x, z) {
         if (!this._walkableStatic(x, z)) return false;
         
-        // Hindari pemain
-        const dx = x - this.camera.position.x;
-        const dz = z - this.camera.position.z;
+        // Hindari pemain (posisi dunia — di VR kamera berada di dalam dolly)
+        const pp = this.playerPos(_playerW);
+        const dx = x - pp.x;
+        const dz = z - pp.z;
         const rr = this.playerRadius + 0.35; 
         if (dx * dx + dz * dz < rr * rr) return false;
         
@@ -1401,62 +1406,66 @@ export class Engine {
         p.y = 1.7;
     }
 
+    /**
+     * Posisi pemain di dunia. Di desktop sama dengan camera.position (dolly
+     * identitas); di VR camera.position hanya offset kepala terhadap dolly,
+     * jadi seluruh logika gameplay (waypoint, jarak interaksi, minimap, jamaah)
+     * wajib lewat sini agar tetap benar di dalam headset.
+     */
+    playerPos(out = new THREE.Vector3()) {
+        return this.camera.getWorldPosition(out);
+    }
+
+    /** Arah hadap pemain di dunia (radian, sumbu Y). */
+    playerYaw() {
+        this.camera.getWorldQuaternion(_quatW);
+        _eulB.setFromQuaternion(_quatW, 'YXZ');
+        return _eulB.y;
+    }
+
     /* ============ WebXR / VR (§8) ============ */
 
-    /** Siapkan tombol "Enter VR", controller, dan handler sesi. Aman di non-VR. */
+    /**
+     * Siapkan tombol "Masuk VR", controller, dan handler sesi. Aman di non-VR.
+     * Tiga cabang wajib punya umpan balik UI (VR_WEBXR_BUTTON_GUIDE §2):
+     * tidak didukung → tombol disembunyikan + pesan; berhasil → sesi masuk render
+     * loop; gagal/ditolak → pesan fallback, tombol kembali bisa diklik.
+     */
     _initVR() {
-        this._vrButton = null;
         this._xrControllers = [];
-        // Tombol Enter VR (mandiri, tanpa addon eksternal)
-        const btn = document.createElement('button');
-        btn.className = 'vr-enter-btn';
-        btn.textContent = 'VR';
-        btn.style.cssText = [
-            'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
-            'z-index:45', 'padding:10px 22px', 'font:600 14px/1 "Segoe UI",sans-serif',
-            'letter-spacing:1px', 'color:#0d1a12', 'background:#e8c96a', 'border:0',
-            'border-radius:24px', 'cursor:pointer', 'box-shadow:0 4px 14px rgba(0,0,0,.4)'
-        ].join(';');
-        this.container.appendChild(btn);
+        this._vrSession = null;
+        // Tombol milik Blazor (#btn-enter-vr) bila ada; kalau tidak, buat sendiri
+        // supaya engine tetap bisa dipakai di halaman non-Blazor.
+        let btn = document.getElementById('btn-enter-vr');
+        this._vrButtonOwned = !btn;
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'btn-enter-vr';
+            btn.className = 'vr-enter-btn vr-enter-btn--floating';
+            this.container.appendChild(btn);
+        }
+        btn.textContent = '🥽 Masuk VR';
         this._vrButton = btn;
+        this._vrFallbackEl = document.getElementById('vr-fallback-message');
 
         const xr = navigator.xr;
         if (!xr || !xr.isSessionSupported) {
-            btn.textContent = 'VR TAK DIDUKUNG';
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.cursor = 'not-allowed';
+            this._hideVRButton('Browser ini tidak mendukung WebXR. Gunakan Meta Browser di Quest 2 (dan akses lewat HTTPS).');
             return;
         }
         xr.isSessionSupported('immersive-vr').then(supported => {
             if (!supported) {
-                btn.textContent = 'VR TAK TERSEDIA';
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
+                this._hideVRButton(window.isSecureContext
+                    ? 'Perangkat ini tidak mendukung sesi VR immersive. Buka dari headset (Meta Browser / Wolvic) untuk masuk VR.'
+                    : 'WebXR butuh HTTPS. Buka halaman ini lewat https:// atau localhost.');
                 return;
             }
-            btn.textContent = '🥽 ENTER VR';
-            let currentSession = null;
-            btn.onclick = async () => {
-                if (currentSession) { currentSession.end(); return; }
-                try {
-                    const session = await xr.requestSession('immersive-vr', {
-                        optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
-                    });
-                    currentSession = session;
-                    session.addEventListener('end', () => { currentSession = null; btn.textContent = '🥽 ENTER VR'; });
-                    btn.textContent = '⏹ EXIT VR';
-                    this.renderer.xr.setReferenceSpaceType('local-floor');
-                    await this.renderer.xr.setSession(session);
-                } catch (e) {
-                    console.error('Gagal memulai sesi VR:', e);
-                    btn.textContent = 'VR GAGAL';
-                }
-            };
-        }).catch(() => {
-            btn.textContent = 'VR TAK TERSEDIA';
-            btn.disabled = true;
+            btn.hidden = false;
+            btn.disabled = false;
+            btn.onclick = () => this.enterVR();
+        }).catch(err => {
+            console.error('isSessionSupported gagal:', err);
+            this._hideVRButton('Dukungan VR tidak dapat diperiksa pada browser ini.');
         });
 
         // Controller Quest 2 (kiri & kanan) + sinar penunjuk, dipasang di dolly.
@@ -1482,6 +1491,69 @@ export class Engine {
         this.renderer.xr.addEventListener('sessionend', () => this._onXREnd());
     }
 
+    /** Sembunyikan tombol VR sejak awal bila tak didukung (§3.3) + jelaskan alasannya. */
+    _hideVRButton(msg) {
+        if (this._vrButton) {
+            this._vrButton.hidden = true;
+            this._vrButton.disabled = true;
+            this._vrButton.onclick = null;
+        }
+        this._vrMessage(msg, 7000);
+    }
+
+    /** Umpan balik fallback — bukan sekadar console.error (§2, checklist §6). */
+    _vrMessage(msg, autoHideMs = 0) {
+        const el = this._vrFallbackEl;
+        if (!el) { console.warn('[VR]', msg); return; }
+        el.textContent = msg;
+        el.hidden = false;
+        clearTimeout(this._vrMsgTimer);
+        if (autoHideMs > 0) {
+            this._vrMsgTimer = setTimeout(() => { el.hidden = true; el.textContent = ''; }, autoHideMs);
+        }
+    }
+
+    /**
+     * Minta sesi immersive-vr lalu serahkan ke renderer.xr (render loop sudah
+     * memakai setAnimationLoop sejak konstruktor). Dipanggil dari klik tombol —
+     * requestSession wajib dalam user gesture.
+     */
+    async enterVR() {
+        if (this._vrSession) { this.exitVR(); return; }
+        const btn = this._vrButton;
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Menyiapkan…'; }
+        try {
+            const session = await navigator.xr.requestSession('immersive-vr', {
+                // optionalFeatures tak menggagalkan request bila tak tersedia (§3.2)
+                optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
+            });
+            this._vrSession = session;
+            session.addEventListener('end', () => {
+                this._vrSession = null;
+                if (this._vrButton) {
+                    this._vrButton.textContent = '🥽 Masuk VR';
+                    this._vrButton.disabled = false;
+                }
+            });
+            this.renderer.xr.setReferenceSpaceType('local-floor');
+            await this.renderer.xr.setSession(session);
+            if (btn) { btn.textContent = '⏹ Keluar VR'; btn.disabled = false; }
+            if (this._vrFallbackEl) { this._vrFallbackEl.hidden = true; this._vrFallbackEl.textContent = ''; }
+        } catch (e) {
+            console.error('Gagal memulai sesi VR:', e);
+            this._vrSession = null;
+            if (btn) { btn.textContent = '🥽 Masuk VR'; btn.disabled = false; }
+            this._vrMessage(
+                'Gagal memulai VR (' + (e?.name || 'error') + '). Pastikan memakai Meta Browser di Quest 2, ' +
+                'koneksi HTTPS aktif, dan izin sensor untuk browser sudah diberikan.');
+        }
+    }
+
+    /** Akhiri sesi VR secara terprogram (mis. saat pindah scene / dispose). */
+    exitVR() {
+        try { this._vrSession?.end(); } catch { }
+    }
+
     /** Saat sesi VR mulai: pindahkan posisi pemain (dunia) ke dolly, kamera lokal di-nol. */
     _onXRStart() {
         const p = this.camera.position;
@@ -1489,7 +1561,11 @@ export class Engine {
         this.dolly.position.set(p.x, 0, p.z); // kaki di lantai; tinggi dari headset (local-floor)
         this.dolly.rotation.set(0, e.y, 0);
         this.camera.position.set(0, 0, 0);    // pose diambil alih headset
-        this.setHint('Mode VR aktif · dorong thumbstick kiri untuk berjalan · trigger untuk berinteraksi');
+        this._buildVRHud();
+        if (this._vrHud) this._vrHud.visible = true;
+        this._vrHudText = null;             // paksa gambar ulang panel HUD
+        this.setHint('Mode VR aktif · thumbstick kiri: jalan · thumbstick kanan: putar · trigger: interaksi');
+        this.dotnet?.invokeMethodAsync('OnVRSessionStarted').catch(() => { });
     }
 
     /** Saat keluar VR: kembalikan posisi ke kamera desktop (kontinu dari lokasi terakhir). */
@@ -1499,44 +1575,188 @@ export class Engine {
         this.camera.quaternion.setFromEuler(new THREE.Euler(0, this.dolly.rotation.y, 0, 'YXZ'));
         this.dolly.position.set(0, 0, 0);
         this.dolly.rotation.set(0, 0, 0);
+        this._camTargetYaw = undefined;     // kontrol mouse ambil ulang yaw dari kamera
+        if (this._vrHud) this._vrHud.visible = false;
+        this._setHover(null);
+        this.setHint('Tahan klik + geser untuk melihat sekeliling · WASD berjalan · klik objek untuk interaksi');
+        this.dotnet?.invokeMethodAsync('OnVRSessionEnded').catch(() => { });
     }
 
-    /** Lokomosi VR: thumbstick kiri menggeser dolly, relatif arah pandang headset, dengan collision. */
+    /**
+     * Lokomosi VR: thumbstick kiri menggeser dolly relatif arah pandang headset,
+     * thumbstick kanan snap-turn 30° (mengurangi motion sickness). Collision diuji
+     * pada posisi kepala di dunia, bukan pada origin dolly — pemain yang melangkah
+     * fisik di ruangannya tetap tidak bisa menembus dinding.
+     */
     _moveVR(dt) {
         const session = this.renderer.xr.getSession && this.renderer.xr.getSession();
         if (!session || this.uiOpen) return;
-        let mx = 0, my = 0;
+        let mx = 0, my = 0, tx = 0;
         for (const src of session.inputSources) {
-            if (!src.gamepad || (src.handedness !== 'left' && src.handedness !== 'none')) continue;
-            const ax = src.gamepad.axes;
-            mx += ax.length >= 4 ? ax[2] : (ax[0] || 0);
-            my += ax.length >= 4 ? ax[3] : (ax[1] || 0);
+            const ax = src.gamepad?.axes;
+            if (!ax) continue;
+            const x = ax.length >= 4 ? ax[2] : (ax[0] || 0);
+            const y = ax.length >= 4 ? ax[3] : (ax[1] || 0);
+            if (src.handedness === 'right') tx += x;
+            else { mx += x; my += y; }
+        }
+        // Snap-turn: berputar mengelilingi kepala, bukan origin dolly.
+        if (Math.abs(tx) > 0.7) {
+            if (!this._snapArmed) {
+                this._snapArmed = true;
+                const head = this.playerPos(_vec);
+                const ang = -Math.sign(tx) * Math.PI / 6;
+                const d = this.dolly.position;
+                const dx = d.x - head.x, dz = d.z - head.z;
+                const c = Math.cos(ang), s = Math.sin(ang);
+                d.x = head.x + dx * c - dz * s;
+                d.z = head.z + dx * s + dz * c;
+                this.dolly.rotation.y += ang;
+            }
+        } else if (Math.abs(tx) < 0.4) {
+            this._snapArmed = false;
         }
         if (Math.abs(mx) < 0.15 && Math.abs(my) < 0.15) return;
         const cam = this.renderer.xr.getCamera();
-        const e = new THREE.Euler().setFromQuaternion(cam.quaternion, 'YXZ');
-        const sinY = Math.sin(e.y), cosY = Math.cos(e.y);
+        _eulB.setFromQuaternion(cam.quaternion, 'YXZ');
+        const sinY = Math.sin(_eulB.y), cosY = Math.cos(_eulB.y);
         const f = -my, s = mx; // thumbstick atas = maju (-Z)
         const speed = this.playerSpeed;
-        const nx = this.dolly.position.x + (f * -sinY + s * cosY) * speed * dt;
-        const nz = this.dolly.position.z + (f * -cosY + s * -sinY) * speed * dt;
-        if (this._walkable(nx, nz)) { this.dolly.position.x = nx; this.dolly.position.z = nz; }
-        else if (this._walkable(nx, this.dolly.position.z)) this.dolly.position.x = nx;
-        else if (this._walkable(this.dolly.position.x, nz)) this.dolly.position.z = nz;
+        const stepX = (f * -sinY + s * cosY) * speed * dt;
+        const stepZ = (f * -cosY + s * -sinY) * speed * dt;
+        // offset kepala terhadap origin dolly (gerak fisik pemain di ruangannya)
+        const head = this.playerPos(_vec);
+        const offX = head.x - this.dolly.position.x, offZ = head.z - this.dolly.position.z;
+        const hx = head.x + stepX, hz = head.z + stepZ;
+        if (this._walkable(hx, hz)) { this.dolly.position.set(hx - offX, 0, hz - offZ); }
+        else if (this._walkable(hx, head.z)) this.dolly.position.x = hx - offX;
+        else if (this._walkable(head.x, hz)) this.dolly.position.z = hz - offZ;
     }
 
-    /** Trigger controller → raycast ke objek interaktif lalu klik (reuse alur desktop). */
-    _onVRSelect(controller) {
-        if (this.uiOpen || this.interactables.length === 0) return;
-        const m = new THREE.Matrix4().extractRotation(controller.matrixWorld);
+    /** Objek interaktif yang ditunjuk satu controller (null bila tak ada). */
+    _pickFromController(controller) {
+        if (this.interactables.length === 0) return null;
+        _matW.extractRotation(controller.matrixWorld);
         this._raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-        this._raycaster.ray.direction.set(0, 0, -1).applyMatrix4(m);
+        this._raycaster.ray.direction.set(0, 0, -1).applyMatrix4(_matW);
         this._raycaster.far = 30;
         const hits = this._raycaster.intersectObjects(this.interactables, true);
         for (const h of hits) {
             const root = h.object.userData.interactRoot;
-            if (root && root.userData.interact?.enabled) { this._hover = root; this._handleClick(); return; }
+            if (!root || !root.userData.interact?.enabled) continue;
+            const d = this.playerPos(_playerW).distanceTo(root.getWorldPosition(_vec));
+            if (d <= root.userData.interact.radius) return { root, dist: h.distance };
         }
+        return null;
+    }
+
+    /** Hover di VR: sinar controller, sekaligus memendekkan sinar sampai target. */
+    _raycastVR() {
+        let picked = null;
+        for (const c of this._xrControllers) {
+            const hit = this._pickFromController(c);
+            if (c.userData.ray) c.userData.ray.scale.z = hit ? hit.dist : 6;
+            if (hit && !picked) picked = hit.root;
+        }
+        return picked;
+    }
+
+    /** Trigger controller → raycast ke objek interaktif lalu klik (reuse alur desktop). */
+    _onVRSelect(controller) {
+        if (this.uiOpen) return;
+        const hit = this._pickFromController(controller);
+        if (!hit) return;
+        this._setHover(hit.root);
+        this._handleClick();
+    }
+
+    /* ------------ HUD 3D untuk mode VR ------------ */
+
+    /**
+     * Panel teks yang mengikuti kepala: HUD DOM (subtitle, objective, label
+     * interaksi) tak tampak di dalam headset, jadi isinya dicerminkan ke satu
+     * bidang di depan pemain. Dibangun sekali, digambar ulang hanya saat teks
+     * berubah (dicek pada MINIMAP_HZ, bukan tiap frame).
+     */
+    _buildVRHud() {
+        if (this._vrHud) return;
+        const c = document.createElement('canvas');
+        c.width = 1024; c.height = 320;
+        this._vrHudCanvas = c;
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        this._vrHudTex = tex;
+        const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.96, 0.3),
+            new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false })
+        );
+        mesh.position.set(0, -0.30, -0.9);   // sedikit di bawah garis pandang
+        mesh.renderOrder = 999;
+        mesh.frustumCulled = false;
+        this.camera.add(mesh);               // kamera ikut dolly → panel ikut kepala
+        this._vrHud = mesh;
+    }
+
+    _updateVRHud() {
+        if (!this._vrHud) return;
+        const objective = this.hud.objective?.textContent || '';
+        const label = this.hud.interactLabel?.textContent || '';
+        const subtitle = this.hud.subtitle?.textContent || '';
+        const hint = subtitle ? '' : (this.hud.hint?.textContent || '');
+        const key = objective + '|' + label + '|' + subtitle + '|' + hint;
+        if (key === this._vrHudText) return;
+        this._vrHudText = key;
+        const c = this._vrHudCanvas, g = c.getContext('2d');
+        g.clearRect(0, 0, c.width, c.height);
+        if (!objective && !label && !subtitle && !hint) {
+            this._vrHud.visible = false;
+            this._vrHudTex.needsUpdate = true;
+            return;
+        }
+        this._vrHud.visible = true;
+        // latar semi-transparan agar teks terbaca di atas langit terang
+        g.fillStyle = 'rgba(6,10,18,0.72)';
+        g.beginPath();
+        g.roundRect(6, 6, c.width - 12, c.height - 12, 26);
+        g.fill();
+        g.strokeStyle = 'rgba(201,162,39,0.55)'; g.lineWidth = 3; g.stroke();
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        let y = 56;
+        if (objective) {
+            g.font = 'bold 40px "Segoe UI", sans-serif';
+            g.fillStyle = '#ffd75e';
+            g.fillText(objective, c.width / 2, y, c.width - 80);
+            y += 54;
+        }
+        if (label) {
+            g.font = 'bold 34px "Segoe UI", sans-serif';
+            g.fillStyle = '#7ce8a4';
+            g.fillText(label, c.width / 2, y, c.width - 80);
+            y += 48;
+        }
+        const body = subtitle || hint;
+        if (body) {
+            g.font = (subtitle ? '34px' : '30px') + ' "Segoe UI", sans-serif';
+            g.fillStyle = subtitle ? '#f2f5fa' : '#bfe3ff';
+            for (const line of this._wrapText(g, body, c.width - 90, 4)) {
+                g.fillText(line, c.width / 2, y);
+                y += 42;
+            }
+        }
+        this._vrHudTex.needsUpdate = true;
+    }
+
+    _wrapText(g, text, maxWidth, maxLines) {
+        const lines = [];
+        let line = '';
+        for (const w of String(text).split(/\s+/)) {
+            const test = line ? line + ' ' + w : w;
+            if (line && g.measureText(test).width > maxWidth) { lines.push(line); line = w; }
+            else line = test;
+        }
+        if (line) lines.push(line);
+        if (lines.length > maxLines) { lines.length = maxLines; lines[maxLines - 1] += ' …'; }
+        return lines;
     }
 
     /* ------------ Interaksi (hover + klik) ------------ */
@@ -1563,7 +1783,7 @@ export class Engine {
         for (const h of hits) {
             const root = h.object.userData.interactRoot;
             if (!root || !root.userData.interact?.enabled) continue;
-            const d = this.camera.position.distanceTo(root.getWorldPosition(_vec));
+            const d = this.playerPos(_playerW).distanceTo(root.getWorldPosition(_vec));
             if (d <= root.userData.interact.radius) return root;
         }
         return null;
@@ -1663,7 +1883,7 @@ export class Engine {
     /** Titik cahaya mengalir dari posisi pemain ke waypoint aktif. */
     _updateGuide(t) {
         if (!this._guide || !this.waypoint) return;
-        const p = this.camera.position, w = this.waypoint.position;
+        const p = this.playerPos(_playerW), w = this.waypoint.position;
         const dx = w.x - p.x, dz = w.z - p.z;
         const dist = Math.hypot(dx, dz);
         const n = this._guide.count;
@@ -1688,9 +1908,10 @@ export class Engine {
     goto(x, z, { radius = 2.2, label = null } = {}) {
         if (label) this.setObjective(label);
         this.showWaypoint(x, z);
-        return new Promise(resolve => {
+        let updater = null;
+        const arrival = new Promise(resolve => {
             const check = () => {
-                const p = this.camera.position;
+                const p = this.playerPos(_playerW);
                 if (Math.hypot(p.x - x, p.z - z) < radius) {
                     this.hideWaypoint();
                     this.audio.sfx('chime');
@@ -1698,13 +1919,20 @@ export class Engine {
                 }
                 return false;
             };
-            this.updaters.push({ done: false, fn: (dt, t, self) => { if (check()) { self.done = true; resolve(); } } });
+            updater = this.onUpdate((dt, t, self) => { if (check()) { self.done = true; resolve(); } });
+        });
+        // Dilewati: antar pemain ke tujuan agar langkah berikutnya tetap dalam jangkauan.
+        return this.skippable(arrival, () => {
+            if (updater) updater.done = true;
+            this.hideWaypoint();
+            this.movePlayerTo(x, z);
+            this.audio.sfx('chime');
         });
     }
 
     /** Menunggu klik pada objek interaktif tertentu. */
     interact(object3d, { label, radius = 10, highlightBeacon = true } = {}) {
-        return new Promise(resolve => {
+        const clicked = new Promise(resolve => {
             if (highlightBeacon) {
                 const p = object3d.getWorldPosition(new THREE.Vector3());
                 this.showWaypoint(p.x, p.z, 0xc9a227);
@@ -1713,6 +1941,10 @@ export class Engine {
                 label, radius,
                 onClick: () => { this.hideWaypoint(); resolve(); }
             });
+        });
+        return this.skippable(clicked, () => {
+            this.hideWaypoint();
+            this.removeInteractable(object3d);
         });
     }
 
@@ -1723,7 +1955,9 @@ export class Engine {
     setCounter(t) { if (this.hud.counter) this.hud.counter.innerHTML = t || ''; }
     setProgress(pct) { if (this.hud.progress) this.hud.progress.style.width = Math.round(pct) + '%'; }
 
-    narrate(text, opts) { return this.narrator.say(text, opts); }
+    narrate(text, opts) {
+        return this.skippable(this.narrator.say(text, opts), () => this.narrator.stop());
+    }
     subtitle(t) { if (this.hud.subtitle) this.hud.subtitle.textContent = t || ''; }
 
     notifyDotnet(msg, type = 'info') {
@@ -1791,12 +2025,11 @@ export class Engine {
             g.beginPath(); g.arc(wx, wz, 5, 0, 7); g.fill();
         }
         // player
-        const p = this.camera.position;
+        const p = this.playerPos(_playerW);
         const [pxx, pzz] = px(p.x, p.z);
-        _eulB.setFromQuaternion(this.camera.quaternion, 'YXZ');
         g.save();
         g.translate(pxx, pzz);
-        g.rotate(-_eulB.y);
+        g.rotate(-this.playerYaw());
         g.fillStyle = '#ffffff';
         g.beginPath();
         g.moveTo(0, -7); g.lineTo(5, 6); g.lineTo(-5, 6);
@@ -1824,9 +2057,58 @@ export class Engine {
 
     wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+    /* ------------ Lewati langkah (tombol "Lewati Langkah") ------------ */
+
+    /** Daftarkan pembatal untuk langkah yang sedang ditunggu. Mengembalikan fungsi pelepas. */
+    onSkip(fn) {
+        this._skipHandlers.add(fn);
+        return () => this._skipHandlers.delete(fn);
+    }
+
+    /**
+     * Bungkus promise sebuah langkah agar bisa diselesaikan paksa oleh tombol skip.
+     * cleanup() hanya dijalankan bila langkah benar-benar dilewati — bukan saat
+     * langkah selesai wajar (pembersihannya sudah ditangani alurnya sendiri).
+     */
+    skippable(promise, cleanup) {
+        let off = null;
+        const skipped = new Promise(resolve => {
+            off = this.onSkip(() => {
+                try { cleanup?.(); } catch (e) { console.error('Skip cleanup error:', e); }
+                resolve();
+            });
+        });
+        return Promise.race([promise, skipped]).finally(() => off?.());
+    }
+
+    /** Selesaikan paksa langkah yang sedang ditunggu. Langkah berikutnya berjalan normal. */
+    skipStep() {
+        const handlers = [...this._skipHandlers];
+        this._skipHandlers.clear();
+        for (const h of handlers) h();
+    }
+
+    /** Pindahkan pemain ke (x,z) tanpa mengubah arah pandang & ketinggian mata. */
+    movePlayerTo(x, z) {
+        if (this.renderer.xr.isPresenting) {
+            // Di VR kamera adalah anak dolly — geser dolly sebesar selisih posisi kepala.
+            const p = this.playerPos(_playerW);
+            this.dolly.position.x += x - p.x;
+            this.dolly.position.z += z - p.z;
+        } else {
+            this.camera.position.x = x;
+            this.camera.position.z = z;
+        }
+        this._velF = 0; this._velS = 0;
+    }
+
     /* ------------ Loop ------------ */
 
-    onUpdate(fn) { this.updaters.push({ done: false, fn }); }
+    onUpdate(fn) {
+        const u = { done: false, fn };
+        this.updaters.push(u);
+        return u;
+    }
 
     _tick() {
         const now = performance.now();
@@ -1862,15 +2144,16 @@ export class Engine {
             // lebih halus di 60fps, tapi ongkosnya memakan anggaran frame.
             if (!this.uiOpen && t >= this._nextHover) {
                 this._nextHover = t + 1 / HOVER_HZ;
-                this._setHover(this._raycastInteract());
+                this._setHover(inVR ? this._raycastVR() : this._raycastInteract());
             }
             if (t >= this._nextMinimap) {
                 this._nextMinimap = t + 1 / MINIMAP_HZ;
                 if (this.hud.compass) {
-                    _eul.setFromQuaternion(this.camera.quaternion, 'YXZ');
-                    this.hud.compass.style.transform = `rotate(${_eul.y}rad)`;
+                    this.hud.compass.style.transform = `rotate(${this.playerYaw()}rad)`;
                 }
                 this._drawMinimap();
+                // HUD DOM tak terlihat di headset — cerminkan teksnya ke panel 3D.
+                if (inVR) this._updateVRHud();
             }
         }
         // EffectComposer tidak kompatibel dengan framebuffer WebXR (merusak stereo),
@@ -1919,11 +2202,26 @@ export class Engine {
 
     dispose() {
         this.renderer.setAnimationLoop(null);
+        this._skipHandlers.clear();
         ACTIVE_CROWDS.length = 0;
         if (ACTIVE_ENGINE === this) ACTIVE_ENGINE = null;
-        // Bersihkan WebXR: akhiri sesi & lepas tombol Enter VR
+        // Bersihkan WebXR: akhiri sesi & lepas tombol Masuk VR
         try { this.renderer.xr.getSession()?.end(); } catch { }
-        if (this._vrButton) { this._vrButton.remove(); this._vrButton = null; }
+        clearTimeout(this._vrMsgTimer);
+        if (this._vrButton) {
+            this._vrButton.onclick = null;
+            // tombol milik Blazor tidak boleh dihapus dari DOM — cukup dilepas
+            if (this._vrButtonOwned) this._vrButton.remove();
+            this._vrButton = null;
+        }
+        if (this._vrFallbackEl) { this._vrFallbackEl.hidden = true; this._vrFallbackEl.textContent = ''; }
+        if (this._vrHud) {
+            this.camera.remove(this._vrHud);
+            this._vrHud.geometry.dispose();
+            this._vrHud.material.dispose();
+            this._vrHud = null;
+        }
+        this._vrHudTex?.dispose();
         this.narrator.stop();
         document.removeEventListener('keydown', this._onKeyDown);
         document.removeEventListener('keyup', this._onKeyUp);
