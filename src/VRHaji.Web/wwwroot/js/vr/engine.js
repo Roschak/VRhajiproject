@@ -65,27 +65,42 @@ export const Tex = {
         return t;
     },
     kiswah() {
-        // Kain hitam Ka'bah dengan pita kaligrafi emas (hizam)
-        const c = this._canvas(1024, 1024), g = c.getContext('2d');
-        g.fillStyle = '#0a0a0c'; g.fillRect(0, 0, 1024, 1024);
-        g.globalAlpha = 0.12; g.strokeStyle = '#2c2c30'; g.lineWidth = 3;
-        for (let i = 0; i < 64; i++) { // tenunan halus
-            g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16, 1024); g.stroke();
-        }
+        // Kain hitam Ka'bah — tenunan gelap halus. Hizam & ornamen emas dibuat
+        // sebagai geometri terpisah (lihat kaaba() di builders.js) agar tajam.
+        const c = this._canvas(512, 1024), g = c.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 0, 1024);
+        grad.addColorStop(0, '#0d0d11'); grad.addColorStop(0.5, '#141418'); grad.addColorStop(1, '#090909');
+        g.fillStyle = grad; g.fillRect(0, 0, 512, 1024);
+        // tenunan vertikal halus (kilau sutra)
+        g.globalAlpha = 0.10; g.strokeStyle = '#2a2a30'; g.lineWidth = 2;
+        for (let i = 0; i < 128; i++) { g.beginPath(); g.moveTo(i * 4, 0); g.lineTo(i * 4, 1024); g.stroke(); }
+        // jahitan diagonal tersamar
+        g.globalAlpha = 0.05; g.strokeStyle = '#000000'; g.lineWidth = 1;
+        for (let i = -40; i < 160; i++) { g.beginPath(); g.moveTo(i * 8, 0); g.lineTo(i * 8 + 320, 1024); g.stroke(); }
         g.globalAlpha = 1;
-        const bandY = 200, bandH = 130;
-        const grad = g.createLinearGradient(0, bandY, 0, bandY + bandH);
-        grad.addColorStop(0, '#8a6a14'); grad.addColorStop(0.5, '#e9c96a'); grad.addColorStop(1, '#8a6a14');
-        g.fillStyle = grad; g.fillRect(0, bandY, 1024, bandH);
-        g.fillStyle = '#171310';
-        for (let x = 0; x < 1024; x += 16) { // motif kaligrafi tersamar
-            const h = 26 + Math.sin(x * 0.13) * 16 + Math.random() * 22;
-            g.fillRect(x + 3, bandY + bandH / 2 - h / 2, 9, h);
-        }
-        g.strokeStyle = '#f3dd9a'; g.lineWidth = 6;
-        g.strokeRect(0, bandY + 4, 1024, bandH - 8);
         const t = new THREE.CanvasTexture(c);
         t.colorSpace = THREE.SRGBColorSpace;
+        return t;
+    },
+    kiswahBand() {
+        // Pita hizam emas dengan kaligrafi tersamar (tone-on-tone emas)
+        const w = 1024, h = 128, c = this._canvas(w, h), g = c.getContext('2d');
+        const grad = g.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#8a6a1a'); grad.addColorStop(0.16, '#e7cd7c');
+        grad.addColorStop(0.5, '#f7e7ab'); grad.addColorStop(0.84, '#e7cd7c'); grad.addColorStop(1, '#8a6a1a');
+        g.fillStyle = grad; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#6f5312'; g.fillRect(0, 0, w, 7); g.fillRect(0, h - 7, w, 7);
+        g.strokeStyle = '#7a5c17'; g.lineWidth = 5; g.lineCap = 'round'; g.lineJoin = 'round';
+        for (let x = 8; x < w; x += 34) {
+            g.beginPath();
+            g.moveTo(x, h * 0.72);
+            g.bezierCurveTo(x + 6, h * 0.3, x + 20, h * 0.9, x + 28, h * 0.5);
+            g.lineTo(x + 31, h * 0.32);
+            g.stroke();
+            g.fillStyle = '#6b4f12'; g.beginPath(); g.arc(x + 16, h * 0.26, 2.6, 0, 7); g.fill();
+        }
+        const t = new THREE.CanvasTexture(c);
+        t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping;
         return t;
     },
     sign(text, { bg = '#0d2b4d', fg = '#ffffff', w = 512, h = 128, font = 'bold 56px "Segoe UI", sans-serif' } = {}) {
