@@ -107,6 +107,12 @@ export const Tex = {
         const c = this._canvas(w, h), g = c.getContext('2d');
         g.fillStyle = bg; g.fillRect(0, 0, w, h);
         g.fillStyle = fg; g.font = font;
+        // Kecilkan font otomatis bila teks melebihi lebar kanvas agar tidak terpotong
+        const maxW = w * 0.94, tw = g.measureText(text).width;
+        if (tw > maxW) {
+            const m = font.match(/(\d+)px/);
+            if (m) g.font = font.replace(/\d+px/, Math.max(18, Math.floor(+m[1] * maxW / tw)) + 'px');
+        }
         g.textAlign = 'center'; g.textBaseline = 'middle';
         g.fillText(text, w / 2, h / 2);
         const t = new THREE.CanvasTexture(c);
@@ -483,7 +489,8 @@ export const ACTIVE_CROWDS = [];
 const SKIN_TONES = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac, 0xa5673f];
 const CAP_COLORS = [0xffffff, 0xf2f2f2, 0x14202e, 0x22303f, 0x3a2d1a, 0x6b0f0f, 0x0e3b26, 0xd9c9a3];
 // Referensi engine aktif (dipakai Crowd untuk uji tembus dinding/blocker).
-let ACTIVE_ENGINE = null;
+// Diekspor (live binding) agar modul crowd/sceneNN.js dapat memakainya di update().
+export let ACTIVE_ENGINE = null;
 
 export class Crowd {
     /**
@@ -574,59 +581,7 @@ export class Crowd {
                 speed: 0.5 + Math.random() * 0.3, // Animasi langkah diperlambat
                 s: 0.94 + Math.random() * 0.13
             };
-            if (opts.mode === 'orbit') {
-                a.r = opts.rMin + Math.random() * (opts.rMax - opts.rMin);
-                a.angle = Math.random() * Math.PI * 2;
-                // Kecepatan tawaf/orbit dikurangi
-                a.w = (opts.angularSpeed ?? 0.1) * (opts.rMin / a.r) * (0.5 + Math.random() * 0.3);
-            } else if (opts.mode === 'line') {
-                a.t = Math.random();
-                a.dir = opts.oneWay ? 1 : (Math.random() > 0.5 ? 1 : -1);
-                a.lane = (Math.random() - 0.5) * (opts.width ?? 6);
-                a.v = 0.01 + Math.random() * 0.01; // Kecepatan Sa'i diperlambat
-            } else if (opts.mode === 'wander') {
-                a.x = opts.area.x + (Math.random() - 0.5) * opts.area.w;
-                a.z = opts.area.z + (Math.random() - 0.5) * opts.area.d;
-                a.tx = a.x; a.tz = a.z;
-                a.heading = Math.random() * Math.PI * 2;
-                // Kecepatan jalan bebas dikurangi
-                a.v = 0.35 + Math.random() * 0.3;
-                a.dwell = Math.random() * 3;
-            } else if (opts.mode === 'sit' && opts.spots) {
-                const sp = opts.spots[i];
-                a.x = sp.x; a.z = sp.z;
-                a.heading = sp.ry ?? 0;
-                a.sit = true;
-            } else if (opts.mode === 'post' && opts.spots) {
-                const sp = opts.spots[i];
-                a.x = sp.x; a.z = sp.z;
-                a.heading = sp.ry ?? 0;
-                a.sit = !!sp.sit;
-                if (sp.sitY !== undefined) a.sitY = sp.sitY;
-                if (sp.color !== undefined) a.outfit = sp.color;
-            } else if (opts.mode === 'groupWander') {
-                if (i % 6 === 0) {
-                    a.isLeader = true;
-                    a.groupId = i;
-                    a.tx = opts.area.x + (Math.random() - 0.5) * opts.area.w;
-                    a.tz = opts.area.z + (Math.random() - 0.5) * opts.area.d;
-                } else {
-                    a.isLeader = false;
-                    a.groupId = i - (i % 6);
-                }
-                a.x = opts.area.x + (Math.random() - 0.5) * opts.area.w;
-                a.z = opts.area.z + (Math.random() - 0.5) * opts.area.d;
-                a.v = 0.35 + Math.random() * 0.15;
-                a.dwell = Math.random() * 3;
-                a.heading = Math.random() * Math.PI * 2;
-                a.sit = false;
-            } else {
-                a.x = opts.area ? opts.area.x + (Math.random() - 0.5) * opts.area.w : (Math.random() - 0.5) * 20;
-                a.z = opts.area ? opts.area.z + (Math.random() - 0.5) * opts.area.d : (Math.random() - 0.5) * 20;
-                a.heading = Math.random() * Math.PI * 2;
-                a.sit = opts.mode === 'sit' || opts.mode === 'sitFloor';
-                a.sitFloor = opts.mode === 'sitFloor';
-            }
+            this._initAgent(a, i);
             a.wx = a.x ?? 0; a.wz = a.z ?? 0;
             this.agents.push(a);
 
@@ -663,6 +618,85 @@ export class Crowd {
         this._v3 = new THREE.Vector3();
         ACTIVE_CROWDS.push(this);
         this.update(0, 0);
+    }
+
+    /**
+     * Titik spawn acak yang tidak jatuh di dalam blocker (tenda/pilar/bangunan)
+     * agar jamaah tidak lahir dalam keadaan menembus bangunan — sampel ulang.
+     */
+    _pickFree(gx, gz) {
+        const eng = ACTIVE_ENGINE;
+        let x = gx(), z = gz();
+        for (let k = 0; k < 14 && eng && !eng._walkableStatic(x, z, 0.32); k++) { x = gx(); z = gz(); }
+        return { x, z };
+    }
+
+    /**
+     * Inisialisasi satu figur sesuai mode (posisi, kecepatan, target, dsb).
+     * Di-override oleh modul crowd/sceneNN.js agar tiap scene punya salinannya
+     * sendiri — mengubah perilaku di satu scene tidak memengaruhi scene lain.
+     */
+    _initAgent(a, i) {
+        const opts = this.opts;
+        const pickFree = (gx, gz) => this._pickFree(gx, gz);
+        if (opts.mode === 'orbit') {
+            a.r = opts.rMin + Math.random() * (opts.rMax - opts.rMin);
+            a.angle = Math.random() * Math.PI * 2;
+            // Kecepatan tawaf/orbit dikurangi
+            a.w = (opts.angularSpeed ?? 0.1) * (opts.rMin / a.r) * (0.5 + Math.random() * 0.3);
+        } else if (opts.mode === 'line') {
+            a.t = Math.random();
+            a.dir = opts.oneWay ? 1 : (Math.random() > 0.5 ? 1 : -1);
+            a.lane = (Math.random() - 0.5) * (opts.width ?? 6);
+            a.v = 0.01 + Math.random() * 0.01; // Kecepatan Sa'i diperlambat
+        } else if (opts.mode === 'wander') {
+            const p0 = pickFree(() => opts.area.x + (Math.random() - 0.5) * opts.area.w,
+                () => opts.area.z + (Math.random() - 0.5) * opts.area.d);
+            a.x = p0.x; a.z = p0.z;
+            a.tx = a.x; a.tz = a.z;
+            a.heading = Math.random() * Math.PI * 2;
+            // Kecepatan jalan bebas dikurangi
+            a.v = 0.35 + Math.random() * 0.3;
+            a.dwell = Math.random() * 3;
+        } else if (opts.mode === 'sit' && opts.spots) {
+            const sp = opts.spots[i];
+            a.x = sp.x; a.z = sp.z;
+            a.heading = sp.ry ?? 0;
+            a.sit = true;
+        } else if (opts.mode === 'post' && opts.spots) {
+            const sp = opts.spots[i];
+            a.x = sp.x; a.z = sp.z;
+            a.heading = sp.ry ?? 0;
+            a.sit = !!sp.sit;
+            if (sp.sitY !== undefined) a.sitY = sp.sitY;
+            if (sp.color !== undefined) a.outfit = sp.color;
+        } else if (opts.mode === 'groupWander') {
+            if (i % 6 === 0) {
+                a.isLeader = true;
+                a.groupId = i;
+                a.tx = opts.area.x + (Math.random() - 0.5) * opts.area.w;
+                a.tz = opts.area.z + (Math.random() - 0.5) * opts.area.d;
+            } else {
+                a.isLeader = false;
+                a.groupId = i - (i % 6);
+            }
+            const pg = pickFree(() => opts.area.x + (Math.random() - 0.5) * opts.area.w,
+                () => opts.area.z + (Math.random() - 0.5) * opts.area.d);
+            a.x = pg.x; a.z = pg.z;
+            a.v = 0.35 + Math.random() * 0.15;
+            a.dwell = Math.random() * 3;
+            a.heading = Math.random() * Math.PI * 2;
+            a.sit = false;
+        } else {
+            const pi0 = opts.area
+                ? pickFree(() => opts.area.x + (Math.random() - 0.5) * opts.area.w,
+                    () => opts.area.z + (Math.random() - 0.5) * opts.area.d)
+                : pickFree(() => (Math.random() - 0.5) * 20, () => (Math.random() - 0.5) * 20);
+            a.x = pi0.x; a.z = pi0.z;
+            a.heading = Math.random() * Math.PI * 2;
+            a.sit = opts.mode === 'sit' || opts.mode === 'sitFloor';
+            a.sitFloor = opts.mode === 'sitFloor';
+        }
     }
 
     /** Susun matriks satu bagian dari posisi dunia + orientasi + skala seragam. */
@@ -742,7 +776,7 @@ export class Crowd {
                 
                 // Jangan tembus blocker
                 const eng = ACTIVE_ENGINE;
-                if (eng && !eng._walkableStatic(nx, nz)) {
+                if (eng && !eng._walkableStatic(nx, nz, 0.32)) {
                     a.rOffset *= 0.5;
                     rad = a.r + a.rOffset;
                     nx = o.center.x + Math.cos(a.angle) * rad;
@@ -759,20 +793,62 @@ export class Crowd {
                 heading = -a.angle - Math.PI + (a.rOffset * 0.4);
                 moving = true;
             } else if (o.mode === 'line') {
+                const tPrev = a.t;
                 a.t += a.v * dt * a.dir;
                 if (a.t > 1) { 
                     if (o.oneWay) a.t -= 1; 
-                    else { a.t = 1; a.dir = -1; }
+                    else { a.t = 1; a.uturnStart = true; }
                 }
                 if (a.t < 0) { 
                     if (o.oneWay) a.t += 1; 
-                    else { a.t = 0; a.dir = 1; }
+                    else { a.t = 0; a.uturnStart = true; }
                 }
                 
                 const px = o.to.z - o.from.z, pz = -(o.to.x - o.from.x);
                 const pl = Math.hypot(px, pz) || 1;
                 const orthX = px / pl, orthZ = pz / pl;
-                
+                const pathLenU = Math.hypot(o.to.x - o.from.x, o.to.z - o.from.z) || 1;
+                const vLin = a.v * pathLenU; // kecepatan linier (m/s)
+
+                if (a.uturnStart && !a.uturn) {
+                    const lat0 = a.lane + (a.laneOffset || 0);
+                    // Aturan sisi: kanan memutar ke kanan, kiri ke kiri; tapi bila
+                    // sudah di luar batas lajur, memutar ke sisi DALAM agar arus
+                    // tidak melebar keluar lintasan dari putaran ke putaran.
+                    let side = (lat0 * a.dir) >= 0 ? 1 : -1;
+                    if (Math.abs(lat0) > (o.width ?? 6) / 2) side = -Math.sign(lat0 || 1) * a.dir;
+                    a.uturn = { side, r: 0.8 + Math.random() * 0.7, swept: 0, dir0: a.dir };
+                }
+                if (a.uturn) {
+                    // Fase putar balik: berjalan MELENGKUNG setengah lingkaran ke
+                    // sisi karakter (bukan berputar di tempat) sehingga arus pergi
+                    // dan pulang tidak saling tertahan di ujung lintasan.
+                    a.uturnStart = false;
+                    const u = a.uturn;
+                    const wRate = u.side * vLin / u.r;
+                    a.hSmooth = (a.hSmooth ?? Math.atan2((o.to.x - o.from.x) * u.dir0, (o.to.z - o.from.z) * u.dir0)) + wRate * dt;
+                    u.swept += Math.abs(wRate * dt);
+                    const nxU = a.wx + Math.sin(a.hSmooth) * vLin * dt;
+                    const nzU = a.wz + Math.cos(a.hSmooth) * vLin * dt;
+                    const engU = ACTIVE_ENGINE;
+                    if (!engU || engU._walkableStatic(nxU, nzU, 0.32)) { x = nxU; z = nzU; }
+                    else { x = a.wx; z = a.wz; }
+                    heading = a.hSmooth;
+                    moving = true;
+                    if (u.swept >= Math.PI) {
+                        // Belokan selesai: masuk kembali ke lintasan pada lajur
+                        // hasil proyeksi posisi sekarang, arah dibalik
+                        a.uturn = null;
+                        a.dir = -u.dir0;
+                        const rxU = x - o.from.x, rzU = z - o.from.z;
+                        a.t = Math.max(0, Math.min(1,
+                            (rxU * (o.to.x - o.from.x) + rzU * (o.to.z - o.from.z)) / (pathLenU * pathLenU)));
+                        // Terima lajur hasil belokan APA ADANYA — setelah geser,
+                        // langsung lurus; tanpa koreksi menyamping ke lajur lama.
+                        a.lane = rxU * orthX + rzU * orthZ;
+                        a.laneOffset = 0; a.avoidOffset = 0; a.avoiding = false;
+                    }
+                } else {
                 // Menghindari tabrakan dengan geser ke samping (lane)
                 a.laneOffset = a.laneOffset || 0;
                 let push = 0;
@@ -793,23 +869,95 @@ export class Crowd {
                 if (a.laneOffset > 3) a.laneOffset = 3;
                 if (a.laneOffset < -3) a.laneOffset = -3;
                 
-                const finalLane = a.lane + a.laneOffset;
+                let finalLane = a.lane + a.laneOffset;
+                const eng = ACTIVE_ENGINE;
+
+                // Steering antisipatif ber-state: bila jalur bakal terhalang,
+                // belok ke lajur bebas SEBELUM sampai di benda, KUNCI lajur
+                // menghindar itu (lawan decay), dan baru kembali lurus setelah
+                // lajur asal benar-benar bebas dari sekarang sampai jauh di depan.
+                if (eng) {
+                    const pathLen = Math.hypot(o.to.x - o.from.x, o.to.z - o.from.z) || 1;
+                    const tA = a.t + (2.5 / pathLen) * a.dir;
+                    const posAt = (tt, l) => [
+                        o.from.x + (o.to.x - o.from.x) * tt + orthX * l,
+                        o.from.z + (o.to.z - o.from.z) * tt + orthZ * l];
+                    const free = (tt, l) => {
+                        const [cx, cz] = posAt(tt, l);
+                        return eng._walkableStatic(cx, cz, 0.45);
+                    };
+                    if (a.avoiding) {
+                        // Masih manuver: lajur asal harus bebas di samping DAN
+                        // jauh di depan sebelum boleh kembali lurus
+                        if (free(a.t, a.lane) && free(tA, a.lane) && free(a.t + (5.5 / pathLen) * a.dir, a.lane)) {
+                            a.avoiding = false;
+                        } else {
+                            a.laneOffset = a.avoidOffset; // kunci lajur menghindar
+                        }
+                    }
+                    finalLane = a.lane + a.laneOffset;
+                    if (!free(tA, finalLane)) {
+                        let dl = 0;
+                        for (const s of [1.2, -1.2, 2.4, -2.4, 3.6, -3.6]) {
+                            if (free(tA, finalLane + s)) { dl = Math.sign(s); break; }
+                        }
+                        a.laneOffset += dl * dt * 3.5;
+                        if (a.laneOffset > 8) a.laneOffset = 8;
+                        if (a.laneOffset < -8) a.laneOffset = -8;
+                        a.avoiding = true;
+                    }
+                    if (a.avoiding) a.avoidOffset = a.laneOffset;
+                    finalLane = a.lane + a.laneOffset;
+                }
+
                 let nx = o.from.x + (o.to.x - o.from.x) * a.t + orthX * finalLane;
                 let nz = o.from.z + (o.to.z - o.from.z) * a.t + orthZ * finalLane;
-                
-                // Jangan tembus blocker atau pemain/jamaah lain
-                const eng = ACTIVE_ENGINE;
+
+                // Jangan tembus blocker atau pemain/jamaah lain: bila terhalang,
+                // JANGAN maju (mundurkan progres) lalu belok ke lajur yang bebas
+                // agar arus mengalir memutari penghalang, bukan menembusnya.
                 if (eng && !eng._agentWalkable(a, nx, nz)) {
-                    a.laneOffset *= 0.5;
-                    const safeLane = a.lane + a.laneOffset;
-                    nx = o.from.x + (o.to.x - o.from.x) * a.t + orthX * safeLane;
-                    nz = o.from.z + (o.to.z - o.from.z) * a.t + orthZ * safeLane;
+                    a.t = tPrev;
+                    const laneAt = l => [
+                        o.from.x + (o.to.x - o.from.x) * a.t + orthX * l,
+                        o.from.z + (o.to.z - o.from.z) * a.t + orthZ * l];
+                    let dl = 0;
+                    for (const s of [1.2, -1.2, 2.4, -2.4, 3.6, -3.6]) {
+                        const [cx, cz] = laneAt(finalLane + s);
+                        if (eng._agentWalkable(a, cx, cz)) { dl = Math.sign(s); break; }
+                    }
+                    a.laneOffset += dl * dt * 5;
+                    [nx, nz] = laneAt(a.lane + a.laneOffset);
                 }
-                
+
                 x = nx;
                 z = nz;
-                heading = Math.atan2((o.to.x - o.from.x) * a.dir, (o.to.z - o.from.z) * a.dir) + (a.laneOffset * a.dir * 0.3);
+                // Hadap ke arah gerak sesungguhnya: saat menghindar, badan
+                // benar-benar berpaling kanan/kiri mengikuti sisi yang diambil,
+                // lalu kembali menghadap lurus begitu jalur bebas.
+                const pathH = Math.atan2((o.to.x - o.from.x) * a.dir, (o.to.z - o.from.z) * a.dir);
+                const mvx = nx - a.wx, mvz = nz - a.wz;
+                const mvd = Math.hypot(mvx, mvz);
+                if (mvd > 3) {
+                    a.hSmooth = pathH; // lompatan wrap oneWay — jangan berputar
+                } else if (mvd > 1e-4) {
+                    const hT = Math.atan2(mvx, mvz);
+                    let dh = hT - (a.hSmooth ?? hT);
+                    if (dh > Math.PI) dh -= Math.PI * 2;
+                    if (dh < -Math.PI) dh += Math.PI * 2;
+                    // Puter balik (~180°): arah memutar mengikuti sisi karakter
+                    // terhadap jalur — sebelah kanan memutar ke kanan, sebelah
+                    // kiri memutar ke kiri (dihitung relatif arah jalan lamanya)
+                    if (Math.abs(dh) > 2.6) {
+                        const lat = a.lane + a.laneOffset;
+                        const side = (-lat * a.dir) >= 0 ? 1 : -1;
+                        dh = side * Math.abs(dh);
+                    }
+                    a.hSmooth = (a.hSmooth ?? hT) + dh * Math.min(1, dt * 6);
+                }
+                heading = a.hSmooth ?? pathH;
                 moving = true;
+                }
             } else if (o.mode === 'wander') {
                 const dx = a.tx - a.x, dz = a.tz - a.z;
                 const d = Math.hypot(dx, dz);
@@ -828,10 +976,23 @@ export class Crowd {
                     if (dh > Math.PI) dh -= Math.PI * 2;
                     if (dh < -Math.PI) dh += Math.PI * 2;
                     a.heading += dh * Math.min(1, dt * 4);
+                    // Steering antisipatif: intip ±1.6 m di depan — belok dulu
+                    // ke arah bebas sebelum menyentuh dinding/bangunan
+                    const eng = ACTIVE_ENGINE;
+                    if (eng) {
+                        const lx = a.x + Math.sin(a.heading) * 1.6;
+                        const lz = a.z + Math.cos(a.heading) * 1.6;
+                        if (!eng._walkableStatic(lx, lz, 0.45)) {
+                            for (const s of [0.7, -0.7, 1.4, -1.4]) {
+                                const hx = a.x + Math.sin(a.heading + s) * 1.6;
+                                const hz = a.z + Math.cos(a.heading + s) * 1.6;
+                                if (eng._walkableStatic(hx, hz, 0.45)) { a.heading += s * Math.min(1, dt * 5); break; }
+                            }
+                        }
+                    }
                     const nx = a.x + Math.sin(a.heading) * a.v * dt;
                     const nz = a.z + Math.cos(a.heading) * a.v * dt;
                     // Solid: jangan menembus dinding/blocker/pemain — bila terhalang, pilih tujuan baru
-                    const eng = ACTIVE_ENGINE;
                     if (eng && !eng._agentWalkable(a, nx, nz)) {
                         a.tx = o.area.x + (Math.random() - 0.5) * o.area.w;
                         a.tz = o.area.z + (Math.random() - 0.5) * o.area.d;
@@ -905,6 +1066,15 @@ export class Crowd {
                 x = a.x; z = a.z; heading = a.heading;
             } else {
                 x = a.x; z = a.z;
+            }
+            // Penjaga terakhir (semua mode): tidak ada satu figur pun boleh
+            // berakhir di dalam blocker — bila hasil hitungan mode masih
+            // menembus, tahan figur di posisi sahnya yang terakhir.
+            const engG = ACTIVE_ENGINE;
+            if (engG && !engG._walkableStatic(x, z, 0.32) && engG._walkableStatic(a.wx, a.wz, 0.3)) {
+                x = a.wx; z = a.wz;
+                if (a.x !== undefined) { a.x = x; a.z = z; }
+                moving = false;
             }
             a.wx = x; a.wz = z;
 
@@ -1312,10 +1482,12 @@ export class Engine {
     addBlocker(x1, z1, x2, z2) {
         this.blockers.push({ x1: Math.min(x1, x2), z1: Math.min(z1, z2), x2: Math.max(x1, x2), z2: Math.max(z1, z2) });
     }
-    /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan. */
-    _walkableStatic(x, z) {
+    /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan.
+     *  margin: radius badan — blocker diperluas sebesar ini agar bahu/lengan
+     *  figur tidak menembus dinding meski titik pusatnya masih di luar. */
+    _walkableStatic(x, z, margin = 0) {
         for (const b of this.blockers) {
-            if (x > b.x1 && x < b.x2 && z > b.z1 && z < b.z2) return false;
+            if (x > b.x1 - margin && x < b.x2 + margin && z > b.z1 - margin && z < b.z2 + margin) return false;
         }
         if (this.walkRects.length === 0 && this.walkCircles.length === 0) return true;
         for (const r of this.walkRects) {
@@ -1348,7 +1520,7 @@ export class Engine {
     
     /** Bisa ditempati jamaah: geometri statis, hindari pemain, hindari jamaah lain (SOLID). */
     _agentWalkable(agent, x, z) {
-        if (!this._walkableStatic(x, z)) return false;
+        if (!this._walkableStatic(x, z, 0.32)) return false;
         
         // Hindari pemain (posisi dunia — di VR kamera berada di dalam dolly)
         const pp = this.playerPos(_playerW);

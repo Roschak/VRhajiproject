@@ -1,0 +1,402 @@
+{
+  "accessors": [
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 41086,
+      "max": [
+        1.5747836828231812,
+        2.286773204803467,
+        3.6460533142089844
+      ],
+      "min": [
+        -1.5329205989837646,
+        -2.554298162460327,
+        -2.442812919616699
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 493032,
+      "componentType": 5126,
+      "count": 41086,
+      "max": [
+        0.9999998211860657,
+        0.9999987483024597,
+        1.0
+      ],
+      "min": [
+        -0.9999999403953552,
+        -0.9999999403953552,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 41086,
+      "max": [
+        1.0000001192092896,
+        1.0000001192092896
+      ],
+      "min": [
+        0.0,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "componentType": 5125,
+      "count": 235380,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 986064,
+      "componentType": 5126,
+      "count": 3180,
+      "max": [
+        1.5490446090698242,
+        0.9932436943054199,
+        1.2349982261657715
+      ],
+      "min": [
+        -1.5660467147827148,
+        -1.846213459968567,
+        -0.5097110271453857
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 1024224,
+      "componentType": 5126,
+      "count": 3180,
+      "max": [
+        0.9999513626098633,
+        0.9999011754989624,
+        1.0
+      ],
+      "min": [
+        -0.9999968409538269,
+        -0.9999678730964661,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 328688,
+      "componentType": 5126,
+      "count": 3180,
+      "max": [
+        1.0000001192092896,
+        1.0000001192092896
+      ],
+      "min": [
+        0.0,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 941520,
+      "componentType": 5125,
+      "count": 17856,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 1062384,
+      "componentType": 5126,
+      "count": 12210,
+      "max": [
+        1.506367564201355,
+        2.2934913635253906,
+        4.298392295837402
+      ],
+      "min": [
+        -1.4394766092300415,
+        -1.6940776109695435,
+        -0.40550968050956726
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 1208904,
+      "componentType": 5126,
+      "count": 12210,
+      "max": [
+        0.999928891658783,
+        0.999860942363739,
+        1.0
+      ],
+      "min": [
+        -0.9999179840087891,
+        -0.9999004602432251,
+        -1.0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 354128,
+      "componentType": 5126,
+      "count": 12210,
+      "max": [
+        0.982291042804718,
+        1.000000238418579
+      ],
+      "min": [
+        0.0,
+        0.0
+      ],
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 0,
+      "byteOffset": 1012944,
+      "componentType": 5125,
+      "count": 71856,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "extras": {
+      "author": "sweedboy69 (https://sketchfab.com/sweedboy69)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/barber-chair-b608436ca02d40c6a914fca72f7b3619",
+      "title": "Barber Chair"
+    },
+    "generator": "Sketchfab-14.86.0",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 1300368,
+      "name": "floatBufferViews",
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 451808,
+      "byteOffset": 1300368,
+      "byteStride": 8,
+      "name": "floatBufferViews",
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1355424,
+      "byteOffset": 1752176,
+      "byteStride": 12,
+      "name": "floatBufferViews",
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 3107600,
+      "uri": "scene.bin"
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Barber_Chair_METAL",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.6751395395437068,
+          0.6751395395437068,
+          0.6751395395437068,
+          1.0
+        ],
+        "roughnessFactor": 0.1386670892711292
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Barber_Chair_Plastic_BLACK",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0188477,
+          0.0188477,
+          0.0188477,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.41295363947775837
+      }
+    },
+    {
+      "doubleSided": true,
+      "name": "Barber_Chair_Leather_BLACK",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.0253931,
+          0.0253931,
+          0.0253931,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.2971437627238483
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "barber_chair_Barber_Chair_METAL_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "barber_chair_Barber_Chair_Plastic_BLACK_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    },
+    {
+      "name": "barber_chair_Barber_Chair_Leather_BLACK_0",
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 9,
+            "POSITION": 8,
+            "TEXCOORD_0": 10
+          },
+          "indices": 11,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "children": [
+        1
+      ],
+      "matrix": [
+        0.2532866299152374,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        5.624092967232151e-17,
+        -0.2532866299152374,
+        0.0,
+        0.0,
+        0.2532866299152374,
+        5.624092967232151e-17,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "Sketchfab_model"
+    },
+    {
+      "children": [
+        2
+      ],
+      "matrix": [
+        0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.009999999776482582,
+        0.0,
+        0.0,
+        -0.009999999776482582,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "3d6c5c85c16a4efea80ea8ca46af019b.fbx"
+    },
+    {
+      "children": [
+        3
+      ],
+      "name": "RootNode"
+    },
+    {
+      "children": [
+        4,
+        5,
+        6
+      ],
+      "matrix": [
+        100.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.629206793918314e-05,
+        -99.99999999999868,
+        0.0,
+        0.0,
+        99.99999999999868,
+        -1.629206793918314e-05,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "name": "barber_chair"
+    },
+    {
+      "mesh": 0,
+      "name": "barber_chair_Barber_Chair_METAL_0"
+    },
+    {
+      "mesh": 1,
+      "name": "barber_chair_Barber_Chair_Plastic_BLACK_0"
+    },
+    {
+      "mesh": 2,
+      "name": "barber_chair_Barber_Chair_Leather_BLACK_0"
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Sketchfab_Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ]
+}
