@@ -5,7 +5,6 @@
  */
 import { THREE, Tex } from './engine.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
 const DEG = Math.PI / 180;
 
@@ -27,18 +26,7 @@ function loadGltf(url) {
     if (!_gltfCache[url]) {
         _gltfCache[url] = new GLTFLoader().loadAsync(url).then(gltf => {
             const s = gltf.scene;
-            s.traverse(o => {
-                if (o.isMesh) {
-                    o.castShadow = true;
-                    o.receiveShadow = true;
-                    if (o.material) {
-                        // Polesan seragam semua aset glTF: pantulan environment
-                        // sedikit dikuatkan + tekstur tetap tajam di sudut miring
-                        o.material.envMapIntensity = Math.max(o.material.envMapIntensity ?? 1, 1.15);
-                        if (o.material.map) o.material.map.anisotropy = 8;
-                    }
-                }
-            });
+            s.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
             const box = new THREE.Box3().setFromObject(s);
             const size = box.getSize(new THREE.Vector3());
             const center = box.getCenter(new THREE.Vector3());
@@ -1387,227 +1375,155 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
 
 /** Kabin pesawat (Ekonomi) & Ruang Pilot (Cockpit) — Sangat Realistik. */
 /** Kabin pesawat — area terpisah jauh dari terminal. */
-/** Bentuk persegi-panjang membulat (untuk kaca jendela pesawat yang datar). */
-function roundedRectShape(w, h, r) {
-    const s = new THREE.Shape();
-    const x = -w / 2, y = -h / 2;
-    s.moveTo(x + r, y);
-    s.lineTo(x + w - r, y);
-    s.quadraticCurveTo(x + w, y, x + w, y + r);
-    s.lineTo(x + w, y + h - r);
-    s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    s.lineTo(x + r, y + h);
-    s.quadraticCurveTo(x, y + h, x, y + h - r);
-    s.lineTo(x, y + r);
-    s.quadraticCurveTo(x, y, x + r, y);
-    return s;
-}
-
-/** Tekstur langit siang untuk kaca jendela — dibuat sekali lalu dipakai ulang. */
-let _skyWindowTex = null;
-function skyWindowTexture() {
-    if (_skyWindowTex) return _skyWindowTex;
-    const c = document.createElement('canvas');
-    c.width = 64; c.height = 96;
-    const ctx = c.getContext('2d');
-    const grd = ctx.createLinearGradient(0, 0, 0, 96);
-    grd.addColorStop(0, '#5fa0f0');    // langit biru di atas
-    grd.addColorStop(0.62, '#bfe0ff');
-    grd.addColorStop(1, '#eef7ff');    // terang mendekati horizon
-    ctx.fillStyle = grd; ctx.fillRect(0, 0, 64, 96);
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';   // sedikit awan
-    ctx.beginPath(); ctx.ellipse(22, 44, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(46, 66, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
-    _skyWindowTex = new THREE.CanvasTexture(c);
-    return _skyWindowTex;
-}
-
 export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
     const { scene, mats } = engine;
     const g = new THREE.Group();
-
-    const L = 32;              // panjang kabin
-    const halfW = 2.1;         // setengah lebar lantai (lebar kabin ~4.2 m — lorong lega)
-    const wallH = 1.35;        // tinggi dinding tegak (garis jendela)
-    const ceilY = 2.85;        // puncak langit-langit (lebih tinggi, tidak sempit)
-    const cockpitX = L / 2 - 3.6;
-
-    // ---- Cangkang badan pesawat: lantai RATA + dinding melengkung ke langit-langit ----
-    // (penampang badan pesawat sungguhan — bukan silinder penuh seperti roket)
-    const sec = new THREE.Shape();
-    sec.moveTo(-halfW, 0.02);
-    sec.lineTo(-halfW, wallH);
-    sec.quadraticCurveTo(-halfW, ceilY, 0, ceilY);
-    sec.quadraticCurveTo(halfW, ceilY, halfW, wallH);
-    sec.lineTo(halfW, 0.02);
-    const shellGeo = new THREE.ExtrudeGeometry(sec, { depth: L, bevelEnabled: false, curveSegments: 18 });
-    shellGeo.translate(0, 0, -L / 2);   // pusatkan sepanjang sumbu ekstrusi
-    shellGeo.rotateY(Math.PI / 2);      // ekstrusi Z → sumbu X (panjang kabin)
-    const shellMat = new THREE.MeshStandardMaterial({ color: 0xeef1f4, roughness: 0.92, side: THREE.BackSide });
-    g.add(new THREE.Mesh(shellGeo, shellMat));
-
-    // Sekat belakang (galri) agar kabin tertutup di ujung -X
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xe4e8ec, roughness: 0.8 });
-    const rear = new THREE.Mesh(new THREE.BoxGeometry(0.16, ceilY, halfW * 2), wallMat);
-    rear.position.set(-L / 2 + 0.3, ceilY / 2, 0);
-    g.add(rear);
-
-    // ---- Lantai + karpet lorong ----
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, halfW * 2),
-        new THREE.MeshStandardMaterial({ color: 0x33495f, roughness: 0.96 }));
-    floor.position.y = -0.02; floor.receiveShadow = true; g.add(floor);
-    const aisle = new THREE.Mesh(new THREE.BoxGeometry(L, 0.02, 0.62),
-        new THREE.MeshStandardMaterial({ color: 0x16233a, roughness: 1 }));
-    aisle.position.y = 0.05; g.add(aisle);
-
-    // ---- Laci kabin (overhead bins) + celah cahaya indirek di kedua sisi ----
-    const binMat = new THREE.MeshStandardMaterial({ color: 0xe7ebef, roughness: 0.55 });
-    for (const s of [-1, 1]) {
-        const bin = new THREE.Mesh(new THREE.BoxGeometry(L - 1.2, 0.42, 0.9), binMat);
-        bin.position.set(0.2, 2.22, s * (halfW - 0.6));
-        bin.rotation.x = s > 0 ? 0.24 : -0.24;   // muka bawah menghadap ke dalam-bawah
-        bin.castShadow = true; g.add(bin);
-        const glow = new THREE.Mesh(new THREE.BoxGeometry(L - 1.2, 0.05, 0.1), mats.emissiveCool);
-        glow.position.set(0.2, 2.0, s * (halfW - 1.0)); g.add(glow);
+    const L = 34, R = 3.6;
+    
+    // Dinding silinder (kabin bagian dalam)
+    const tubeGeo = new THREE.CylinderGeometry(R, R, L, 32, 1, false);
+    const tubeMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.8, side: THREE.BackSide });
+    const tube = new THREE.Mesh(tubeGeo, tubeMat);
+    tube.rotation.z = Math.PI / 2;
+    tube.position.y = R - 0.6;
+    g.add(tube);
+    
+    // Lantai kabin dengan motif karpet
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.15, R * 1.8), new THREE.MeshStandardMaterial({ color: 0x1a2233, roughness: 0.9 }));
+    floor.position.y = 0.05;
+    g.add(floor);
+    
+    // Overhead Bins (Laci kabin di atas kursi)
+    const binGeo = new THREE.BoxGeometry(L, 1.2, 1.4);
+    const binMat = new THREE.MeshStandardMaterial({ color: 0xe0e5ea, roughness: 0.6 });
+    for(const sz of [-R + 1.2, R - 1.2]) {
+        const bin = new THREE.Mesh(binGeo, binMat);
+        bin.position.set(0, R * 1.5, sz);
+        bin.rotation.x = sz > 0 ? 0.35 : -0.35;
+        g.add(bin);
     }
-    // Kanal cahaya di puncak langit-langit (kabin terang merata)
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(L - 1.2, 0.06, 0.42), mats.emissiveCool);
-    strip.position.set(0.2, ceilY - 0.05, 0); g.add(strip);
+    
+    // Lampu LED strip di langit-langit kabin
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, 0.5), mats.emissiveCool);
+    strip.position.set(0, R * 1.75, 0);
+    g.add(strip);
 
-    // ---- Kursi penumpang 3-3 (putih + kain biru, ala foto referensi) ----
-    const seatBlue = new THREE.MeshStandardMaterial({ color: 0x2f6690, roughness: 0.85 });  // kain biru
-    const seatShell = new THREE.MeshStandardMaterial({ color: 0xeef2f4, roughness: 0.7 });   // cangkang putih
-    const seatHead = new THREE.MeshStandardMaterial({ color: 0x254a68, roughness: 0.82 });   // sandaran kepala biru tua
-    const armMat = new THREE.MeshStandardMaterial({ color: 0xcdd3d8, roughness: 0.5 });
-
-    const pitch = 1.0;                       // jarak antar baris
-    const firstX = -L / 2 + 2.4;
-    const lastX = cockpitX - 1.9;
-    const rows = Math.max(1, Math.floor((lastX - firstX) / pitch) + 1);
-    const seatZ = [-1.72, -1.15, -0.72, 0.72, 1.15, 1.72];  // 3 kiri + 3 kanan, lorong lega di tengah
-    const nSeats = rows * seatZ.length;
-
-    const cushion = new THREE.InstancedMesh(new THREE.BoxGeometry(0.48, 0.14, 0.47), seatBlue, nSeats);
-    const backShell = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.78, 0.5), seatShell, nSeats);
-    const backPad = new THREE.InstancedMesh(new THREE.BoxGeometry(0.06, 0.6, 0.42), seatBlue, nSeats);
-    const headrest = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.22, 0.46), seatHead, nSeats);
-    const base = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.34, 0.4), armMat, nSeats);
-    const armrest = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 0.05, 0.06), armMat, nSeats * 2);
-    for (const im of [cushion, backShell, backPad, headrest, base, armrest]) im.castShadow = true;
+    // Setup material kursi penumpang (Economy Class)
+    const seatMat = new THREE.MeshStandardMaterial({ color: 0xf0f4f5, roughness: 0.8 }); // Clean white fabrics
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4 });
+    const hdMat = new THREE.MeshStandardMaterial({ color: 0x0f5c35, roughness: 0.6 }); // Emerald headrest
+    
+    const nSeats = 12 * 4;
+    const cush = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.15, 0.5), seatMat, nSeats);
+    const bk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.85, 0.5), seatMat, nSeats);
+    const hd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 0.25, 0.51), hdMat, nSeats);
+    const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.45, 0.04, 0.06), armMat, nSeats * 2);
+    const leg = new THREE.InstancedMesh(new THREE.BoxGeometry(0.25, 0.4, 0.35), armMat, nSeats);
 
     const m4 = new THREE.Matrix4();
-    const rotBack = new THREE.Matrix4().makeRotationZ(0.14);   // sandaran sedikit rebah
-    const tmp = new THREE.Matrix4();
-    let i = 0, ai = 0;
+    let i = 0, j = 0;
     const seatSpots = [];
-    for (let r = 0; r < rows; r++) {
-        const sx = firstX + r * pitch;
-        for (const sz of seatZ) {
-            m4.makeTranslation(sx, 0.46, sz); cushion.setMatrixAt(i, m4);
-            m4.makeTranslation(sx, 0.22, sz); base.setMatrixAt(i, m4);
-            tmp.copy(rotBack).setPosition(sx - 0.24, 0.9, sz); backShell.setMatrixAt(i, tmp);
-            tmp.copy(rotBack).setPosition(sx - 0.19, 0.9, sz); backPad.setMatrixAt(i, tmp);
-            m4.makeTranslation(sx - 0.31, 1.33, sz); headrest.setMatrixAt(i, m4);
-            m4.makeTranslation(sx + 0.02, 0.66, sz - 0.26); armrest.setMatrixAt(ai++, m4);
-            m4.makeTranslation(sx + 0.02, 0.66, sz + 0.26); armrest.setMatrixAt(ai++, m4);
+    
+    // Baris kursi penumpang
+    for (let row = 0; row < 12; row++) {
+        for (const sz of [-1.5, -0.85, 0.85, 1.5]) {
+            const sx = -L / 2 + 6 + row * 1.8;
+            
+            engine.addBlocker(origin.x + sx - 0.35, origin.z + sz - 0.35, origin.x + sx + 0.35, origin.z + sz + 0.35);
+            m4.makeTranslation(sx, 0.45, sz); cush.setMatrixAt(i, m4);
+            m4.makeTranslation(sx, 0.2, sz); leg.setMatrixAt(i, m4);
+            m4.makeRotationZ(-0.15); m4.setPosition(sx - 0.25, 0.9, sz); bk.setMatrixAt(i, m4);
+            m4.setPosition(sx - 0.35, 1.3, sz); hd.setMatrixAt(i, m4);
+            
+            m4.makeTranslation(sx + 0.05, 0.65, sz - 0.28); arm.setMatrixAt(j++, m4);
+            m4.makeTranslation(sx + 0.05, 0.65, sz + 0.28); arm.setMatrixAt(j++, m4);
+            
             seatSpots.push({ x: sx + origin.x, z: sz + origin.z, ry: Math.PI / 2 });
             i++;
         }
     }
-    g.add(cushion, backShell, backPad, headrest, base, armrest);
-
-    // Blocker: dua bank kursi kiri & kanan — lorong tengah tetap terbuka
-    engine.addBlocker(origin.x + firstX - 0.5, origin.z - 2.0, origin.x + lastX + 0.5, origin.z - 0.55);
-    engine.addBlocker(origin.x + firstX - 0.5, origin.z + 0.55, origin.x + lastX + 0.5, origin.z + 2.0);
-
-    // ---- Jendela oval di kedua dinding (sejajar tiap baris) ----
-    // ---- Jendela: kaca DATAR menempel rata di dinding, bergambar langit (tembus pandang) ----
-    const paneGeo = new THREE.ShapeGeometry(roundedRectShape(0.26, 0.4, 0.12));   // XY: lebar sepanjang X, tinggi Y
-    const frameGeo = new THREE.ShapeGeometry(roundedRectShape(0.34, 0.5, 0.15));
-    const paneMat = new THREE.MeshBasicMaterial({ map: skyWindowTexture() });      // unlit → selalu terang seperti langit
-    const winFrameMat = new THREE.MeshStandardMaterial({ color: 0xccd2d8, roughness: 0.6 });
-    const pane = new THREE.InstancedMesh(paneGeo, paneMat, rows * 2);
-    const frame = new THREE.InstancedMesh(frameGeo, winFrameMat, rows * 2);
-    const winY = 1.15;                              // garis jendela (di dinding tegak)
-    const rotFace = new THREE.Matrix4().makeRotationY(Math.PI);
-    let wi = 0;
-    for (let r = 0; r < rows; r++) {
-        const sx = firstX + r * pitch;
+    g.add(cush, bk, hd, arm, leg);
+    
+    // Jendela kabin emissive (memancarkan cahaya biru terang)
+    for (let w = 0; w < 12; w++) {
         for (const s of [-1, 1]) {
-            const zWall = s * (halfW - 0.02);       // menempel di permukaan dinding
-            if (s < 0) {                             // dinding -Z: menghadap +Z (ke dalam kabin)
-                m4.makeTranslation(sx, winY, zWall + 0.004); frame.setMatrixAt(wi, m4);
-                m4.makeTranslation(sx, winY, zWall + 0.010); pane.setMatrixAt(wi, m4);
-            } else {                                 // dinding +Z: menghadap -Z
-                m4.copy(rotFace).setPosition(sx, winY, zWall - 0.004); frame.setMatrixAt(wi, m4);
-                m4.copy(rotFace).setPosition(sx, winY, zWall - 0.010); pane.setMatrixAt(wi, m4);
-            }
-            wi++;
+            g.add(mesh(new THREE.BoxGeometry(0.35, 0.55, 0.05), new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x88ccff, emissiveIntensity: 0.6 }),
+                -L / 2 + 6 + w * 1.8, 1.3, s * (R - 0.1), { cast: false }));
         }
     }
-    g.add(frame, pane);
 
-    // ---- Sekat kokpit (bulkhead) dengan lubang pintu di tengah ----
-    const doorW = 0.95, doorH = 2.0;
-    const sideW = (halfW * 2 - doorW) / 2;
-    for (const s of [-1, 1]) {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.12, ceilY, sideW), wallMat);
-        panel.position.set(cockpitX, ceilY / 2, s * (doorW / 2 + sideW / 2));
-        g.add(panel);
-    }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(0.12, ceilY - doorH, doorW), wallMat);
-    lintel.position.set(cockpitX, doorH + (ceilY - doorH) / 2, 0);
-    g.add(lintel);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, doorH, doorW),
-        new THREE.MeshStandardMaterial({ color: 0x9aa2a8, roughness: 0.4 }));
-    door.position.set(cockpitX + 0.1, doorH / 2, -doorW / 2 + 0.06);
-    door.rotation.y = -Math.PI / 3.2;   // sedikit terbuka
+    // RUANG PILOT (COCKPIT) DI BAGIAN DEPAN (+X)
+    const cockpitX = L / 2 - 3.5;
+    
+    // Dinding pembatas kokpit (Bulkhead) dengan pintu sedikit terbuka
+    const bulkhead1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, R*2, R*2 - 0.9), tubeMat);
+    bulkhead1.position.set(cockpitX, R-0.6, 0.45);
+    g.add(bulkhead1);
+    const bulkhead2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, R*2 - 2.2, 0.9), tubeMat);
+    bulkhead2.position.set(cockpitX, R*2 - 1.1, -R + 0.45);
+    g.add(bulkhead2);
+    
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.85), new THREE.MeshStandardMaterial({ color: 0x8c9399, roughness: 0.4 }));
+    door.position.set(cockpitX + 0.35, 1.1, -0.05);
+    door.rotation.y = Math.PI / 3; // Terbuka agar pemain bisa melihat/masuk
     g.add(door);
-    // blocker sekat kiri & kanan pintu
-    engine.addBlocker(origin.x + cockpitX - 0.2, origin.z - halfW, origin.x + cockpitX + 0.2, origin.z - doorW / 2);
-    engine.addBlocker(origin.x + cockpitX - 0.2, origin.z + doorW / 2, origin.x + cockpitX + 0.2, origin.z + halfW);
 
-    // ---- Ruang kokpit (kursi pilot, glareshield, konsol, kaca depan datar-miring) ----
-    const pMat = new THREE.MeshStandardMaterial({ color: 0x14181d, roughness: 0.9 });
-    for (const pz of [-0.55, 0.55]) {
-        const px = cockpitX + 1.5;
-        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.18, 0.6), pMat);
-        seat.position.set(px, 0.55, pz); g.add(seat);
-        const bk = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.85, 0.6), pMat);
-        bk.position.set(px - 0.24, 1.0, pz); bk.rotation.z = 0.12; g.add(bk);
+    // Kursi Pilot (Captain & First Officer)
+    const pSeatMat = new THREE.MeshStandardMaterial({ color: 0x11151a, roughness: 0.9 });
+    for (const pz of [-0.8, 0.8]) {
+        const px = cockpitX + 1.8;
+        // Dudukan & sandaran pilot
+        const ps = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.7), pSeatMat);
+        ps.position.set(px, 0.6, pz);
+        g.add(ps);
+        const pb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.9, 0.7), pSeatMat);
+        pb.position.set(px - 0.25, 1.1, pz);
+        pb.rotation.z = -0.1;
+        g.add(pb);
+        
+        // Panel instrumen & Layar Monitor (menyala hijau/biru ala glass cockpit)
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 1.0), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        dash.position.set(px + 1.2, 0.8, pz);
+        dash.rotation.z = -0.3;
+        g.add(dash);
+        
+        const scr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.8), new THREE.MeshStandardMaterial({ color: 0x22ff99, emissive: 0x22ff99, emissiveIntensity: 0.7 }));
+        scr.position.set(px + 0.95, 1.25, pz);
+        scr.rotation.z = -0.3;
+        g.add(scr);
     }
-    const glare = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 1.8), pMat);
-    glare.position.set(cockpitX + 2.7, 1.05, 0); glare.rotation.z = -0.2; g.add(glare);
-    const screens = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 1.5),
-        new THREE.MeshStandardMaterial({ color: 0x114433, emissive: 0x22cc88, emissiveIntensity: 0.7 }));
-    screens.position.set(cockpitX + 2.42, 0.95, 0); screens.rotation.z = -0.35; g.add(screens);
-    const ped = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.55, 0.5), pMat);
-    ped.position.set(cockpitX + 2.2, 0.42, 0); g.add(ped);
-    const thr = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.28), mats.steel);
-    thr.position.set(cockpitX + 1.9, 0.78, 0); g.add(thr);
-    // Kaca depan kokpit: panel datar miring (bukan kerucut/setengah bola)
-    const glassMat = new THREE.MeshStandardMaterial({ color: 0x0a1420, roughness: 0.15, metalness: 0.2, side: THREE.DoubleSide });
-    const frontX = cockpitX + 3.3;
-    const wsC = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 1.25), glassMat);
-    wsC.position.set(frontX, 1.5, 0); wsC.rotation.z = 0.5; g.add(wsC);
-    for (const s of [-1, 1]) {
-        const wsS = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.75, 0.7), glassMat);
-        wsS.position.set(frontX - 0.28, 1.45, s * 0.9);
-        wsS.rotation.z = 0.5; wsS.rotation.y = s * 0.5; g.add(wsS);
-    }
+    
+    // Konsol tengah (Center Pedestal) & Tuas Gas (Throttle)
+    const consoleM = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.6), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+    consoleM.position.set(cockpitX + 2.0, 0.5, 0);
+    g.add(consoleM);
+    const throttle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.3), mats.steel);
+    throttle.position.set(cockpitX + 1.5, 0.9, 0);
+    g.add(throttle);
+
+    // Kaca Depan Kokpit (Windshield)
+    const windGeom = new THREE.SphereGeometry(R-0.1, 24, 12, 0, Math.PI);
+    const windMat = new THREE.MeshStandardMaterial({ color: 0x050a14, roughness: 0.1, side: THREE.BackSide });
+    const wind = new THREE.Mesh(windGeom, windMat);
+    wind.rotation.z = Math.PI / 2;
+    wind.rotation.y = Math.PI / 2;
+    wind.position.set(cockpitX + 3.0, R-0.6, 0);
+    g.add(wind);
 
     g.position.set(origin.x, 0, origin.z);
     scene.add(g);
-
-    // Pencahayaan kabin (hangat, terang merata) + kokpit kebiruan
-    engine.addPointLamp(origin.x, 2.15, origin.z, { color: 0xfff1dc, intensity: 40, distance: 26 });
-    engine.addPointLamp(origin.x - 11, 2.15, origin.z, { color: 0xfff1dc, intensity: 30, distance: 20 });
-    engine.addPointLamp(origin.x + 8, 2.15, origin.z, { color: 0xfff1dc, intensity: 30, distance: 20 });
-    engine.addPointLamp(origin.x + cockpitX + 2.4, 1.9, origin.z, { color: 0x66aaff, intensity: 16, distance: 9 });
-
-    // Area bebas jalan: sepanjang kabin (lebar penuh) hingga pintu kokpit
-    engine.addWalkRect(origin.x - L / 2 + 1.5, origin.z - halfW + 0.3, origin.x + cockpitX - 0.4, origin.z + halfW - 0.3);
-
+    
+    // Warm calming ambient LED lighting di kabin penumpang
+    engine.addPointLamp(origin.x, 2.4, origin.z, { color: 0xffe8cc, intensity: 45, distance: 30 });
+    engine.addPointLamp(origin.x - 10, 2.4, origin.z, { color: 0xffe8cc, intensity: 35, distance: 22 });
+    engine.addPointLamp(origin.x + 10, 2.4, origin.z, { color: 0xffe8cc, intensity: 35, distance: 22 });
+    
+    // Lampu redup berwarna biru di dalam kokpit
+    engine.addPointLamp(origin.x + cockpitX + 2.0, 2.2, origin.z, { color: 0x55aaff, intensity: 25, distance: 10 });
+    
+    // Area bebas berjalan (sampai ke pintu kokpit)
+    engine.addWalkRect(origin.x - L / 2 + 1, origin.z - R + 0.5, origin.x + cockpitX + 2, origin.z + R - 0.5);
+    
     return { origin, length: L, seatSpots };
 }
 
@@ -2102,7 +2018,7 @@ export function miqat(engine) {
     const wallThick = 1.2;
     // Tembok belakang (Utara)
     miqatGroup.add(mesh(new THREE.BoxGeometry(80, wallH + 4, wallThick), mats.cream, 0, (wallH + 4)/2, -40));
-    engine.addBlocker(-40, -40.7, 40, -39.3); // Tembok utara (dinding kiblat) — interior masjid bisa dimasuki
+    engine.addBlocker(-40, -41, 40, -27); // Solid area Masjid utama
     
     // Tembok Samping Kiri (Barat) & Kanan (Timur)
     for (const sx of [-1, 1]) {
@@ -2210,75 +2126,11 @@ export function miqat(engine) {
     engine.addBlocker(18, 13, 22, 17);
 
     // 6. RUANG SHALAT UTAMA (PRAYER HALL) & KELOMPOK KUBAH
-    // Berongga & bisa dimasuki: cangkang dinding samping + atap; dinding kiblat
-    // memakai tembok utara; interior lengkap (mihrab, minbar, karpet saf,
-    // pilar, lampu gantung, rak Al-Qur'an) seperti masjid pada umumnya.
     const hallZ = -34;
-    for (const sx of [-1, 1]) {
-        miqatGroup.add(mesh(new THREE.BoxGeometry(1.2, 12, 12), mats.cream, sx * 29.4, 6, hallZ));
-        engine.addBlocker(sx * 29.4 - 0.7, -41, sx * 29.4 + 0.7, -27);
-    }
-    miqatGroup.add(mesh(new THREE.BoxGeometry(60, 1, 12), mats.cream, 0, 11.5, hallZ, { cast: false })); // atap datar penopang kubah
-
-    // Karpet merah interior + garis saf emas menghadap mihrab
-    const carpetRed = new THREE.MeshStandardMaterial({ color: 0x7a1f26, roughness: 0.95 });
-    const safLine = new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.9 });
-    miqatGroup.add(mesh(new THREE.BoxGeometry(57, 0.08, 10.4), carpetRed, 0, 0.24, hallZ, { cast: false }));
-    for (let sz = -30.4; sz >= -38; sz -= 1.5)
-        miqatGroup.add(mesh(new THREE.BoxGeometry(56, 0.02, 0.12), safLine, 0, 0.3, sz, { cast: false }));
-
-    // Mihrab — ceruk setengah silinder berbingkai emas di dinding kiblat
-    const nicheMat = new THREE.MeshStandardMaterial({ color: 0xf3ead8, roughness: 0.85, side: THREE.DoubleSide });
-    const niche = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 5.6, 16, 1, true, 0, Math.PI), nicheMat);
-    niche.rotation.y = Math.PI / 2;
-    niche.position.set(0, 2.8, -39.2);
-    miqatGroup.add(niche);
-    const mihrabArch = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.09, 8, 18, Math.PI), mats.gold);
-    mihrabArch.position.set(0, 5.6, -38.9);
-    miqatGroup.add(mihrabArch);
-    for (const sx of [-1, 1])
-        miqatGroup.add(mesh(new THREE.CylinderGeometry(0.09, 0.09, 5.6, 8), mats.gold, sx * 1.7, 2.8, -38.9));
-
-    // Minbar kayu bertangga di kanan mihrab
-    const minbarX = 3.6;
-    miqatGroup.add(mesh(new THREE.BoxGeometry(1.1, 0.4, 0.5), mats.wood, minbarX, 0.44, -38.3));
-    miqatGroup.add(mesh(new THREE.BoxGeometry(1.1, 0.8, 0.5), mats.wood, minbarX, 0.64, -38.8));
-    miqatGroup.add(mesh(new THREE.BoxGeometry(1.1, 1.2, 0.5), mats.wood, minbarX, 0.84, -39.3));
-    engine.addBlocker(minbarX - 0.7, -39.6, minbarX + 0.7, -38.0);
-
-    // Pilar interior dua baris
-    for (const px of [-18, -9, 9, 18]) for (const pz of [-31.2, -36.8]) {
-        miqatGroup.add(mesh(new THREE.CylinderGeometry(0.55, 0.65, 11, 12), mats.marbleTile, px, 5.5, pz));
-        engine.addBlocker(px - 0.75, pz - 0.75, px + 0.75, pz + 0.75);
-    }
-
-    // Lampu gantung berpendar + cahaya interior
-    const lampGlow = new THREE.MeshBasicMaterial({ color: 0xffe9b8 });
-    for (const lx of [-14, 0, 14]) {
-        miqatGroup.add(mesh(new THREE.CylinderGeometry(0.03, 0.03, 3, 6), mats.darkGrey, lx, 9.5, hallZ, { cast: false }));
-        miqatGroup.add(mesh(new THREE.SphereGeometry(0.5, 12, 10), lampGlow, lx, 7.8, hallZ, { cast: false }));
-        engine.addPointLamp(lx, 7.5, hallZ, { color: 0xffe2b0, intensity: 60, distance: 30 });
-    }
-
-    // Rak Al-Qur'an dekat pintu masuk
-    const qrak = new THREE.Group();
-    for (let qy = 0.6; qy <= 1.8; qy += 0.6) qrak.add(mesh(new THREE.BoxGeometry(2.4, 0.08, 0.5), mats.wood, 0, qy, 0));
-    for (const sx of [-1.15, 1.15]) qrak.add(mesh(new THREE.BoxGeometry(0.1, 2.0, 0.5), mats.wood, sx, 1.0, 0));
-    for (let i = 0; i < 6; i++) qrak.add(mesh(new THREE.BoxGeometry(0.28, 0.42, 0.34),
-        new THREE.MeshStandardMaterial({ color: [0x1f4d2e, 0x5a1f1f, 0x1f2f5a][i % 3], roughness: 0.8 }),
-        -0.95 + i * 0.38, 0.87, 0, { cast: false }));
-    qrak.position.set(-8, 0.24, -29.6);
-    miqatGroup.add(qrak);
-    engine.addBlocker(-9.3, -30.0, -6.7, -29.2);
-
-    // Dinding fasad pengisi antar-pilar — dua arch tengah (x ±3.5) terbuka sebagai pintu
-    for (const [fx1, fx2] of [[-30, -5.4], [-1.6, 1.6], [5.4, 30]]) {
-        miqatGroup.add(mesh(new THREE.BoxGeometry(fx2 - fx1, 12, 0.6), mats.cream, (fx1 + fx2) / 2, 6, hallZ + 5.4));
-        engine.addBlocker(fx1, hallZ + 4.9, fx2, hallZ + 5.9);
-    }
-    for (const dx of [-3.5, 3.5]) // ambang di atas bukaan pintu (tinggi bukaan 7 m)
-        miqatGroup.add(mesh(new THREE.BoxGeometry(3.8, 5, 0.6), mats.cream, dx, 9.5, hallZ + 5.4));
-
+    // Bangunan utama ruang shalat (Blok besar menopang kubah)
+    miqatGroup.add(mesh(new THREE.BoxGeometry(60, 12, 12), mats.cream, 0, 6, hallZ));
+    engine.addBlocker(-31, -41, 31, -27); // Ruang shalat + fasad solid — cegah tembus (sajadah di z=-25 tetap bisa dicapai)
+    
     // Drum (Tambur) Kubah Utama agar tidak mengambang
     miqatGroup.add(mesh(new THREE.CylinderGeometry(8.2, 8.2, 2.5, 32), mats.cream, 0, 12, hallZ));
     // Kubah Utama
@@ -2294,10 +2146,8 @@ export function miqat(engine) {
             miqatGroup.add(mesh(new THREE.BoxGeometry(3.5, 0.5, 2), mats.cream, archCX, 8.25, hallZ + 6));
             miqatGroup.add(mesh(new THREE.BoxGeometry(5.0, 0.5, 2), mats.cream, archCX, 8.75, hallZ + 6));
             miqatGroup.add(mesh(new THREE.BoxGeometry(7.1, 0.5, 2), mats.cream, archCX, 9.25, hallZ + 6));
-            // Pintu/Jendela gelap masuk ke dalam masjid — dua arch tengah (±3.5)
-            // dibiarkan terbuka sebagai pintu masuk sungguhan
-            if (Math.abs(archCX) !== 3.5)
-                miqatGroup.add(mesh(new THREE.BoxGeometry(4, 7, 0.2), darkArch, archCX, 3.5, hallZ + 6.1));
+            // Pintu/Jendela gelap masuk ke dalam masjid
+            miqatGroup.add(mesh(new THREE.BoxGeometry(4, 7, 0.2), darkArch, archCX, 3.5, hallZ + 6.1));
         }
     }
     miqatGroup.add(mesh(new THREE.BoxGeometry(50, 1.5, 4), mats.cream, 0, 10.25, hallZ + 6)); // Atap fasad utama
@@ -2347,10 +2197,10 @@ export function miqat(engine) {
     miqatGroup.add(rak);
     engine.addBlocker(-3.5, -16, 3.5, -14); // Blocker rak ihram
 
-    // Sajadah sholat sunnah berderet DI DALAM ruang shalat, saf depan menghadap mihrab
+    // Sajadah sholat sunnah berderet di ruang shalat utama
     const sajadahGroup = new THREE.Group();
-    for(let i=0; i<3; i++) sajadahGroup.add(prayerMat(mats, i*2, 0, Math.PI));
-    sajadahGroup.position.set(-2, 0.28, -33.6);
+    for(let i=0; i<3; i++) sajadahGroup.add(mesh(new THREE.BoxGeometry(1.2, 0.04, 2), mats.carpetGreen, i*2, 0.02, 0, { cast: false }));
+    sajadahGroup.position.set(16, 0, -25);
     miqatGroup.add(sajadahGroup);
 
     // 7. TAMAN & POHON KURMA DI HALAMAN
@@ -2408,7 +2258,7 @@ export function miqat(engine) {
         features: [
             { type: 'square', x: -20, z: -10, color: '#57a9d9' }, // Bilik Wudhu
             { type: 'square', x: 0, z: -15, color: '#e8e2d2' }, // Rak Ihram
-            { type: 'point', x: 0, z: -33, color: '#37c978' }, // Sajadah di dalam ruang shalat
+            { type: 'point', x: 16, z: -25, color: '#37c978' }, // Sajadah Sholat
             { type: 'square', x: 0, z: 54, color: '#d9d957' } // Bus
         ]
     });
@@ -2786,11 +2636,6 @@ export function mina(engine, { withAllJamarat = false } = {}) {
         for (let col = 0; col < 20 && idx < count; col++) {
             const x = -95 + col * 10 + (row % 2) * 3;
             const z = 26 + row * 9;
-            // Plaza fasilitas (tenda dam & cukur) — kosongkan tenda kota di area ini
-            if (x > 14 && x < 48 && z < 44) continue;
-            // Koridor pejalan utama menuju Jamarat — jalur arus jamaah (lebar ±12 m)
-            // harus bebas tenda agar kerumunan tidak terjepit dan menumpuk
-            if (Math.abs(x) < 12 && z < 44) continue;
             m4.makeTranslation(x, 1.1, z);
             bodies.setMatrixAt(idx, m4);
             m4.compose(new THREE.Vector3(x, 3.0, z), q, s1);
@@ -2799,7 +2644,6 @@ export function mina(engine, { withAllJamarat = false } = {}) {
             idx++;
         }
     }
-    bodies.count = roofs.count = idx;
     bodies.castShadow = roofs.castShadow = true;
     bodies.receiveShadow = true;
     scene.add(bodies, roofs);
@@ -2822,9 +2666,7 @@ export function mina(engine, { withAllJamarat = false } = {}) {
     for (let px = -90; px <= 90; px += 30) {
         for (let pz = -70; pz <= 10; pz += 25) {
             // Kosongkan area tengah agar tiang Jumrah dan arus jamaah tidak terhalang
-            if (Math.abs(px) < 25 && Math.abs(pz + 40) < 20) continue;
-            // Kosongkan pilar di tengah koridor pejalan (jalur arus jamaah)
-            if (Math.abs(px) < 12 && pz >= -25) continue;
+            if (Math.abs(px) < 25 && Math.abs(pz + 40) < 20) continue; 
             scene.add(mesh(new THREE.CylinderGeometry(2, 2, 18, 16), mats.grey, px, 9, pz));
             engine.addBlocker(px - 2, pz - 2, px + 2, pz + 2); // Pilar jembatan solid
         }
@@ -2847,8 +2689,7 @@ export function mina(engine, { withAllJamarat = false } = {}) {
             const p = jamratPillar(mats);
             p.position.set(jx, 0, jz);
             scene.add(p);
-            // Dinding elips jamrah: alas ±5.7 m (x, terskala 2.6×) × ±2.2 m (z)
-            engine.addBlocker(jx - 5.8, jz - 2.3, jx + 5.8, jz + 2.3); // Tiang Jamrah solid
+            engine.addBlocker(jx - 3, jz - 3, jx + 3, jz + 3); // Tiang Jamrah solid
             jamarat[name] = p;
             const st = Tex.sign(
                 name === 'ula' ? 'JUMRAH ULA' : name === 'wustha' ? 'JUMRAH WUSTHA' : 'JUMRAH AQABAH',
@@ -2861,8 +2702,7 @@ export function mina(engine, { withAllJamarat = false } = {}) {
         const p = jamratPillar(mats);
         p.position.set(0, 0, -40);
         scene.add(p);
-        // Dinding elips jamrah: alas ±5.7 m (x, terskala 2.6×) × ±2.2 m (z)
-        engine.addBlocker(-5.8, -42.3, 5.8, -37.7); // Tiang Jamrah solid
+        engine.addBlocker(-3, -43, 3, -37); // Tiang Jamrah solid
         jamarat.aqabah = p;
         const st = Tex.sign('JUMRAH AQABAH', { bg: '#0e3b26', fg: '#c8ffc8', w: 640, h: 100, font: 'bold 48px sans-serif' });
         scene.add(mesh(new THREE.BoxGeometry(8, 1.4, 0.2),
@@ -2903,171 +2743,48 @@ export function mina(engine, { withAllJamarat = false } = {}) {
 }
 
 
-/** Kursi cukur — model glTF barber chair; fallback kursi kotak prosedural. */
 export function barberChair(mats) {
     const g = new THREE.Group();
-    loadGltf('/assets/barber_chair/scene.gltf').then(proto => {
-        const c = proto.clone(true);
-        c.scale.setScalar(1.25 / proto.userData.size.y); // tinggi kursi ± 1.25 m
-        g.add(c);
-    }).catch(() => {
-        g.add(mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), new THREE.MeshStandardMaterial({ color: 0x7c2d2d, roughness: 0.6 }), 0, 0.5, 0));
-        g.add(mesh(new THREE.BoxGeometry(0.7, 0.8, 0.15), new THREE.MeshStandardMaterial({ color: 0x7c2d2d, roughness: 0.6 }), 0, 1.1, -0.28));
-        g.add(mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 10), mats.steel, 0, 0.15, 0));
-    });
+    g.add(mesh(new THREE.BoxGeometry(0.7, 0.5, 0.7), new THREE.MeshStandardMaterial({ color: 0x7c2d2d, roughness: 0.6 }), 0, 0.5, 0));
+    g.add(mesh(new THREE.BoxGeometry(0.7, 0.8, 0.15), new THREE.MeshStandardMaterial({ color: 0x7c2d2d, roughness: 0.6 }), 0, 1.1, -0.28));
+    g.add(mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.3, 10), mats.steel, 0, 0.15, 0));
     return g;
 }
 
-/** Interior tukang cukur (tahallul) — model glTF barber shop lengkap (kursi,
- *  cermin, rak); bila gagal dimuat, jatuh kembali ke kursi cukur prosedural. */
-export function barberShop(mats, { width = 8, ry = 0 } = {}) {
-    const g = new THREE.Group();
-    g.rotation.y = ry;
-    loadGltf('/assets/barber_shop/scene.gltf').then(proto => {
-        const c = proto.clone(true);
-        const s = proto.userData.size;
-        c.scale.setScalar(width / Math.max(s.x, s.z));
-        g.add(c);
-    }).catch(err => {
-        console.warn('Gagal memuat model barber shop, memakai kursi prosedural:', err);
-        g.add(barberChair(mats));
-    });
-    return g;
-}
-
-/** Sajadah — karpet sholat glTF bertekstur (tapak 1.2 × 2 m, sumbu panjang di z);
- *  bila gagal dimuat, jatuh kembali ke kotak karpet hijau prosedural. */
 export function prayerMat(mats, x, z, ry = 0) {
-    const g = new THREE.Group();
-    g.position.set(x, 0.02, z);
-    g.rotation.y = ry;
-    loadGltf('/assets/prayer_carpet/scene.gltf').then(proto => {
-        const c = proto.clone(true);
-        const s = proto.userData.size;
-        if (s.x > s.z) { // sumbu panjang model di x → putar agar memanjang di z
-            c.rotation.y = Math.PI / 2;
-            c.scale.setScalar(Math.min(2 / s.x, 1.2 / s.z));
-        } else {
-            c.scale.setScalar(Math.min(1.2 / s.x, 2 / s.z));
-        }
-        g.add(c);
-    }).catch(() => {
-        g.add(mesh(new THREE.BoxGeometry(1.2, 0.04, 2), mats.carpetGreen, 0, 0, 0, { cast: false }));
-    });
-    return g;
+    return mesh(new THREE.BoxGeometry(1.2, 0.04, 2), mats.carpetGreen, x, 0.02, z, { cast: false, ry });
 }
 
-/** Rumah pemotongan hadyu (dam) — interior RPH ala Mina: lantai beton dengan
- *  saluran drainase, kandang kambing berpagar besi, rel gantung berkait, meja
- *  jagal stainless, dan kambing glTF. Dirancang pas untuk facilityTent 7.8×5. */
 export function slaughterArea(mats) {
     const g = new THREE.Group();
-    const steel = mats.steel;
-    const concrete = new THREE.MeshStandardMaterial({ color: 0x9a9a94, roughness: 0.95 });
-
-    // Lantai beton + saluran drainase gelap di sisi belakang
-    g.add(mesh(new THREE.BoxGeometry(7.2, 0.12, 4.6), concrete, 0, 0.06, 0, { cast: false }));
-    g.add(mesh(new THREE.BoxGeometry(7.0, 0.02, 0.35),
-        new THREE.MeshStandardMaterial({ color: 0x3a3d3f, roughness: 0.6 }), 0, 0.13, -1.9, { cast: false }));
-
-    // Palang besi horizontal (sumbu X; ry memutar arah palang)
-    const hbar = (len, x, y, z, ry = 0, r = 0.03) => {
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 6), steel);
-        m.rotation.z = Math.PI / 2; m.rotation.y = ry;
-        m.position.set(x, y, z);
-        m.castShadow = false;
-        return m;
-    };
-    const post = (x, z, h = 1.1, r = 0.04) => mesh(new THREE.CylinderGeometry(r, r, h, 8), steel, x, h / 2 + 0.12, z);
-
-    // Kandang kambing sisi kiri — pagar besi 3 sisi, bukaan menghadap tengah
-    // Tapak kandang: x -3.3..-1.1, z -1.8..0.6
-    for (const [px, pz] of [[-3.3, -1.8], [-3.3, -0.6], [-3.3, 0.6], [-2.2, -1.8], [-1.1, -1.8], [-2.2, 0.6], [-1.1, 0.6]])
-        g.add(post(px, pz));
-    for (const y of [0.5, 0.95]) {
-        g.add(hbar(2.2, -2.2, y, -1.8));            // sisi belakang
-        g.add(hbar(2.2, -2.2, y, 0.6));             // sisi depan
-        g.add(hbar(2.4, -3.3, y, -0.6, Math.PI / 2)); // sisi kiri
-    }
-
-    // Meja jagal stainless sisi kanan + keranjang plastik
-    g.add(mesh(new THREE.BoxGeometry(1.8, 0.08, 0.9), steel, 2.3, 0.88, -0.9));
-    for (const [lx, lz] of [[1.5, -1.25], [3.1, -1.25], [1.5, -0.55], [3.1, -0.55]])
-        g.add(mesh(new THREE.BoxGeometry(0.07, 0.75, 0.07), steel, lx, 0.5, lz, { cast: false }));
-    g.add(mesh(new THREE.BoxGeometry(0.6, 0.35, 0.4),
-        new THREE.MeshStandardMaterial({ color: 0x2e7d3a, roughness: 0.7 }), 2.9, 0.3, 0.2, { cast: false }));
-    g.add(mesh(new THREE.BoxGeometry(0.6, 0.35, 0.4),
-        new THREE.MeshStandardMaterial({ color: 0xb03a2e, roughness: 0.7 }), 2.2, 0.3, 0.25, { cast: false }));
-
-    // Rel gantung di sepanjang sisi belakang + kait-kait daging
-    g.add(post(-3.2, -1.5, 2.3), post(3.2, -1.5, 2.3));
-    g.add(hbar(6.4, 0, 2.42, -1.5, 0, 0.04));
-    for (let hx = -2.4; hx <= 2.4; hx += 1.2) {
-        g.add(mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 6), steel, hx, 2.25, -1.5, { cast: false }));
-        const hook = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.014, 6, 10, Math.PI * 1.4), steel);
-        hook.position.set(hx, 2.06, -1.5);
-        hook.rotation.z = Math.PI * 0.8;
-        hook.castShadow = false;
-        g.add(hook);
-    }
-
-    // Kambing hadyu — model glTF ber-rig, di-clone dengan SkeletonUtils
-    loadGltf('/assets/kambing/scene.gltf').then(proto => {
-        const spots = [
-            { x: -2.7, z: -1.1, ry: 0.5 },
-            { x: -1.8, z: -0.2, ry: -2.4 },
-            { x: 0.9, z: -1.1, ry: 2.9 },
-        ];
-        for (const s of spots) {
-            const goat = cloneSkinned(proto);
-            goat.scale.setScalar(0.95 / proto.userData.size.y);
-            goat.position.set(s.x, 0.12, s.z);
-            goat.rotation.y = s.ry;
-            g.add(goat);
-        }
-    }).catch(err => console.warn('Gagal memuat model kambing:', err));
-
+    g.add(mesh(new THREE.BoxGeometry(10, 3.2, 6), mats.cream, 0, 1.6, 0));
+    const t = Tex.sign('RUMAH PEMOTONGAN HADYU (DAM)', { bg: '#4d2a0d', fg: '#ffe0b8', w: 1024, h: 100 });
+    g.add(mesh(new THREE.BoxGeometry(8, 0.9, 0.16),
+        new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 1 }),
+        0, 3.8, 3.1, { cast: false }));
     return g;
 }
 
-/** Tenda fasilitas putih (marquee) — depan (+z) terbuka; untuk menaungi fasilitas seperti dam/cukur.
- *  depth opsional untuk tapak persegi panjang (default: bujur sangkar).
- *  label opsional: papan nama tepat di atas puncak atap tenda. */
-export function facilityTent(mats, size = 16, h = 6, depth = size, label = null) {
+/** Tenda fasilitas putih (marquee) — depan (+z) terbuka; untuk menaungi fasilitas seperti dam/cukur. */
+export function facilityTent(mats, size = 16, h = 6) {
     const g = new THREE.Group();
-    const hw = size / 2, hd = depth / 2;
+    const hw = size / 2;
     const fabric = new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.9, side: THREE.DoubleSide });
     const poleMat = new THREE.MeshStandardMaterial({ color: 0xbfbfbf, roughness: 0.5, metalness: 0.6 });
     // Tiang sudut
     for (const sx of [-1, 1]) for (const sz of [-1, 1])
-        g.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, h, 8), poleMat, sx * hw, h / 2, sz * hd));
+        g.add(mesh(new THREE.CylinderGeometry(0.13, 0.13, h, 8), poleMat, sx * hw, h / 2, sz * hw));
     // Dinding kain: belakang (-z) & dua samping; depan (+z) dibiarkan terbuka
-    g.add(mesh(new THREE.BoxGeometry(size, h, 0.12), fabric, 0, h / 2, -hd, { cast: false }));
-    g.add(mesh(new THREE.BoxGeometry(0.12, h, depth), fabric, -hw, h / 2, 0, { cast: false }));
-    g.add(mesh(new THREE.BoxGeometry(0.12, h, depth), fabric, hw, h / 2, 0, { cast: false }));
+    g.add(mesh(new THREE.BoxGeometry(size, h, 0.12), fabric, 0, h / 2, -hw, { cast: false }));
+    g.add(mesh(new THREE.BoxGeometry(0.12, h, size), fabric, -hw, h / 2, 0, { cast: false }));
+    g.add(mesh(new THREE.BoxGeometry(0.12, h, size), fabric, hw, h / 2, 0, { cast: false }));
     // Header di atas bukaan depan
-    g.add(mesh(new THREE.BoxGeometry(size, 0.7, 0.14), fabric, 0, h + 0.35, hd, { cast: false }));
-    // Atap piramida 4 sisi — tinggi proporsional terhadap tapak, sedikit
-    // overhang, dan alasnya duduk tepat di puncak dinding. Sudut alas diputar
-    // lewat thetaStart (bukan rotation.y) karena scale anisotropik diterapkan
-    // sebelum rotasi — memutar objeknya membuat atap persegi panjang miring.
-    const rh = Math.max(1.1, Math.min(2.2, Math.min(hw, hd) * 0.55));
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(1, rh, 4, 1, false, Math.PI / 4), fabric);
-    roof.scale.set((hw + 0.35) * Math.SQRT2, 1, (hd + 0.35) * Math.SQRT2);
-    roof.position.y = h + rh / 2;
+    g.add(mesh(new THREE.BoxGeometry(size, 0.7, 0.14), fabric, 0, h + 0.35, hw, { cast: false }));
+    // Atap piramida 4 sisi
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1, 3, 4), fabric);
+    roof.rotation.y = Math.PI / 4; roof.scale.set(hw * 1.44, 1, hw * 1.44); roof.position.y = h + 1.5;
     roof.castShadow = false; g.add(roof);
-    // Tiang puncak + ornamen bola emas
-    g.add(mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.7, 6), poleMat, 0, h + rh + 0.2, 0, { cast: false }));
-    g.add(mesh(new THREE.SphereGeometry(0.16, 10, 8),
-        new THREE.MeshStandardMaterial({ color: 0xd9b23a, roughness: 0.4, metalness: 0.6 }),
-        0, h + rh + 0.55, 0, { cast: false }));
-    // Papan nama tepat di atas puncak tenda
-    if (label) {
-        const t = Tex.sign(label, { bg: '#4d2a0d', fg: '#ffe0b8', w: 1024, h: 110 });
-        g.add(mesh(new THREE.BoxGeometry(size, 0.8, 0.12),
-            new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 1 }),
-            0, h + rh + 1.15, 0, { cast: false }));
-    }
+    g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8, 6), poleMat, 0, h + 3.3, 0, { cast: false }));
     return g;
 }
 

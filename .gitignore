@@ -23,6 +23,3 @@ node_modules/
 *.swp
 Thumbs.db
 .DS_Store
-
-# Alat portabel (file besar, jangan di-commit)
-tools/cloudflared.exe

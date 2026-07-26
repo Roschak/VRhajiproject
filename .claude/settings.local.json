@@ -72,9 +72,7 @@
       "Bash(cp src/VRHaji.Web/wwwroot/js/vr/builders.js /tmp/b9.mjs)",
       "Bash(node --check /tmp/b9.mjs)",
       "Bash(node cap_mosque2.mjs)",
-      "Bash(xargs wc -l)",
-      "PowerShell(Get-ChildItem assets -Directory | ForEach-Object { $g = Join-Path $_.FullName 'scene.gltf'; if \\(Test-Path $g\\) { $bin = \\(Get-Item \\(Join-Path $_.FullName 'scene.bin'\\)\\).Length; \"{0}  bin={1:N0} bytes\" -f $_.Name, $bin } })",
-      "PowerShell($j = Get-Content 'assets\\\\kambing\\\\scene.gltf' -Raw | ConvertFrom-Json; \"kambing: generator=$\\($j.asset.generator\\) meshes=$\\($j.meshes.Count\\) nodes=$\\($j.nodes.Count\\) skins=$\\($j.skins.Count\\) anims=$\\($j.animations.Count\\)\"; $k = Get-Content 'assets\\\\holy_kaaba_-_mecca_-_low_poly_1\\\\scene.gltf' -Raw | ConvertFrom-Json; \"kaaba: generator=$\\($k.asset.generator\\) meshes=$\\($k.meshes.Count\\) nodes=$\\($k.nodes.Count\\)\"; $a = Get-Content 'assets\\\\arab_man\\\\scene.gltf' -Raw | ConvertFrom-Json; \"arab_man: generator=$\\($a.asset.generator\\) meshes=$\\($a.meshes.Count\\) skins=$\\($a.skins.Count\\) anims=$\\($a.animations.Count\\)\")"
+      "Bash(xargs wc -l)"
     ]
   },
   "enabledMcpjsonServers": [

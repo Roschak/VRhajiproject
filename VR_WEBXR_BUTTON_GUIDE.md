@@ -98,7 +98,7 @@ async function startVR(renderer, onSessionStarted) {
   //    kalau tidak tersedia, beda dengan requiredFeatures
   try {
     const session = await navigator.xr.requestSession('immersive-vr', {
-      optionalFeatures: ['local-ur
+      optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
     });
 
     await renderer.xr.setSession(session);
