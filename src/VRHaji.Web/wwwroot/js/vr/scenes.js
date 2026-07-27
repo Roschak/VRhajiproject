@@ -439,6 +439,16 @@ const scene03 = {
         new Crowd(engine.scene, { count: 36, mode: 'idle', area: { x: 8, z: -6, w: 24, d: 16 }, colors: IHRAM });
         new Crowd(engine.scene, { count: 16, mode: 'idle', area: { x: -16, z: 6, w: 14, d: 8 }, colors: CASUAL });
         new Crowd(engine.scene, { count: 28, mode: 'sit', spots: refs.seatSpots, sitY: 1.0, colors: CASUAL });
+        
+        // Pejalan kaki di zebra cross
+        new Crowd(engine.scene, { count: 25, mode: 'wander', area: { x: 0, z: 60, w: 20, d: 20 }, colors: CASUAL }); // Depan
+        new Crowd(engine.scene, { count: 15, mode: 'wander', area: { x: -65, z: 0, w: 20, d: 20 }, colors: CASUAL }); // Kiri
+        new Crowd(engine.scene, { count: 15, mode: 'wander', area: { x: 65, z: 0, w: 20, d: 20 }, colors: CASUAL });  // Kanan
+        
+        // Pejalan kaki di sekitar pemukiman luar (batas parkir)
+        new Crowd(engine.scene, { count: 35, mode: 'wander', area: { x: 0, z: 110, w: 180, d: 15 }, colors: CASUAL }); // Luar Depan
+        new Crowd(engine.scene, { count: 35, mode: 'wander', area: { x: 0, z: -130, w: 180, d: 15 }, colors: CASUAL }); // Luar Belakang
+        
         refs.playerSeat = refs.seatSpots[15] || refs.seatSpots[0];
         engine.spawn(refs.playerSeat.x, refs.playerSeat.z, THREE.MathUtils.radToDeg(refs.playerSeat.ry) + 180, 1.6);
         return refs;
@@ -470,7 +480,8 @@ const scene03 = {
             'Sebelum berihram, disunnahkan mandi janabat, memotong kuku, merapikan rambut, dan memakai wewangian di badan — bukan di pakaian ihram. Wewangian hanya boleh sebelum niat.',
             { sub: '🚿 Mandi sunnah, potong kuku, merapikan diri, wewangian di badan (sebelum niat).' });
 
-        await engine.goto(-28, -4, { label: '🚿 Menuju area wudhu & mandi ihram' });
+        // Menuju area wudhu yang kini sudah berupa ruangan utuh yang bisa dimasuki
+        await engine.goto(-20, -10, { label: '🚿 Masuk ke dalam ruangan wudhu & mandi ihram' });
         await engine.interact(engine._sceneRefs.bilik, { label: 'Mandi sunnah ihram & berwudhu', radius: 8 });
         engine.audio.sfx('chime');
         ctx.progress(28);
@@ -490,17 +501,17 @@ const scene03 = {
             'Setelah berwudhu dan mengenakan ihram, kerjakan shalat sunnah dua rakaat. Rakaat pertama membaca surat Al-Kafirun, rakaat kedua membaca surat Al-Ikhlas. Ini adalah sunnah sebelum niat ihram.',
             { sub: '🕌 Shalat sunnah ihram 2 rakaat: Al-Kafirun & Al-Ikhlas.' });
 
-        await engine.goto(0, -26, { label: '🕌 Menuju pintu masjid untuk shalat sunnah ihram' });
-        engine.setHint('Masuk ke dalam masjid melalui pintu utama');
-        await engine.interact(engine._sceneRefs.mosqueDoor, { label: '🚪 Masuk Masjid — Shalat Sunnah Ihram', radius: 8 });
+        // Petunjuk Hijau diarahkan langsung ke shaf terdepan persis di tengah
+        await engine.goto(0, -60, { label: '🕌 Menuju shaf terdepan untuk shalat sunnah ihram' });
+        engine.setHint('Klik sajadah untuk memulai shalat');
+        
+        // Setelah sampai, Petunjuk Oranye (Interaksi) muncul
+        await engine.interact(engine._sceneRefs.playerSajadah, { label: 'Mulai Shalat Sunnah Ihram', radius: 4 });
 
-        // === TELEPORT KE DALAM MASJID ===
-        await engine.fadeOut(900);
+        // === SUDAH DI DALAM MASJID ===
         const outsideX = 6, outsideZ = -14;
-        engine.spawn(0, 108, 0);
         engine.audio.ambient('wind', 0);
         engine.audio.ambient('crowd', 0);
-        await engine.fadeIn(900);
 
         engine.setObjective('Shalat Sunnah Ihram 2 Rakaat');
         engine.setHint('');
@@ -747,8 +758,8 @@ const scene05 = {
         });
         ctx.progress(60);
 
-        await engine.goto(11, 8.5, { radius: 3, label: 'Menuju Maqam Ibrahim — sholat sunnah tawaf' });
-        await engine.interact(engine._sceneRefs.maqam, { label: 'Sholat sunnah 2 rakaat di belakang Maqam Ibrahim', radius: 6 });
+        await engine.goto(18, 14, { radius: 4, label: 'Menuju area sholat (di belakang Maqam Ibrahim)' });
+        await engine.interact(engine._sceneRefs.maqam, { label: 'Sholat sunnah 2 rakaat di belakang Maqam Ibrahim', radius: 10 });
         await engine.narrate(
             'Kerjakan sholat sunnah dua rakaat di belakang Maqam Ibrahim: rakaat pertama Al-Kafirun, rakaat kedua Al-Ikhlas. Setelah itu minumlah air Zamzam sambil berdoa.',
             { sub: '🕌 Sholat 2 rakaat di Maqam Ibrahim, lalu minum air Zamzam.' });
@@ -871,10 +882,10 @@ const scene07 = {
     env: 'night', ambient: 'night',
     build(engine) {
         const refs = B.muzdalifah(engine);
-        // Sebagian besar jamaah sedang Mabit (istirahat/duduk/tidur beralaskan tikar)
-        new Crowd(engine.scene, { count: 150, mode: 'sitFloor', area: { x: 0, z: 0, w: 60, d: 40 }, colors: IHRAM });
+        // Ratusan jamaah sedang Mabit (istirahat/duduk/tidur beralaskan tikar) membentang sejauh mata memandang
+        new Crowd(engine.scene, { count: 800, mode: 'sitFloor', area: { x: 0, z: 0, w: 220, d: 220 }, colors: IHRAM });
         // Sebagian kecil berjalan-jalan mencari batu
-        new Crowd(engine.scene, { count: 36, mode: 'groupWander', area: { x: 10, z: -10, w: 40, d: 30 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 70, mode: 'groupWander', area: { x: 10, z: -10, w: 100, d: 80 }, colors: IHRAM });
         engine.spawn(0, 25, 0); // Spawn menghadap ke depan (kerumunan jamaah mabit)
         return refs;
     },
@@ -948,9 +959,36 @@ const scene07 = {
 const scene08 = {
     env: 'day', ambient: 'crowd',
     build(engine) {
-        const refs = B.mina(engine);
-        new Crowd(engine.scene, { count: 150, mode: 'line', from: { x: 0, z: 30 }, to: { x: 0, z: -24 }, width: 14, colors: IHRAM });
-        new Crowd(engine.scene, { count: 100, mode: 'idle', area: { x: 0, z: 60, w: 90, d: 40 }, colors: IHRAM });
+        const refs = B.mina(engine, { withAllJamarat: true });
+        
+        // NPC menyebar di seluruh area pelataran Jamarat
+        new Crowd(engine.scene, { count: 250, mode: 'wander', area: { x: 0, z: -10, w: 180, d: 80 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 150, mode: 'idle', area: { x: -60, z: 20, w: 60, d: 40 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 150, mode: 'idle', area: { x: 60, z: 20, w: 60, d: 40 }, colors: IHRAM });
+        
+        // Tenda DAM (Hadyu) langsung ditampilkan di sisi paling kanan
+        const damTent = B.facilityTent(engine.mats, 18, 6.5);
+        damTent.position.set(80, 0, 10);
+        engine.scene.add(damTent);
+        const rph = B.slaughterArea(engine.mats);
+        rph.position.set(80, 0, 8);
+        engine.scene.add(rph);
+        
+        // Tenda Cukur (Tahallul) langsung ditampilkan di sisi paling kanan
+        const barberTent = B.facilityTent(engine.mats, 9, 4.2);
+        barberTent.position.set(100, 0, 17);
+        engine.scene.add(barberTent);
+        const chair = B.barberChair(engine.mats);
+        chair.position.set(100, 0, 15.5);
+        engine.scene.add(chair);
+        
+        // Solid blockers for tents so NPCs and Player cannot pass through
+        engine.addBlocker(75, 5, 85, 11);     // RPH / DAM fence collision
+        engine.addBlocker(96, 13, 104, 18);   // Barber tent walls collision
+        
+        refs.rph = rph;
+        refs.chair = chair;
+        
         engine.spawn(0, 45, 0); // Spawn menghadap struktur jembatan Jamarat (-Z)
         return refs;
     },
@@ -971,29 +1009,17 @@ const scene08 = {
         await ctx.checkpoint(1);
         ctx.progress(55);
 
-        // Tempat dam (pemotongan hadyu) di dalam tenda
-        const damTent = B.facilityTent(engine.mats, 18, 6.5);
-        damTent.position.set(40, 0, 10);
-        engine.scene.add(damTent);
-        const rph = B.slaughterArea(engine.mats);
-        rph.position.set(40, 0, 8);
-        engine.scene.add(rph);
-        await engine.goto(40, 17, { radius: 5, label: 'Menuju tenda pemotongan hadyu' });
-        await engine.interact(rph, { label: 'Tunaikan hadyu (dam) — haji tamattu\'/qiran', radius: 11 });
+        // Tempat dam (pemotongan hadyu)
+        await engine.goto(80, 17, { radius: 5, label: 'Menuju tenda pemotongan hadyu (sisi kanan)' });
+        await engine.interact(engine._sceneRefs.rph, { label: 'Tunaikan hadyu (dam) — haji tamattu\'/qiran', radius: 11 });
         await engine.narrate(
             'Jamaah haji tamattu\' dan qiran wajib menyembelih hadyu — seekor kambing, atau sepertujuh sapi/unta. Dagingnya dibagikan kepada fakir miskin di tanah haram.',
             { sub: '🐐 Hadyu (dam) ditunaikan — daging untuk fakir miskin tanah haram.' });
         ctx.progress(70);
 
-        // Tempat cukur (tahallul awal) di dalam tenda
-        const barberTent = B.facilityTent(engine.mats, 9, 4.2);
-        barberTent.position.set(24, 0, 17);
-        engine.scene.add(barberTent);
-        const chair = B.barberChair(engine.mats);
-        chair.position.set(24, 0, 15.5);
-        engine.scene.add(chair);
-        await engine.goto(24, 21, { radius: 4, label: 'Menuju tenda cukur — Tahallul Awal' });
-        await engine.interact(chair, { label: 'Tahallul Awal — cukur rambut', radius: 8 });
+        // Tempat cukur (tahallul awal)
+        await engine.goto(100, 21, { radius: 4, label: 'Menuju tenda cukur — Tahallul Awal (sisi ujung kanan)' });
+        await engine.interact(engine._sceneRefs.chair, { label: 'Tahallul Awal — cukur rambut', radius: 8 });
         engine.audio.sfx('chime');
         engine.notifyDotnet('Tahallul Awal selesai — boleh berganti pakaian biasa.', 'success');
         await engine.narrate(

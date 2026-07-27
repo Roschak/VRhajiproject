@@ -30,9 +30,71 @@ export function preload(containerId, sceneNo, dotnetRef) {
         engine._sceneRefs = sceneDef.build(engine);
         engine.setProgress(0);
         started = false;
+        
+        initVRButton(engine);
     } catch (e) {
         console.error("JS Error in preload:", e);
         throw e;
+    }
+}
+
+async function initVRButton(engine) {
+    const btn = document.getElementById('btn-enter-vr');
+    if (!btn) return;
+    
+    if (!navigator.xr) {
+        btn.hidden = true;
+        return;
+    }
+    
+    try {
+        const supported = await navigator.xr.isSessionSupported('immersive-vr');
+        if (supported) {
+            btn.hidden = false;
+            btn.disabled = false;
+            btn.style.display = 'inline-block';
+        } else {
+            btn.hidden = true;
+            return;
+        }
+        
+        // Ganti elemen untuk menghapus listener lama (jika ada sisa navigasi Blazor)
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        newBtn.addEventListener('click', async () => {
+            try {
+                const session = await navigator.xr.requestSession('immersive-vr', {
+                    optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+                });
+                await engine.renderer.xr.setSession(session);
+                engine.renderer.xr.enabled = true;
+                
+                if (engine.dotnet) {
+                    engine.dotnet.invokeMethodAsync('OnVRSessionStarted');
+                }
+                
+                session.addEventListener('end', () => {
+                    if (engine && engine.dotnet) {
+                        engine.dotnet.invokeMethodAsync('OnVRSessionEnded');
+                    }
+                });
+            } catch (err) {
+                console.error("Gagal masuk ke sesi VR:", err);
+                const fallback = document.getElementById('vr-fallback-message');
+                if (fallback) {
+                    fallback.textContent = "Gagal memulai VR. Pastikan menggunakan Meta Browser dan koneksi HTTPS aktif.";
+                    fallback.hidden = false;
+                    fallback.style.display = 'block';
+                    setTimeout(() => { fallback.hidden = true; }, 5000);
+                } else {
+                    alert("Gagal memulai VR. Pastikan menggunakan Meta Browser dan HTTPS aktif.");
+                }
+            }
+        });
+    } catch (e) {
+        btn.hidden = true;
+        console.error("Error checking XR support:", e);
     }
 }
 

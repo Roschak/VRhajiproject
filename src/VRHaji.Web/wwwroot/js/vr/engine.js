@@ -571,7 +571,7 @@ export class Crowd {
         for (let i = 0; i < count; i++) {
             const a = {
                 phase: Math.random() * Math.PI * 2,
-                speed: 0.5 + Math.random() * 0.3, // Animasi langkah diperlambat
+                speed: 0.85 + Math.random() * 0.35, // Animasi langkah kecepatan normal
                 s: 0.94 + Math.random() * 0.13
             };
             if (opts.mode === 'orbit') {
@@ -676,6 +676,29 @@ export class Crowd {
         this._v2 = new THREE.Vector3();
         this._v3 = new THREE.Vector3();
         ACTIVE_CROWDS.push(this);
+        
+        // Fitur penambahan karpet otomatis untuk jamaah yang duduk di lantai
+        if (opts.mode === 'sitFloor') {
+            const carpetGeo = new THREE.BoxGeometry(2.0, 0.02, 1.4);
+            const carpetMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+            const instCarpet = new THREE.InstancedMesh(carpetGeo, carpetMat, count);
+            instCarpet.castShadow = false;
+            instCarpet.receiveShadow = true;
+            const dummy = new THREE.Object3D();
+            const cColors = [0x2f523c, 0x722c2c, 0x333333, 0xc2b08f]; // Hijau karpet, merah, abu, krem
+            const cColor = new THREE.Color();
+            for (let i = 0; i < count; i++) {
+                const a = this.agents[i];
+                dummy.position.set(a.x, 0.01, a.z);
+                dummy.rotation.y = a.heading; // Sejajar dengan arah hadap jamaah
+                dummy.updateMatrix();
+                instCarpet.setMatrixAt(i, dummy.matrix);
+                cColor.setHex(cColors[Math.floor(Math.random() * cColors.length)]);
+                instCarpet.setColorAt(i, cColor);
+            }
+            scene.add(instCarpet);
+        }
+        
         this.update(0, 0);
     }
 
@@ -1548,11 +1571,12 @@ export class Engine {
         const cfg = POSES[pose] || POSES.stand;
         this._prayerActive = true;
         this._prayerTargetY = cfg.y;
-        if (this._camTargetYaw === undefined) {
-            this._camTargetYaw = this._camCurrentYaw = 0; 
-            this._camTargetPitch = this._camCurrentPitch = 0;
-        }
-        this._camTargetPitch = cfg.pitch; // Paksa target pitch agar menunduk perlahan
+        this._prayerTargetY = cfg.y;
+        
+        // Paksa menghadap lurus ke kiblat (Yaw = 0) dan sesuaikan pitch sesuai pose
+        this._camTargetYaw = 0;
+        if (this._camCurrentYaw === undefined) this._camCurrentYaw = 0;
+        this._camTargetPitch = cfg.pitch;
         
         // Efek pejam mata (layar menggelap) saat sujud
         if (this.fadeEl) {
@@ -1647,10 +1671,25 @@ export class Engine {
             controller.userData.ray.scale.z = 6;
             controller.addEventListener('selectstart', () => this._onVRSelect(controller));
             this.dolly.add(controller);
-            const grip = this.renderer.xr.getControllerGrip(i);
-            grip.add(new THREE.Mesh(
-                new THREE.BoxGeometry(0.045, 0.045, 0.12),
-                new THREE.MeshStandardMaterial({ color: 0x222228, roughness: 0.6 })));
+            // Universal VR Controller Model (mirip Oculus Touch/Valve Index)
+            const ctrl = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.4, metalness: 0.8});
+            const glowMat = new THREE.MeshBasicMaterial({color: 0x00d2ff});
+            // Handle
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, 0.12, 16), bodyMat);
+            handle.rotation.x = Math.PI / 2;
+            handle.position.z = 0.06;
+            ctrl.add(handle);
+            // Ring
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.006, 16, 32), bodyMat);
+            ring.rotation.x = Math.PI / 2;
+            ctrl.add(ring);
+            // Glow indicator
+            const glow = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.002, 16, 32), glowMat);
+            glow.rotation.x = Math.PI / 2;
+            ctrl.add(glow);
+
+            grip.add(ctrl);
             this.dolly.add(grip);
             this._xrControllers.push(controller);
         }
@@ -2326,7 +2365,21 @@ export class Engine {
         }
         // EffectComposer tidak kompatibel dengan framebuffer WebXR (merusak stereo),
         // maka saat sesi VR aktif kita render langsung (tanpa bloom/postprocessing).
-        if (inVR) this.renderer.render(this.scene, this.camera);
+        if (inVR) {
+            this.renderer.render(this.scene, this.camera);
+            
+            // Physical room-scale walking collision (mencegah pemain berjalan fisik menembus tembok)
+            const wp = this.playerPos(_playerW);
+            if (!this._walkable(wp.x, wp.z)) {
+                if (this._lastValidHeadPos) {
+                    this.dolly.position.x += (this._lastValidHeadPos.x - wp.x);
+                    this.dolly.position.z += (this._lastValidHeadPos.z - wp.z);
+                }
+            } else {
+                if (!this._lastValidHeadPos) this._lastValidHeadPos = new THREE.Vector3();
+                this._lastValidHeadPos.copy(wp);
+            }
+        }
         else { this.composer.render(); this._adaptResolution(dt); }
     }
 
