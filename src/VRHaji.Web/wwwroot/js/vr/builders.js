@@ -2355,7 +2355,15 @@ export function miqat(engine) {
     const hallZ = -34;
     // Bangunan utama ruang shalat (Blok besar menopang kubah)
     miqatGroup.add(mesh(new THREE.BoxGeometry(60, 12, 12), mats.cream, 0, 6, hallZ));
-    engine.addBlocker(-31, -41, 31, -27); // Ruang shalat + fasad solid — cegah tembus (sajadah di z=-25 tetap bisa dicapai)
+    // Blocker hanya pada bagian solid pilar fasad (bukan area bukaan lorong)
+    // Bukaan lorong ada di archCX: -17.5, -10.5, -3.5, 3.5, 10.5, 17.5 (lebar 4 unit tiap bukaan)
+    // Pilar-pilar ada di: -21, -14, -7, 0, 7, 14, 21 (lebar 2 unit)
+    for (const px of [-21, -14, -7, 0, 7, 14, 21]) {
+        engine.addBlocker(px - 1.1, -41, px + 1.1, -27); // Pilar fasad solid
+    }
+    engine.addBlocker(-31, -41, -22.5, -27); // Dinding ujung kiri
+    engine.addBlocker(22.5, -41, 31, -27);  // Dinding ujung kanan
+    engine.addBlocker(-31, -41, 31, -40);   // Dinding belakang ruang shalat
     
     // Drum (Tambur) Kubah Utama agar tidak mengambang
     miqatGroup.add(mesh(new THREE.CylinderGeometry(8.2, 8.2, 2.5, 32), mats.cream, 0, 12, hallZ));
@@ -2372,8 +2380,20 @@ export function miqat(engine) {
             miqatGroup.add(mesh(new THREE.BoxGeometry(3.5, 0.5, 2), mats.cream, archCX, 8.25, hallZ + 6));
             miqatGroup.add(mesh(new THREE.BoxGeometry(5.0, 0.5, 2), mats.cream, archCX, 8.75, hallZ + 6));
             miqatGroup.add(mesh(new THREE.BoxGeometry(7.1, 0.5, 2), mats.cream, archCX, 9.25, hallZ + 6));
-            // Pintu/Jendela gelap masuk ke dalam masjid
-            miqatGroup.add(mesh(new THREE.BoxGeometry(4, 7, 0.2), darkArch, archCX, 3.5, hallZ + 6.1));
+            // Lorong (koridor) tanpa pintu — jemaah bisa lewat
+            const lorongDepth = 6.2; // Kedalaman lorong = sama dengan tebal fasad
+            const lorongY = 3.5;     // Pusat tinggi lorong
+            const lorongH = 7;       // Tinggi bukaan
+            const lorongW = 4;       // Lebar bukaan
+            const lorongZ0 = hallZ + 6; // Posisi muka fasad
+            // Plafon lorong (langit-langit tunnel)
+            miqatGroup.add(mesh(new THREE.BoxGeometry(lorongW, 0.3, lorongDepth), darkArch, archCX, lorongY + lorongH/2, lorongZ0 - lorongDepth/2 + 0.1, { cast: false }));
+            // Dinding sisi kiri lorong
+            miqatGroup.add(mesh(new THREE.BoxGeometry(0.25, lorongH, lorongDepth), darkArch, archCX - lorongW/2 - 0.1, lorongY, lorongZ0 - lorongDepth/2 + 0.1, { cast: false }));
+            // Dinding sisi kanan lorong
+            miqatGroup.add(mesh(new THREE.BoxGeometry(0.25, lorongH, lorongDepth), darkArch, archCX + lorongW/2 + 0.1, lorongY, lorongZ0 - lorongDepth/2 + 0.1, { cast: false }));
+            // Lantai lorong (sedikit lebih gelap)
+            miqatGroup.add(mesh(new THREE.BoxGeometry(lorongW, 0.15, lorongDepth), darkArch, archCX, 0.08, lorongZ0 - lorongDepth/2 + 0.1, { cast: false }));
         }
     }
     miqatGroup.add(mesh(new THREE.BoxGeometry(50, 1.5, 4), mats.cream, 0, 10.25, hallZ + 6)); // Atap fasad utama

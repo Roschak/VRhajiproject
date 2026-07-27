@@ -1006,8 +1006,8 @@ export class Crowd {
                         if (dh < -Math.PI) dh += Math.PI * 2;
                         a.heading += dh * Math.min(1, dt * 6);
                         
-                        const nx = a.x + Math.sin(a.heading) * speed * dt;
-                        const nz = a.z + Math.cos(a.heading) * speed * dt;
+                        let nx = a.x + Math.sin(a.heading) * speed * dt;
+                        let nz = a.z + Math.cos(a.heading) * speed * dt;
                         const eng = ACTIVE_ENGINE;
                         if (eng && !eng._agentWalkable(a, nx, nz)) {
                             nx = a.x; nz = a.z;
