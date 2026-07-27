@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VR Education Haji & Umrah — Definisi 12 Scene (termasuk Wukuf Arafah)
  * Setiap scene: { env, ambient, build(engine), run(engine, ctx) }
  * ctx: { checkpoint(n), complete(), progress(pct) }
@@ -282,14 +282,14 @@ const scene01 = {
         new Crowd(engine.scene, { count: usedSeats.length, mode: 'sit', spots: usedSeats, sitY: 0.45, colors: CASUAL });
         refs.playerSeat = refs.cabin.seatSpots[25];
         // penumpang berjalan-jalan di concourse tengah & sisi utara
-        new Crowd(engine.scene, { count: 26, mode: 'wander', area: { x: -2, z: -1, w: 62, d: 12 }, colors: CASUAL });
-        new Crowd(engine.scene, { count: 12, mode: 'wander', area: { x: 0, z: 22, w: 56, d: 8 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 52, mode: 'wander', area: { x: -2, z: -1, w: 62, d: 12 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 24, mode: 'wander', area: { x: 0, z: 22, w: 56, d: 8 }, colors: CASUAL });
         // arus penumpang melintasi hall
-        new Crowd(engine.scene, { count: 10, mode: 'line', from: { x: -34, z: -4 }, to: { x: 34, z: 4 }, width: 5, colors: CASUAL });
+        new Crowd(engine.scene, { count: 20, mode: 'line', from: { x: -34, z: -4 }, to: { x: 34, z: 4 }, width: 5, colors: CASUAL });
         // penumpang duduk di bangku ruang tunggu
-        new Crowd(engine.scene, { count: 26, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
+        new Crowd(engine.scene, { count: 52, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
         // antrian di depan check-in
-        new Crowd(engine.scene, { count: 6, mode: 'idle', area: { x: -26, z: -20.2, w: 8, d: 1 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 12, mode: 'idle', area: { x: -26, z: -20.2, w: 8, d: 1 }, colors: CASUAL });
         // petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
         new Crowd(engine.scene, { count: refs.staffSpots.length, mode: 'post', spots: refs.staffSpots, capChance: 0.75 });
         engine.spawn(0, 20, 0);
@@ -366,8 +366,8 @@ const scene02 = {
         const refs = B.airport(engine, { nameSign: 'مطار الأمير محمد بن عبدالعزيز — MADINAH', arabic: true, madinah: true });
         refs.nabawiOrigin = { x: 0, z: 600 };
         // Masjid Nabawi dibangun di "dunia" terpisah — dibangun saat transisi
-        new Crowd(engine.scene, { count: 20, mode: 'wander', area: { x: 4, z: -1, w: 50, d: 12 }, colors: CASUAL });
-        new Crowd(engine.scene, { count: 14, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
+        new Crowd(engine.scene, { count: 40, mode: 'wander', area: { x: 4, z: -1, w: 50, d: 12 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 28, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
         // petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
         new Crowd(engine.scene, { count: refs.staffSpots.length, mode: 'post', spots: refs.staffSpots, capChance: 0.75 });
         engine.spawn(-30, 10, -120);
@@ -404,9 +404,9 @@ const scene02 = {
         const o = engine._sceneRefs.nabawiOrigin;
         const nb = B.nabawi(engine, o);
         // Jamaah memenuhi pelataran di bawah payung dan mengalir ke arah gerbang
-        new Crowd(engine.scene, { count: 150, mode: 'idle', area: { x: o.x, z: o.z - 6, w: 150, d: 64 }, colors: CASUAL });
-        new Crowd(engine.scene, { count: 60, mode: 'line', from: { x: o.x - 44, z: o.z + 6 }, to: { x: o.x, z: o.z - 36 }, width: 12, colors: CASUAL });
-        new Crowd(engine.scene, { count: 40, mode: 'wander', area: { x: o.x, z: o.z + 22, w: 130, d: 22 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 375, mode: 'idle', area: { x: o.x, z: o.z - 6, w: 150, d: 64 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 150, mode: 'line', from: { x: o.x - 44, z: o.z + 6 }, to: { x: o.x, z: o.z - 36 }, width: 12, colors: CASUAL });
+        new Crowd(engine.scene, { count: 100, mode: 'wander', area: { x: o.x, z: o.z + 22, w: 130, d: 22 }, colors: CASUAL });
         engine.spawn(o.x, o.z - 18, 0);
         await engine.fadeIn(1000);
         engine.audio.ambient('crowd', 0.3);
@@ -436,9 +436,9 @@ const scene03 = {
     env: 'day', ambient: 'wind',
     build(engine) {
         const refs = B.miqat(engine);
-        new Crowd(engine.scene, { count: 18, mode: 'idle', area: { x: 8, z: -6, w: 24, d: 16 }, colors: IHRAM });
-        new Crowd(engine.scene, { count: 8, mode: 'idle', area: { x: -16, z: 6, w: 14, d: 8 }, colors: CASUAL });
-        new Crowd(engine.scene, { count: 14, mode: 'sit', spots: refs.seatSpots, sitY: 1.0, colors: CASUAL });
+        new Crowd(engine.scene, { count: 36, mode: 'idle', area: { x: 8, z: -6, w: 24, d: 16 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 16, mode: 'idle', area: { x: -16, z: 6, w: 14, d: 8 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 28, mode: 'sit', spots: refs.seatSpots, sitY: 1.0, colors: CASUAL });
         refs.playerSeat = refs.seatSpots[15] || refs.seatSpots[0];
         engine.spawn(refs.playerSeat.x, refs.playerSeat.z, THREE.MathUtils.radToDeg(refs.playerSeat.ry) + 180, 1.6);
         return refs;
@@ -490,8 +490,162 @@ const scene03 = {
             'Setelah berwudhu dan mengenakan ihram, kerjakan shalat sunnah dua rakaat. Rakaat pertama membaca surat Al-Kafirun, rakaat kedua membaca surat Al-Ikhlas. Ini adalah sunnah sebelum niat ihram.',
             { sub: '🕌 Shalat sunnah ihram 2 rakaat: Al-Kafirun & Al-Ikhlas.' });
 
-        await engine.goto(6, -14, { label: '🕌 Menuju karpet shalat sunnah ihram 2 rakaat' });
-        await engine.interact(engine._sceneRefs.sajadah, { label: 'Shalat sunnah ihram 2 rakaat', radius: 6 });
+        await engine.goto(0, -26, { label: '🕌 Menuju pintu masjid untuk shalat sunnah ihram' });
+        engine.setHint('Masuk ke dalam masjid melalui pintu utama');
+        await engine.interact(engine._sceneRefs.mosqueDoor, { label: '🚪 Masuk Masjid — Shalat Sunnah Ihram', radius: 8 });
+
+        // === TELEPORT KE DALAM MASJID ===
+        await engine.fadeOut(900);
+        const outsideX = 6, outsideZ = -14;
+        engine.spawn(0, 108, 0);
+        engine.audio.ambient('wind', 0);
+        engine.audio.ambient('crowd', 0);
+        await engine.fadeIn(900);
+
+        engine.setObjective('Shalat Sunnah Ihram 2 Rakaat');
+        engine.setHint('');
+
+        // --- Helper: tampilkan satu langkah sholat, tunggu klik "Lanjutkan" ---
+        // Menggunakan DOM button eksplisit agar tidak bisa di-skip oleh event interact sebelumnya.
+        const prayerStep = (icon, pose, bacaan, arabic = '', camPose = 'stand') => new Promise(resolve => {
+            engine.prayerPose(camPose); // Kunci & animasikan kamera POV
+
+            // Buat overlay panel sholat
+            const panel = document.createElement('div');
+            Object.assign(panel.style, {
+                position: 'absolute', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+                background: 'rgba(10,20,15,0.92)', border: '1.5px solid rgba(212,175,55,0.6)',
+                borderRadius: '16px', padding: '18px 28px', zIndex: '20',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+                maxWidth: '520px', width: '90vw', backdropFilter: 'blur(8px)',
+                fontFamily: 'Inter, sans-serif', color: '#f5f0e8', textAlign: 'center',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.7)'
+            });
+
+            const iconEl = document.createElement('div');
+            iconEl.style.cssText = 'font-size:2.2rem; line-height:1;';
+            iconEl.textContent = icon;
+
+            const poseEl = document.createElement('div');
+            poseEl.style.cssText = 'font-size:1rem; font-weight:700; color:#d4af37; letter-spacing:.03em;';
+            poseEl.textContent = pose;
+
+            const bacaanEl = document.createElement('div');
+            bacaanEl.style.cssText = 'font-size:0.82rem; color:#c8c0b0; line-height:1.55;';
+            bacaanEl.textContent = bacaan;
+
+            const btn = document.createElement('button');
+            Object.assign(btn.style, {
+                marginTop: '6px', padding: '9px 32px', borderRadius: '999px',
+                background: 'linear-gradient(135deg,#c9a227,#8b6914)',
+                color: '#fff', fontWeight: '700', fontSize: '0.9rem',
+                border: 'none', cursor: 'pointer', letterSpacing: '.04em',
+                boxShadow: '0 2px 12px rgba(200,160,30,0.4)', transition: 'transform .1s'
+            });
+            btn.textContent = 'Lanjutkan →';
+            btn.onmouseenter = () => btn.style.transform = 'scale(1.05)';
+            btn.onmouseleave = () => btn.style.transform = 'scale(1)';
+
+            panel.append(iconEl, poseEl, bacaanEl, btn);
+
+            // Inject ke container VR (bukan document.body agar tidak keluar dari canvas area)
+            const container = engine.renderer.domElement.parentElement || document.body;
+            container.appendChild(panel);
+
+            // Bacaan arab (jika ada) — tampilkan di subtitle engine
+            engine.subtitle(arabic || bacaan);
+
+            btn.onclick = () => {
+                engine.subtitle('');
+                panel.remove();
+                engine.audio.sfx('chime');
+                resolve();
+            };
+        });
+
+        // ========== LANGKAH SHOLAT ==========
+
+        await prayerStep('🧍','NIAT & BERDIRI',
+            'Berdiri tegak menghadap kiblat, kaki selebar bahu.\nNiat: "Ushalli sunnatal ihrami rak\'ataini lillahi ta\'ala"',
+            '', 'stand');
+
+        await prayerStep('🙌','TAKBIRATUL IHRAM',
+            'Angkat kedua tangan sejajar telinga, telapak tangan menghadap depan.\nUcap: "Allahu Akbar"',
+            '🙌 "Allahu Akbar" — tangan sejajar telinga', 'stand');
+
+        await prayerStep('🤲','SEDEKAP & DOA IFTITAH',
+            'Tangan kanan di atas tangan kiri, diletakkan di dada.\nBaca doa iftitah, ta\'awudz, basmalah.',
+            '🤲 Sedekap — Doa Iftitah: "Allahumma baa\'id baini wa baina khathaayaaya..."', 'stand');
+
+        await prayerStep('📖','AL-FATIHAH · RAKAAT 1',
+            'Bismillahirrahmaanirrahiim...\nAl-hamdu lillaahi rabbil \'aalamiin...\n(baca seluruh Al-Fatihah)',
+            '📖 Al-Fatihah + Surat Al-Kafirun (Rakaat 1)', 'stand');
+
+        await prayerStep('📖','SURAT AL-KAFIRUN',
+            'Qul yaa ayyuhal kaafiruun, laa a\'budu maa ta\'buduun,\nwa laa antum \'aabiduuna maa a\'bud...',
+            '📖 Al-Kafirun: "Qul yaa ayyuhal kaafiruun..."', 'stand');
+
+        await prayerStep('🙇','RUKU',
+            'Allahu Akbar — bungkukkan badan, punggung lurus sejajar lantai.\nTangan memegang lutut. Baca 3×:\n"Subhaana Rabbiyal \'Adziim"',
+            '🙇 RUKU — "Subhaana Rabbiyal Adziim" (3×)', 'ruku');
+
+        await prayerStep('🧍','I\'TIDAL',
+            'Bangkit tegak sambil angkat tangan.\nBaca: "Sami\'allaahu liman hamidah"\nLalu: "Rabbanaa lakal hamdu..."',
+            '🧍 I\'TIDAL — "Sami\'allaahu liman hamidah, Rabbanaa lakal hamd"', 'stand');
+
+        await prayerStep('🕌','SUJUD PERTAMA',
+            'Allahu Akbar — turunkan badan.\n7 anggota menyentuh lantai: dahi+hidung, 2 telapak tangan, 2 lutut, 2 ujung jari kaki.\nBaca 3×: "Subhaana Rabbiyal A\'laa"',
+            '🕌 SUJUD 1 — "Subhaana Rabbiyal A\'laa" (3×)', 'sujud');
+
+        await prayerStep('🪑','DUDUK IFTIRASY',
+            'Allahu Akbar — duduk di antara dua sujud.\nKaki kiri diduduki, kaki kanan ditegakkan.\nBaca: "Rabbighfirlii warhamnii wajburnii warfa\'nii warzuqnii..."',
+            '🪑 Iftirasy — "Rabbighfirlii warhamnii..."', 'sit');
+
+        await prayerStep('🕌','SUJUD KEDUA',
+            'Allahu Akbar — sujud kembali.\nBaca 3×: "Subhaana Rabbiyal A\'laa"\nSempurnakan dengan khusyu\'.',
+            '🕌 SUJUD 2 — "Subhaana Rabbiyal A\'laa" (3×)', 'sujud');
+
+        await prayerStep('🧍','BERDIRI · RAKAAT 2',
+            'Allahu Akbar — bangkit berdiri.\nBaca Al-Fatihah kembali.',
+            '🧍 Rakaat 2 — Al-Fatihah', 'stand');
+
+        await prayerStep('📖','SURAT AL-IKHLAS',
+            'Qul huwallahu ahad, Allaahush shamad,\nlam yalid wa lam yuulad,\nwa lam yakul lahuu kufuwan ahad.',
+            '📖 Al-Ikhlas: "Qul huwallahu ahad..."', 'stand');
+
+        await prayerStep('🙇','RUKU · RAKAAT 2',
+            'Allahu Akbar — ruku kembali.\nBaca 3×: "Subhaana Rabbiyal \'Adziim"\nBangkit i\'tidal.',
+            '🙇 RUKU Rakaat 2 — I\'tidal', 'ruku');
+
+        await prayerStep('🕌','SUJUD · RAKAAT 2',
+            'Dua sujud pada rakaat kedua.\nBaca 3×: "Subhaana Rabbiyal A\'laa" (masing-masing).',
+            '🕌 SUJUD Rakaat 2 (1 & 2)', 'sujud');
+
+        await prayerStep('🤲','TASYAHUD AKHIR',
+            'Duduk tawaruk (kaki kiri ke bawah kaki kanan). Isyarat telunjuk kanan.\n"At-tahiyyaatu lillaahi wash-shalawaatu wath-thayyibaatu...\nAssalaamu \'alaika ayyuhan-nabiyyu..."',
+            '🤲 At-tahiyyaat + Shalawat Ibrahim', 'sit');
+
+        await prayerStep('📿','SHALAWAT IBRAHIM',
+            '"Allahumma shalli \'alaa Muhammad wa \'alaa aali Muhammad,\nkamaa shallaita \'alaa Ibrahim wa \'alaa aali Ibrahim..."',
+            '📿 Shalawat Ibrahim', 'sit');
+
+        await prayerStep('☮️','SALAM',
+            'Menoleh ke KANAN: "Assalaamu\'alaikum wa rahmatullaah"\nMenoleh ke KIRI: "Assalaamu\'alaikum wa rahmatullaah"\n\nShalat sunnah ihram selesai. Alhamdulillah!',
+            '☮️ SALAM — kanan & kiri', 'sit');
+
+        engine.prayerEndPose(); // Buka kunci kontrol kamera
+        engine.audio.sfx('success');
+        engine.notifyDotnet('Shalat sunnah ihram 2 rakaat selesai. Alhamdulillah! 🤲', 'success');
+        engine.subtitle('');
+
+        // === TELEPORT KEMBALI KE LUAR MASJID ===
+        await engine.fadeOut(800);
+        engine.spawn(outsideX, outsideZ, 0);
+        engine.audio.ambient('wind', 0.3);
+        await engine.fadeIn(800);
+        engine.setHint('');
+        engine.setObjective('');
+
         engine.audio.sfx('chime');
         ctx.progress(58);
 
@@ -529,8 +683,8 @@ const scene04 = {
     env: 'goldenHour', ambient: 'crowd',
     build(engine) {
         const refs = B.masjidilHaram(engine);
-        new Crowd(engine.scene, { count: 160, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 11, rMax: 24, angularSpeed: 0.09, colors: IHRAM, scene: engine.scene });
-        new Crowd(engine.scene, { count: 50, mode: 'idle', area: { x: 0, z: 52, w: 90, d: 24 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 400, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 11, rMax: 24, angularSpeed: 0.09, colors: IHRAM, scene: engine.scene });
+        new Crowd(engine.scene, { count: 125, mode: 'idle', area: { x: 0, z: 52, w: 90, d: 24 }, colors: IHRAM });
         engine.spawn(0, 64, 0);
         return refs;
     },
@@ -572,8 +726,8 @@ const scene05 = {
     env: 'night', ambient: 'crowd',
     build(engine) {
         const refs = B.masjidilHaram(engine);
-        new Crowd(engine.scene, { count: 200, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 26, angularSpeed: 0.09, colors: IHRAM });
-        new Crowd(engine.scene, { count: 30, mode: 'idle', area: { x: 0, z: 50, w: 80, d: 20 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 500, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 26, angularSpeed: 0.09, colors: IHRAM });
+        new Crowd(engine.scene, { count: 60, mode: 'idle', area: { x: 0, z: 50, w: 80, d: 20 }, colors: IHRAM });
         engine.spawn(30, 22, 54);
         return refs;
     },
@@ -614,15 +768,13 @@ const scene06 = {
     build(engine) {
         const refs = B.masaa(engine);
         // Jamaah arah Shafa ke Marwah (Jalur Kanan, z: 4.5)
-        new Crowd(engine.scene, { count: 45, mode: 'line', from: { x: refs.shafaX + 12, z: 4.5 }, to: { x: refs.marwahX - 12, z: 4.5 }, width: 6.5, colors: IHRAM, oneWay: true });
-        // Jamaah arah Marwah ke Shafa (Jalur Kiri, z: -4.5)
-        new Crowd(engine.scene, { count: 45, mode: 'line', from: { x: refs.marwahX - 12, z: -4.5 }, to: { x: refs.shafaX + 12, z: -4.5 }, width: 6.5, colors: IHRAM, oneWay: true });
+        new Crowd(engine.scene, { count: 225, mode: 'track', from: { x: refs.shafaX + 12, z: 0 }, to: { x: refs.marwahX - 12, z: 0 }, width: 9, colors: IHRAM });
         
         // Jalan lebih cepat (lintasan Sa'i panjang)
         engine.playerSpeed = 6.0;
         engine.runSpeed = 11;
-        // Spawn langsung menghadap bukit Shafa (di arah -X)
-        engine.spawn(refs.shafaX + 22, 4, 90);
+        // Spawn di jalur kanan menghadap Marwah (arah +X)
+        engine.spawn(refs.shafaX + 22, 4.5, 270);
         return refs;
     },
     async run(engine, ctx) {
@@ -662,12 +814,12 @@ const sceneArafah = {
     build(engine) {
         const refs = B.arafah(engine);
         // Jamaah wukuf — berkumpul dan berjalan-jalan seperti rombongan haji
-        new Crowd(engine.scene, { count: 90, mode: 'groupWander', area: { x: 10, z: 10, w: 90, d: 60 }, colors: IHRAM });
-        new Crowd(engine.scene, { count: 42, mode: 'groupWander', area: { x: -20, z: 30, w: 40, d: 30 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 225, mode: 'groupWander', area: { x: 10, z: 10, w: 90, d: 60 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 105, mode: 'groupWander', area: { x: -20, z: 30, w: 40, d: 30 }, colors: IHRAM });
         
         // Jamaah yang beraktivitas di sekitar Jabal Rahmah (berjalan & ngumpul)
-        new Crowd(engine.scene, { count: 36, mode: 'groupWander', area: { x: -58, z: -50, w: 40, d: 20 }, colors: IHRAM });
-        new Crowd(engine.scene, { count: 30, mode: 'idle', area: { x: -58, z: -40, w: 30, d: 30 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 90, mode: 'groupWander', area: { x: -58, z: -50, w: 40, d: 20 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 60, mode: 'idle', area: { x: -58, z: -40, w: 30, d: 30 }, colors: IHRAM });
         engine.spawn(14, 26, 38);
         return refs;
     },
@@ -720,9 +872,9 @@ const scene07 = {
     build(engine) {
         const refs = B.muzdalifah(engine);
         // Sebagian besar jamaah sedang Mabit (istirahat/duduk/tidur beralaskan tikar)
-        new Crowd(engine.scene, { count: 60, mode: 'sitFloor', area: { x: 0, z: 0, w: 60, d: 40 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 150, mode: 'sitFloor', area: { x: 0, z: 0, w: 60, d: 40 }, colors: IHRAM });
         // Sebagian kecil berjalan-jalan mencari batu
-        new Crowd(engine.scene, { count: 18, mode: 'groupWander', area: { x: 10, z: -10, w: 40, d: 30 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 36, mode: 'groupWander', area: { x: 10, z: -10, w: 40, d: 30 }, colors: IHRAM });
         engine.spawn(0, 25, 0); // Spawn menghadap ke depan (kerumunan jamaah mabit)
         return refs;
     },
@@ -797,8 +949,8 @@ const scene08 = {
     env: 'day', ambient: 'crowd',
     build(engine) {
         const refs = B.mina(engine);
-        new Crowd(engine.scene, { count: 60, mode: 'line', from: { x: 0, z: 30 }, to: { x: 0, z: -24 }, width: 14, colors: IHRAM });
-        new Crowd(engine.scene, { count: 40, mode: 'idle', area: { x: 0, z: 60, w: 90, d: 40 }, colors: IHRAM });
+        new Crowd(engine.scene, { count: 150, mode: 'line', from: { x: 0, z: 30 }, to: { x: 0, z: -24 }, width: 14, colors: IHRAM });
+        new Crowd(engine.scene, { count: 100, mode: 'idle', area: { x: 0, z: 60, w: 90, d: 40 }, colors: IHRAM });
         engine.spawn(0, 45, 0); // Spawn menghadap struktur jembatan Jamarat (-Z)
         return refs;
     },
@@ -863,8 +1015,8 @@ const scene09 = {
     build(engine) {
         const refs = B.masjidilHaram(engine);
         // Jamaah berpakaian bebas — sudah tahallul awal
-        new Crowd(engine.scene, { count: 180, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 25, angularSpeed: 0.09, colors: CASUAL });
-        new Crowd(engine.scene, { count: 30, mode: 'idle', area: { x: 0, z: 50, w: 80, d: 20 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 450, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 25, angularSpeed: 0.09, colors: CASUAL });
+        new Crowd(engine.scene, { count: 60, mode: 'idle', area: { x: 0, z: 50, w: 80, d: 20 }, colors: CASUAL });
         engine.spawn(28, 26, 47);
         return refs;
     },
@@ -892,12 +1044,12 @@ const scene09 = {
         engine.walkRects.length = 0;
         engine.walkCircles.length = 0;
         engine.blockers.length = 0;
-        const refs = B.masaa(engine);
+        const refs = B.masaa(engine, { x: 400, z: 0 });
         engine._sceneRefs = refs;
-        new Crowd(engine.scene, { count: 60, mode: 'line', from: { x: refs.shafaX + 8, z: 0 }, to: { x: refs.marwahX - 8, z: 0 }, width: 9, colors: CASUAL });
+        new Crowd(engine.scene, { count: 150, mode: 'track', from: { x: refs.shafaX + 12, z: 0 }, to: { x: refs.marwahX - 12, z: 0 }, width: 9, colors: CASUAL });
         engine.playerSpeed = 6.0;
         engine.runSpeed = 11;
-        engine.spawn(refs.shafaX + 18, 4, 90); // langsung menghadap bukit Shafa
+        engine.spawn(refs.shafaX + 18, 4.5, 270); // Spawn di jalur kanan menghadap Marwah (arah +X)
         await engine.fadeIn(900);
 
         await saiMechanic(engine, refs, { namaSai: "Sa'i Haji" });
@@ -920,8 +1072,8 @@ const scene10 = {
     env: 'day', ambient: 'crowd',
     build(engine) {
         const refs = B.mina(engine, { withAllJamarat: true });
-        new Crowd(engine.scene, { count: 60, mode: 'line', from: { x: -70, z: -40 }, to: { x: 70, z: -40 }, width: 12, colors: CASUAL });
-        new Crowd(engine.scene, { count: 50, mode: 'idle', area: { x: 0, z: 60, w: 110, d: 50 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 150, mode: 'line', from: { x: -70, z: -40 }, to: { x: 70, z: -40 }, width: 12, colors: CASUAL });
+        new Crowd(engine.scene, { count: 125, mode: 'idle', area: { x: 0, z: 60, w: 110, d: 50 }, colors: CASUAL });
         engine.spawn(0, 80, 180);
         return refs;
     },
@@ -960,7 +1112,7 @@ const scene11 = {
     env: 'dawn', ambient: 'crowd',
     build(engine) {
         const refs = B.masjidilHaram(engine);
-        new Crowd(engine.scene, { count: 140, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 24, angularSpeed: 0.08, colors: CASUAL });
+        new Crowd(engine.scene, { count: 350, mode: 'orbit', center: { x: 0, z: 0 }, rMin: 10.5, rMax: 24, angularSpeed: 0.08, colors: CASUAL });
         engine.spawn(30, 24, 51);
         return refs;
     },

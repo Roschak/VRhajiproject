@@ -1,0 +1,56 @@
+@page "/maqam-ibrahim"
+@inject IJSRuntime JS
+
+<div class="maqam-container">
+    <canvas @ref="canvasReference" class="webgl-canvas"></canvas>
+    <div class="overlay-text">
+        <h1>Maqam Ibrahim</h1>
+        <p>Prosedural 3D Model</p>
+    </div>
+</div>
+
+<style>
+    .maqam-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #0a0a0a;
+    }
+    
+    .webgl-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .overlay-text {
+        position: absolute;
+        bottom: 40px;
+        left: 40px;
+        color: #d4af37; /* Warna senada dengan Emas */
+        font-family: 'Inter', sans-serif;
+        pointer-events: none;
+    }
+
+    .overlay-text h1 {
+        margin: 0;
+        font-size: 3rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+        text-shadow: 0 4px 15px rgba(0,0,0,0.8);
+    }
+</style>
+
+@code {
+    private ElementReference canvasReference;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Memanggil fungsi global JavaScript dengan passing element canvas
+            await JS.InvokeVoidAsync("renderMaqamIbrahim3D", canvasReference);
+        }
+    }
+}

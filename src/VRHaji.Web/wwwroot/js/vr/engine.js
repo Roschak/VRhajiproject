@@ -575,15 +575,29 @@ export class Crowd {
                 s: 0.94 + Math.random() * 0.13
             };
             if (opts.mode === 'orbit') {
-                a.r = opts.rMin + Math.random() * (opts.rMax - opts.rMin);
-                a.angle = Math.random() * Math.PI * 2;
-                // Kecepatan tawaf/orbit dikurangi
-                a.w = (opts.angularSpeed ?? 0.1) * (opts.rMin / a.r) * (0.5 + Math.random() * 0.3);
+                // Cari posisi spawn yang tidak di dalam blocker
+                for (let tries = 0; tries < 30; tries++) {
+                    a.r = opts.rMin + Math.random() * (opts.rMax - opts.rMin);
+                    a.angle = Math.random() * Math.PI * 2;
+                    const tx = opts.center.x + Math.cos(a.angle) * a.r;
+                    const tz = opts.center.z + Math.sin(a.angle) * a.r;
+                    if (!ACTIVE_ENGINE || ACTIVE_ENGINE._walkableStatic(tx, tz, 0.4)) break;
+                }
+                a.targetR = a.r; // radius tujuan yang stabil
+                a.rSmooth = a.r; // radius aktual yang diperhalus
+                a.sepOff = 0;    // separasi antar-agent (spring kecil)
+                // Kecepatan tawaf/orbit
+                a.w = (opts.angularSpeed ?? 0.09) * (opts.rMin / a.r) * (0.7 + Math.random() * 0.3);
             } else if (opts.mode === 'line') {
                 a.t = Math.random();
                 a.dir = opts.oneWay ? 1 : (Math.random() > 0.5 ? 1 : -1);
                 a.lane = (Math.random() - 0.5) * (opts.width ?? 6);
                 a.v = 0.01 + Math.random() * 0.01; // Kecepatan Sa'i diperlambat
+            } else if (opts.mode === 'track') {
+                a.t = Math.random();
+                a.v = 0.01 + Math.random() * 0.01;
+                a.lane = (Math.random() - 0.5) * (opts.width / 2.5); // spread within the lane
+                a.dir = 1;
             } else if (opts.mode === 'wander') {
                 a.x = opts.area.x + (Math.random() - 0.5) * opts.area.w;
                 a.z = opts.area.z + (Math.random() - 0.5) * opts.area.d;
@@ -711,52 +725,91 @@ export class Crowd {
             const a = this.agents[i];
             let x, z, heading = a.heading ?? 0, moving = false;
             if (o.mode === 'orbit') {
-                a.angle -= a.w * dt; // berlawanan arah jarum jam
-                
-                // Menghindari tabrakan (belok sedikit jika ada orang di depan)
-                a.rOffset = a.rOffset || 0;
-                let push = 0;
+                const eng = ACTIVE_ENGINE;
+                const cx = o.center.x, cz = o.center.z;
+
+                // --- 1. MAJU (putar sudut) ---
+                a.angle -= a.w * dt;
+
+                // --- 2. STEERING: dorong targetR menjauh dari blocker statis ---
+                // Cek titik berada di current targetR; jika blocker mendekat, geser targetR
+                if (eng) {
+                    // Ukur jarak terpendek dari posisi agent ke setiap blocker
+                    const chkX = cx + Math.cos(a.angle) * a.targetR;
+                    const chkZ = cz + Math.sin(a.angle) * a.targetR;
+                    let minDistToBlocker = Infinity;
+                    let pushDir = 0; // +1 = dorong ke luar, -1 = ke dalam
+                    for (const b of eng.blockers) {
+                        const dxB = Math.max(b.x1 - chkX, 0, chkX - b.x2);
+                        const dzB = Math.max(b.z1 - chkZ, 0, chkZ - b.z2);
+                        const dist = Math.hypot(dxB, dzB);
+                        if (dist < 2.5 && dist < minDistToBlocker) {
+                            minDistToBlocker = dist;
+                            // Blocker di luar orbit? push ke dalam. Di dalam? push ke luar.
+                            const bcx = (b.x1 + b.x2) / 2, bcz = (b.z1 + b.z2) / 2;
+                            const blockerR = Math.hypot(bcx - cx, bcz - cz);
+                            pushDir = blockerR > a.targetR ? -1 : 1;
+                        }
+                    }
+                    if (minDistToBlocker < 2.5) {
+                        // Geser targetR menjauhi blocker secara proporsional
+                        const pushStrength = (2.5 - minDistToBlocker) / 2.5; // 0..1
+                        a.targetR += pushDir * pushStrength * 4.0 * dt;
+                    }
+                    // Kembalikan targetR perlahan ke radius asal agent jika area sudah aman
+                    else {
+                        a.targetR += (a.r - a.targetR) * dt * 0.8;
+                    }
+                    // Klem targetR agar tidak menembus Ka'bah atau melambung terlalu jauh
+                    a.targetR = Math.max(o.rMin + 0.5, Math.min(o.rMax - 0.5, a.targetR));
+                }
+
+                // --- 3. SEPARASI antar-agent (spring ringan, hanya pada radius) ---
+                let sep = 0;
                 for (const c of ACTIVE_CROWDS) {
                     for (let j = 0; j < c.agents.length; j++) {
                         const b = c.agents[j];
                         if (a === b || b.sit) continue;
-                        const dx = a.wx - b.wx, dz = a.wz - b.wz;
+                        const dx = (a.wx ?? cx) - (b.wx ?? cx);
+                        const dz = (a.wz ?? cz) - (b.wz ?? cz);
                         const d = Math.hypot(dx, dz);
-                        if (d > 0 && d < 1.2) { // menghindar jika jarak < 1.2m
-                            const rdx = a.wx - o.center.x, rdz = a.wz - o.center.z;
-                            const rl = Math.hypot(rdx, rdz) || 1;
-                            let lat = (dx * rdx + dz * rdz) / rl;
-                            if (Math.abs(lat) < 0.01) lat = (Math.random() - 0.5) * 0.1;
-                            push += (1.2 - d) * (lat > 0 ? 1 : -1);
+                        if (d > 0 && d < 1.1) {
+                            // Proyeksikan ke arah radial
+                            const rx = (a.wx ?? cx) - cx, rz = (a.wz ?? cz) - cz;
+                            const rl = Math.hypot(rx, rz) || 1;
+                            const lat = (dx * rx + dz * rz) / rl;
+                            sep += (1.1 - d) * (lat > 0 ? 1 : -1) * 0.4;
                         }
                     }
                 }
-                // Muluskan pergerakan menghindar
-                a.rOffset += (push * 2.0 - a.rOffset) * dt * 4;
-                if (a.rOffset > 3) a.rOffset = 3;
-                if (a.rOffset < -3) a.rOffset = -3;
-                
-                let rad = a.r + a.rOffset;
-                let nx = o.center.x + Math.cos(a.angle) * rad;
-                let nz = o.center.z + Math.sin(a.angle) * rad;
-                
-                // Jangan tembus blocker
-                const eng = ACTIVE_ENGINE;
-                if (eng && !eng._walkableStatic(nx, nz)) {
-                    a.rOffset *= 0.5;
-                    rad = a.r + a.rOffset;
-                    nx = o.center.x + Math.cos(a.angle) * rad;
-                    nz = o.center.z + Math.sin(a.angle) * rad;
+                // Smooth & clamp separasi (sangat kecil agar tidak oscilasi)
+                a.sepOff = a.sepOff || 0;
+                a.sepOff += (sep - a.sepOff) * Math.min(1, dt * 3);
+                a.sepOff = Math.max(-0.8, Math.min(0.8, a.sepOff));
+
+                // --- 4. SMOOTH radius ke targetR ---
+                a.rSmooth = a.rSmooth ?? a.targetR;
+                a.rSmooth += (a.targetR - a.rSmooth) * Math.min(1, dt * 5);
+
+                // --- 5. KALKULASI posisi final ---
+                const finalR = Math.max(o.rMin + 0.3, a.rSmooth + a.sepOff);
+                let nx = cx + Math.cos(a.angle) * finalR;
+                let nz = cz + Math.sin(a.angle) * finalR;
+
+                // --- 6. HARD COLLISION CHECK: tidak boleh menembus apapun ---
+                if (eng && a.wx !== undefined) {
+                    if (!eng._walkableStatic(nx, nz, 0.35)) {
+                        // Coba posisi saat ini (jangan bergerak sama sekali)
+                        nx = a.wx;
+                        nz = a.wz;
+                        // Juga undo sudut agar frame berikutnya tidak tetap menghitung maju
+                        a.angle += a.w * dt;
+                    }
                 }
-                // Solid check untuk orbit (Tawaf)
-                if (eng && !eng._agentWalkable(a, nx, nz)) {
-                    a.angle -= (a.v / o.rMax) * dt * o.angularSpeed * 10; // mundur (macet)
-                    x = a.x; z = a.z;
-                } else {
-                    x = nx;
-                    z = nz;
-                }
-                heading = -a.angle - Math.PI + (a.rOffset * 0.4);
+
+                x = nx;
+                z = nz;
+                heading = -a.angle - Math.PI;
                 moving = true;
             } else if (o.mode === 'line') {
                 a.t += a.v * dt * a.dir;
@@ -799,16 +852,81 @@ export class Crowd {
                 
                 // Jangan tembus blocker atau pemain/jamaah lain
                 const eng = ACTIVE_ENGINE;
-                if (eng && !eng._agentWalkable(a, nx, nz)) {
+                if (eng && a.x !== undefined && !eng._agentWalkable(a, nx, nz)) {
                     a.laneOffset *= 0.5;
                     const safeLane = a.lane + a.laneOffset;
-                    nx = o.from.x + (o.to.x - o.from.x) * a.t + orthX * safeLane;
-                    nz = o.from.z + (o.to.z - o.from.z) * a.t + orthZ * safeLane;
+                    let tx = o.from.x + (o.to.x - o.from.x) * a.t + orthX * safeLane;
+                    let tz = o.from.z + (o.to.z - o.from.z) * a.t + orthZ * safeLane;
+                    if (eng._agentWalkable(a, tx, tz)) {
+                        nx = tx; nz = tz;
+                    } else {
+                        a.t -= a.v * dt * a.dir;
+                        nx = a.x; nz = a.z;
+                    }
                 }
                 
                 x = nx;
                 z = nz;
                 heading = Math.atan2((o.to.x - o.from.x) * a.dir, (o.to.z - o.from.z) * a.dir) + (a.laneOffset * a.dir * 0.3);
+                moving = true;
+            } else if (o.mode === 'track') {
+                const px = o.to.x - o.from.x, pz = o.to.z - o.from.z;
+                const L = Math.hypot(px, pz) || 1;
+                const dirX = px / L, dirZ = pz / L;
+                const orthX = -dirZ, orthZ = dirX; // Perpendicular right
+                
+                const R = (o.width || 9) / 2;
+                const C = Math.PI * R;
+                const totalDist = 2 * L + 2 * C;
+                
+                if (a.dist === undefined) a.dist = a.t * totalDist;
+                const speed = a.v * L;
+                a.dist = (a.dist + speed * dt) % totalDist;
+                
+                let nx, nz, baseDirX, baseDirZ;
+                let finalLane = a.lane; // simplistic lane, can add collision avoidance later
+                
+                if (a.dist < L) {
+                    // Straight 1: from -> to, offset by R (right)
+                    nx = o.from.x + dirX * a.dist + orthX * (R + finalLane);
+                    nz = o.from.z + dirZ * a.dist + orthZ * (R + finalLane);
+                    baseDirX = dirX; baseDirZ = dirZ;
+                } else if (a.dist < L + C) {
+                    // Curve 1: at `to`
+                    let angleDist = a.dist - L;
+                    let theta = (angleDist / C) * Math.PI;
+                    let rotOrthX = orthX * Math.cos(theta) + dirX * Math.sin(theta);
+                    let rotOrthZ = orthZ * Math.cos(theta) + dirZ * Math.sin(theta);
+                    nx = o.to.x + rotOrthX * (R + finalLane);
+                    nz = o.to.z + rotOrthZ * (R + finalLane);
+                    baseDirX = -orthX * Math.sin(theta) + dirX * Math.cos(theta);
+                    baseDirZ = -orthZ * Math.sin(theta) + dirZ * Math.cos(theta);
+                } else if (a.dist < 2 * L + C) {
+                    // Straight 2: to -> from, offset by -R
+                    let backDist = a.dist - L - C;
+                    nx = o.to.x - dirX * backDist - orthX * (R + finalLane);
+                    nz = o.to.z - dirZ * backDist - orthZ * (R + finalLane);
+                    baseDirX = -dirX; baseDirZ = -dirZ;
+                } else {
+                    // Curve 2: at `from`
+                    let angleDist = a.dist - 2 * L - C;
+                    let theta = (angleDist / C) * Math.PI;
+                    let rotOrthX = -orthX * Math.cos(theta) - dirX * Math.sin(theta);
+                    let rotOrthZ = -orthZ * Math.cos(theta) - dirZ * Math.sin(theta);
+                    nx = o.from.x + rotOrthX * (R + finalLane);
+                    nz = o.from.z + rotOrthZ * (R + finalLane);
+                    baseDirX = orthX * Math.sin(theta) - dirX * Math.cos(theta);
+                    baseDirZ = orthZ * Math.sin(theta) - dirZ * Math.cos(theta);
+                }
+                
+                const eng = ACTIVE_ENGINE;
+                if (eng && a.x !== undefined && !eng._agentWalkable(a, nx, nz)) {
+                    a.dist -= speed * dt; // undo
+                    nx = a.x; nz = a.z;
+                }
+                
+                x = nx; z = nz;
+                heading = Math.atan2(baseDirX, baseDirZ);
                 moving = true;
             } else if (o.mode === 'wander') {
                 const dx = a.tx - a.x, dz = a.tz - a.z;
@@ -892,12 +1010,12 @@ export class Crowd {
                         const nz = a.z + Math.cos(a.heading) * speed * dt;
                         const eng = ACTIVE_ENGINE;
                         if (eng && !eng._agentWalkable(a, nx, nz)) {
-                            a.x += dx * 0.1; // soft push
-                            a.z += dz * 0.1;
+                            nx = a.x; nz = a.z;
+                            moving = false;
                         } else {
-                            a.x = nx; a.z = nz;
+                            moving = true;
                         }
-                        moving = true;
+                        a.x = nx; a.z = nz;
                     } else {
                         a.heading = leader.heading;
                     }
@@ -1135,7 +1253,7 @@ export class Engine {
             this._pointerNDC.set(
                 ((e.clientX - r.left) / r.width) * 2 - 1,
                 -((e.clientY - r.top) / r.height) * 2 + 1);
-            if (!this._dragging || this.uiOpen || this.paused) return;
+            if (!this._dragging || this.uiOpen || this.paused || this._prayerActive) return;
             const locked = document.pointerLockElement === this.renderer.domElement;
             // movementX hanya andal saat pointer terkunci; selain itu pakai delta clientX
             let mx, my;
@@ -1313,17 +1431,17 @@ export class Engine {
         this.blockers.push({ x1: Math.min(x1, x2), z1: Math.min(z1, z2), x2: Math.max(x1, x2), z2: Math.max(z1, z2) });
     }
     /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan. */
-    _walkableStatic(x, z) {
+    _walkableStatic(x, z, pad = 0) {
         for (const b of this.blockers) {
-            if (x > b.x1 && x < b.x2 && z > b.z1 && z < b.z2) return false;
+            if (x > b.x1 - pad && x < b.x2 + pad && z > b.z1 - pad && z < b.z2 + pad) return false;
         }
         if (this.walkRects.length === 0 && this.walkCircles.length === 0) return true;
         for (const r of this.walkRects) {
-            if (x >= r.x1 && x <= r.x2 && z >= r.z1 && z <= r.z2) return true;
+            if (x >= r.x1 + pad && x <= r.x2 - pad && z >= r.z1 + pad && z <= r.z2 - pad) return true;
         }
         for (const c of this.walkCircles) {
             const d = Math.hypot(x - c.x, z - c.z);
-            if (d <= c.rOuter && d >= c.rInner) return true;
+            if (d <= c.rOuter - pad && d >= c.rInner + pad) return true;
         }
         return false;
     }
@@ -1343,12 +1461,12 @@ export class Engine {
     }
     /** Bisa ditempati pemain: geometri statis DAN tidak menembus jamaah. */
     _walkable(x, z) {
-        return this._walkableStatic(x, z) && !this._crowdBlocks(x, z);
+        return this._walkableStatic(x, z, 0.2) && !this._crowdBlocks(x, z);
     }
     
     /** Bisa ditempati jamaah: geometri statis, hindari pemain, hindari jamaah lain (SOLID). */
     _agentWalkable(agent, x, z) {
-        if (!this._walkableStatic(x, z)) return false;
+        if (!this._walkableStatic(x, z, 0.45)) return false;
         
         // Hindari pemain (posisi dunia — di VR kamera berada di dalam dolly)
         const pp = this.playerPos(_playerW);
@@ -1372,12 +1490,22 @@ export class Engine {
 
     _movePlayer(dt) {
         if (this.uiOpen) return;
+        
+        // Animasi ketinggian (pose Y) selalu berjalan walau tak ada input gerak
+        if (this._currentY === undefined) this._currentY = 1.7;
+        const targetY = this._prayerTargetY ?? 1.7;
+        this._currentY += (targetY - this._currentY) * (1 - Math.exp(-6 * dt)); // Smooth lerp
+        this.camera.position.y = this._currentY;
+
         const speed = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? this.runSpeed : this.playerSpeed;
         let f = 0, s = 0;
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) f += 1;
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) f -= 1;
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) s += 1;
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) s -= 1;
+        // Hanya proses input gerak jika sedang tidak shalat
+        if (!this._prayerActive) {
+            if (this.keys['KeyW'] || this.keys['ArrowUp']) f += 1;
+            if (this.keys['KeyS'] || this.keys['ArrowDown']) f -= 1;
+            if (this.keys['KeyD'] || this.keys['ArrowRight']) s += 1;
+            if (this.keys['KeyA'] || this.keys['ArrowLeft']) s -= 1;
+        }
         const len = Math.hypot(f, s);
         if (len) { f /= len; s /= len; }
         // Tombol berpindah dari 0 ke 1 seketika; luruhkan ke arah masukan agar
@@ -1403,7 +1531,47 @@ export class Engine {
             else if (this._walkable(prev.x, p.z)) p.x = prev.x;
             else p.copy(prev);
         }
-        p.y = 1.7;
+    }
+
+    /**
+     * Animasikan kamera ke pose shalat tertentu.
+     * Pose yang didukung: 'stand' | 'ruku' | 'sujud' | 'sit'
+     * Selama pose aktif: pergerakan & mouse dikunci penuh.
+     */
+    prayerPose(pose) {
+        const POSES = {
+            stand: { y: 1.62, pitch: 0.0  },
+            ruku:  { y: 0.95, pitch: -1.15 },  // menunduk ~65° ke bawah
+            sujud: { y: 0.10, pitch: -1.45 },  // dahi ke lantai, pandang lurus ke sajadah
+            sit:   { y: 0.55, pitch: -0.18 },  // duduk, pandang sedikit ke bawah
+        };
+        const cfg = POSES[pose] || POSES.stand;
+        this._prayerActive = true;
+        this._prayerTargetY = cfg.y;
+        if (this._camTargetYaw === undefined) {
+            this._camTargetYaw = this._camCurrentYaw = 0; 
+            this._camTargetPitch = this._camCurrentPitch = 0;
+        }
+        this._camTargetPitch = cfg.pitch; // Paksa target pitch agar menunduk perlahan
+        
+        // Efek pejam mata (layar menggelap) saat sujud
+        if (this.fadeEl) {
+            this.fadeEl.style.transitionDuration = '1200ms';
+            this.fadeEl.style.opacity = (pose === 'sujud') ? '0.9' : '0';
+        }
+
+        // Reset kecepatan
+        this._velF = 0; this._velS = 0;
+    }
+
+    /** Kembalikan kontrol normal setelah sesi shalat selesai. */
+    prayerEndPose() {
+        this._prayerActive = false;
+        this._prayerTargetY = 1.7;
+        this._camTargetPitch = 0;
+        if (this.fadeEl) {
+            this.fadeEl.style.opacity = '0';
+        }
     }
 
     /**

@@ -24,6 +24,11 @@
 <body>
     <Routes @rendermode="InteractiveServer" />
     <script src="_framework/blazor.web.js"></script>
+    <script type="module">
+        import * as THREE from 'three';
+        window.THREE = THREE; // Make THREE global for the procedural scripts
+    </script>
+    <script src="js/maqam-ibrahim.js"></script>
 </body>
 
 </html>
