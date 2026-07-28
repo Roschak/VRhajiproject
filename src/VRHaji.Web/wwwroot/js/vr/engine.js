@@ -1665,6 +1665,7 @@ export class Engine {
             [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
         for (let i = 0; i < 2; i++) {
             const controller = this.renderer.xr.getController(i);
+            const grip = this.renderer.xr.getControllerGrip(i);
             controller.add(new THREE.Line(rayGeo,
                 new THREE.LineBasicMaterial({ color: 0xffd75e, transparent: true, opacity: 0.8 })));
             controller.userData.ray = controller.children[0];
