@@ -12,6 +12,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 export { THREE };
+import { ChunkManager } from './chunkManager.js';
 
 /* ============================================================
  * Texture prosedural (canvas) — marmer, pasir, kiswah, papan teks
@@ -1186,6 +1187,7 @@ export class Engine {
         this.renderer.xr.enabled = true;
         this.dolly = new THREE.Group();
         this.dolly.name = 'xr-rig';
+        this.chunkManager = new ChunkManager(this); // Minecraft-style VR chunk optimization
         this.dolly.add(this.camera);
         this.scene.add(this.dolly);
 
@@ -1215,6 +1217,7 @@ export class Engine {
         this.walkRects = [];
         this.walkCircles = [];
         this.blockers = [];
+        this.heightZones = [];  // Zona ketinggian untuk terrain yang bisa dinaiki
         this.playerRadius = 0.3;   // radius tabrakan pemain (kapsul) untuk collision solid
         ACTIVE_ENGINE = this;      // agar Crowd bisa menguji tembus dinding
         this.uiOpen = false;
@@ -1453,6 +1456,16 @@ export class Engine {
     addBlocker(x1, z1, x2, z2) {
         this.blockers.push({ x1: Math.min(x1, x2), z1: Math.min(z1, z2), x2: Math.max(x1, x2), z2: Math.max(z1, z2) });
     }
+    /**
+     * Tambahkan zona ketinggian (terrain yang bisa dinaiki).
+     * @param {number} cx - Pusat X zona
+     * @param {number} cz - Pusat Z zona
+     * @param {number} radius - Jangkauan zona
+     * @param {function} heightFn - (x, z) => ground height at world (x,z)
+     */
+    addHeightZone(cx, cz, radius, heightFn) {
+        this.heightZones.push({ cx, cz, radius, heightFn });
+    }
     /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan. */
     _walkableStatic(x, z, pad = 0) {
         for (const b of this.blockers) {
@@ -1514,10 +1527,21 @@ export class Engine {
     _movePlayer(dt) {
         if (this.uiOpen) return;
         
-        // Animasi ketinggian (pose Y) selalu berjalan walau tak ada input gerak
+        // Animasi ketinggian (pose Y) — termasuk height zone (terrain)
         if (this._currentY === undefined) this._currentY = 1.7;
-        const targetY = this._prayerTargetY ?? 1.7;
-        this._currentY += (targetY - this._currentY) * (1 - Math.exp(-6 * dt)); // Smooth lerp
+        // Hitung ketinggian tanah berdasarkan height zones
+        let groundH = 0;
+        const px = this.camera.position.x, pz = this.camera.position.z;
+        for (const hz of this.heightZones) {
+            const dx = px - hz.cx, dz = pz - hz.cz;
+            if (dx * dx + dz * dz < hz.radius * hz.radius) {
+                const h = hz.heightFn(px, pz);
+                if (h > groundH) groundH = h;
+            }
+        }
+        const eyeLevel = this._prayerTargetY ?? 1.7;
+        const targetY = groundH + eyeLevel;
+        this._currentY += (targetY - this._currentY) * (1 - Math.exp(-8 * dt)); // Smooth lerp
         this.camera.position.y = this._currentY;
 
         const speed = (this.keys['ShiftLeft'] || this.keys['ShiftRight']) ? this.runSpeed : this.playerSpeed;
@@ -2342,6 +2366,7 @@ export class Engine {
                 u.fn(dt, t, u);
                 if (u.done) this.updaters.splice(i, 1);
             }
+            if (this.chunkManager) this.chunkManager.update();
             if (this.waypoint && this._waypointRing) {
                 const s = 1 + Math.sin(t * 4) * 0.18;
                 this._waypointRing.scale.setScalar(s);
