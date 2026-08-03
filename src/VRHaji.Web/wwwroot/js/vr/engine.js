@@ -1467,6 +1467,8 @@ export class Engine {
     spawn(x, z, yawDeg = 0, y = 1.7) {
         this.camera.position.set(x, y, z);
         this.camera.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0, 'YXZ');
+        this._currentY = y;
+        this._prayerTargetY = undefined;
         this._camTargetYaw = undefined;
         this._velF = 0; this._velS = 0; // jangan bawa momentum melewati teleport
     }

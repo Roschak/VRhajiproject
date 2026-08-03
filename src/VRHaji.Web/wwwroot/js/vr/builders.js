@@ -1806,151 +1806,192 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
 export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
     const { scene, mats } = engine;
     const g = new THREE.Group();
-    const L = 34, R = 3.6;
+    const L = 34, W = 1.9; // Lebar setengah kabin (3.8m, standar Boeing 737 / A320)
     
-    // Dinding silinder (kabin bagian dalam)
-    const tubeGeo = new THREE.CylinderGeometry(R, R, L, 32, 1, false);
-    const tubeMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.8, side: THREE.BackSide });
+    // 1. KABIN UTAMA (Bentuk Custom persis seperti referensi foto - Extruded Shape)
+    const s = new THREE.Shape();
+    s.moveTo(W, 0);
+    s.lineTo(W+0.1, 1.0); // Dinding melengkung keluar sedikit
+    s.lineTo(W, 1.8); // Dinding atas
+    s.lineTo(W-0.5, 1.8); // Bagian bawah overhead bin (rata)
+    s.quadraticCurveTo(W-0.5, 2.2, W-0.1, 2.3); // Muka depan overhead bin melengkung
+    s.quadraticCurveTo(0.5, 2.8, 0.2, 2.8); // Plafon melengkung ke atas
+    s.lineTo(0.2, 2.65); // Turunan vertikal untuk panel lampu indirect
+    s.lineTo(-0.2, 2.65); // Panel tengah datar
+    s.lineTo(-0.2, 2.8); // Naik lagi
+    s.quadraticCurveTo(-0.5, 2.8, -(W-0.1), 2.3); // Plafon kiri
+    s.quadraticCurveTo(-(W-0.5), 2.2, -(W-0.5), 1.8); // Muka depan bin kiri
+    s.lineTo(-W, 1.8); // Bawah bin kiri
+    s.lineTo(-(W+0.1), 1.0); // Dinding kiri
+    s.lineTo(-W, 0); // Lantai
+    s.lineTo(W, 0);
+
+    const tubeGeo = new THREE.ExtrudeGeometry(s, { depth: L, bevelEnabled: false });
+    tubeGeo.translate(0, 0, -L/2);
+    // Warna panel kabin putih bersih / krem ala pesawat modern
+    const tubeMat = new THREE.MeshStandardMaterial({ color: 0xfdfdfd, roughness: 0.6, side: THREE.BackSide });
     const tube = new THREE.Mesh(tubeGeo, tubeMat);
-    tube.rotation.z = Math.PI / 2;
-    tube.position.y = R - 0.6;
+    tube.rotation.y = Math.PI / 2; // Extrusion Z menjadi sumbu X dunia
     g.add(tube);
     
-    // Lantai kabin dengan motif karpet
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.15, R * 1.8), new THREE.MeshStandardMaterial({ color: 0x1a2233, roughness: 0.9 }));
+    // Lantai Kabin
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, W * 2.2), new THREE.MeshStandardMaterial({ color: 0x1f232b, roughness: 0.9 }));
     floor.position.y = 0.05;
     g.add(floor);
-    
-    // Overhead Bins (Laci kabin di atas kursi)
-    const binGeo = new THREE.BoxGeometry(L, 1.2, 1.4);
-    const binMat = new THREE.MeshStandardMaterial({ color: 0xe0e5ea, roughness: 0.6 });
-    for(const sz of [-R + 1.2, R - 1.2]) {
-        const bin = new THREE.Mesh(binGeo, binMat);
-        bin.position.set(0, R * 1.5, sz);
-        bin.rotation.x = sz > 0 ? 0.35 : -0.35;
-        g.add(bin);
-    }
-    
-    // Lampu LED strip di langit-langit kabin
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(L, 0.1, 0.5), mats.emissiveCool);
-    strip.position.set(0, R * 1.75, 0);
-    g.add(strip);
+    // Karpet Lorong (Dark Blue / Navy seperti di foto) - Lebarkan untuk jalan
+    const aisle = new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, 1.0), new THREE.MeshStandardMaterial({ color: 0x121a2f, roughness: 0.95 }));
+    aisle.position.y = 0.05;
+    g.add(aisle);
 
-    // Setup material kursi penumpang (Economy Class)
-    const seatMat = new THREE.MeshStandardMaterial({ color: 0xf0f4f5, roughness: 0.8 }); // Clean white fabrics
-    const armMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4 });
-    const hdMat = new THREE.MeshStandardMaterial({ color: 0x0f5c35, roughness: 0.6 }); // Emerald headrest
+    // Lampu LED indirect kuning hangat di celah plafon (kiri & kanan)
+    const strip1 = new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.05), mats.emissiveWarm);
+    strip1.position.set(0, 2.75, 0.15);
+    g.add(strip1);
+    const strip2 = new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.05), mats.emissiveWarm);
+    strip2.position.set(0, 2.75, -0.15);
+    g.add(strip2);
     
-    const nSeats = 12 * 4;
-    const cush = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.15, 0.5), seatMat, nSeats);
-    const bk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.12, 0.85, 0.5), seatMat, nSeats);
-    const hd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 0.25, 0.51), hdMat, nSeats);
-    const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.45, 0.04, 0.06), armMat, nSeats * 2);
-    const leg = new THREE.InstancedMesh(new THREE.BoxGeometry(0.25, 0.4, 0.35), armMat, nSeats);
+    // 2. KURSI PENUMPANG (Konfigurasi 3-3 mirip foto)
+    const seatMat = new THREE.MeshStandardMaterial({ color: 0x888b8d, roughness: 0.8 }); // Bantalan kain abu-abu
+    const plasticMat = new THREE.MeshStandardMaterial({ color: 0xeef0f2, roughness: 0.4 }); // Punggung plastik putih
+    const hdMat = new THREE.MeshStandardMaterial({ color: 0x55595c, roughness: 0.7 }); // Sandaran kepala abu tua
+    
+    const nRows = 20; // Dikurangi agar jarak antar baris lebih luas
+    const nSeats = nRows * 6;
+    const cush = new THREE.InstancedMesh(new THREE.BoxGeometry(0.45, 0.12, 0.45), seatMat, nSeats);
+    const bk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.08, 0.75, 0.45), seatMat, nSeats);
+    const bkPlast = new THREE.InstancedMesh(new THREE.BoxGeometry(0.04, 0.75, 0.45), plasticMat, nSeats);
+    const hd = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.2, 0.45), hdMat, nSeats);
+    const tray = new THREE.InstancedMesh(new THREE.BoxGeometry(0.02, 0.25, 0.35), plasticMat, nSeats); // Meja lipat putih
+    const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.4, 0.04, 0.05), plasticMat, nSeats + nRows * 2);
+    const leg = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.4, 0.35), mats.steel, nSeats);
 
     const m4 = new THREE.Matrix4();
+    const q4 = new THREE.Quaternion();
     let i = 0, j = 0;
     const seatSpots = [];
     
-    // Baris kursi penumpang
-    for (let row = 0; row < 12; row++) {
-        for (const sz of [-1.5, -0.85, 0.85, 1.5]) {
-            const sx = -L / 2 + 6 + row * 1.8;
+    for (let row = 0; row < nRows; row++) {
+        // Z positions dilebarkan: lorong tengah kini lebih luas
+        for (const sz of [-1.6, -1.1, -0.6, 0.6, 1.1, 1.6]) {
+            const sx = -L / 2 + 4.5 + row * 1.2; // Jarak pitch 1.2m
+            engine.addBlocker(origin.x + sx - 0.3, origin.z + sz - 0.25, origin.x + sx + 0.3, origin.z + sz + 0.25);
             
-            engine.addBlocker(origin.x + sx - 0.35, origin.z + sz - 0.35, origin.x + sx + 0.35, origin.z + sz + 0.35);
-            m4.makeTranslation(sx, 0.45, sz); cush.setMatrixAt(i, m4);
+            m4.makeTranslation(sx, 0.4, sz); cush.setMatrixAt(i, m4);
             m4.makeTranslation(sx, 0.2, sz); leg.setMatrixAt(i, m4);
-            m4.makeRotationZ(-0.15); m4.setPosition(sx - 0.25, 0.9, sz); bk.setMatrixAt(i, m4);
-            m4.setPosition(sx - 0.35, 1.3, sz); hd.setMatrixAt(i, m4);
             
-            m4.makeTranslation(sx + 0.05, 0.65, sz - 0.28); arm.setMatrixAt(j++, m4);
-            m4.makeTranslation(sx + 0.05, 0.65, sz + 0.28); arm.setMatrixAt(j++, m4);
+            // Sandaran miring ke belakang
+            q4.setFromAxisAngle(new THREE.Vector3(0,0,1), -0.15);
+            m4.compose(new THREE.Vector3(sx - 0.2, 0.8, sz), q4, new THREE.Vector3(1,1,1)); bk.setMatrixAt(i, m4);
+            m4.compose(new THREE.Vector3(sx - 0.25, 0.8, sz), q4, new THREE.Vector3(1,1,1)); bkPlast.setMatrixAt(i, m4);
+            m4.compose(new THREE.Vector3(sx - 0.27, 0.75, sz), q4, new THREE.Vector3(1,1,1)); tray.setMatrixAt(i, m4);
+            m4.compose(new THREE.Vector3(sx - 0.26, 1.1, sz), q4, new THREE.Vector3(1,1,1)); hd.setMatrixAt(i, m4);
+            
+            // Sandaran tangan (Armrests)
+            m4.makeTranslation(sx + 0.05, 0.6, sz - 0.24); arm.setMatrixAt(j++, m4);
+            if(sz === -0.6 || sz === 1.6) { m4.makeTranslation(sx + 0.05, 0.6, sz + 0.24); arm.setMatrixAt(j++, m4); }
             
             seatSpots.push({ x: sx + origin.x, z: sz + origin.z, ry: Math.PI / 2 });
             i++;
         }
     }
-    g.add(cush, bk, hd, arm, leg);
+    g.add(cush, bk, bkPlast, hd, tray, arm, leg);
     
-    // Jendela kabin emissive (memancarkan cahaya biru terang)
-    for (let w = 0; w < 12; w++) {
+    // 3. JENDELA KABIN
+    const winFrameMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3 });
+    const winGlassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffee, emissiveIntensity: 0.8 }); // Terang benderang
+    const qWin = new THREE.Quaternion();
+    
+    for (let w = 0; w < nRows; w++) {
         for (const s of [-1, 1]) {
-            g.add(mesh(new THREE.BoxGeometry(0.35, 0.55, 0.05), new THREE.MeshStandardMaterial({ color: 0x88ccff, emissive: 0x88ccff, emissiveIntensity: 0.6 }),
-                -L / 2 + 6 + w * 1.8, 1.3, s * (R - 0.1), { cast: false }));
+            const wx = -L / 2 + 4.5 + w * 1.2;
+            const wz = s * (W + 0.05);
+            qWin.setFromAxisAngle(new THREE.Vector3(1,0,0), s * 0.1); 
+            
+            const frame = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.45, 0.05), winFrameMat);
+            frame.position.set(wx, 1.3, wz);
+            frame.quaternion.copy(qWin);
+            g.add(frame);
+            
+            const glass = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 0.06), winGlassMat);
+            glass.position.set(wx, 1.3, wz);
+            glass.quaternion.copy(qWin);
+            g.add(glass);
         }
     }
 
-    // RUANG PILOT (COCKPIT) DI BAGIAN DEPAN (+X)
+    // 4. BAGIAN BELAKANG (Galley / Dapur & Lavatory)
+    const rearX = -L / 2 + 1.0;
+    const rearWall = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.0, W*2.1), tubeMat);
+    rearWall.position.set(rearX, 1.5, 0);
+    g.add(rearWall);
+    
+    const galleyMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.5 });
+    const gCurtain = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.9, 0.6), new THREE.MeshStandardMaterial({ color: 0x112244 }));
+    gCurtain.position.set(rearX + 0.05, 1.0, 0);
+    g.add(gCurtain); // Tirai pembatas galley
+    
+    for (const pz of [-1.0, 1.0]) {
+        const lavDoor = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.8, 0.7), galleyMat);
+        lavDoor.position.set(rearX + 0.06, 0.95, pz);
+        g.add(lavDoor);
+    }
+
+    // 5. RUANG PILOT (COCKPIT)
     const cockpitX = L / 2 - 3.5;
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.0, W*2.1), tubeMat);
+    frontWall.position.set(cockpitX, 1.5, 0);
+    g.add(frontWall);
     
-    // Dinding pembatas kokpit (Bulkhead) dengan pintu sedikit terbuka
-    const bulkhead1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, R*2, R*2 - 0.9), tubeMat);
-    bulkhead1.position.set(cockpitX, R-0.6, 0.45);
-    g.add(bulkhead1);
-    const bulkhead2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, R*2 - 2.2, 0.9), tubeMat);
-    bulkhead2.position.set(cockpitX, R*2 - 1.1, -R + 0.45);
-    g.add(bulkhead2);
-    
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.85), new THREE.MeshStandardMaterial({ color: 0x8c9399, roughness: 0.4 }));
-    door.position.set(cockpitX + 0.35, 1.1, -0.05);
-    door.rotation.y = Math.PI / 3; // Terbuka agar pemain bisa melihat/masuk
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.9, 0.8), galleyMat);
+    door.position.set(cockpitX + 0.05, 1.0, -0.05);
+    door.rotation.y = Math.PI / 4; 
     g.add(door);
 
-    // Kursi Pilot (Captain & First Officer)
-    const pSeatMat = new THREE.MeshStandardMaterial({ color: 0x11151a, roughness: 0.9 });
-    for (const pz of [-0.8, 0.8]) {
-        const px = cockpitX + 1.8;
-        // Dudukan & sandaran pilot
-        const ps = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.7), pSeatMat);
-        ps.position.set(px, 0.6, pz);
-        g.add(ps);
-        const pb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.9, 0.7), pSeatMat);
-        pb.position.set(px - 0.25, 1.1, pz);
-        pb.rotation.z = -0.1;
-        g.add(pb);
+    const pSeatMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+    for (const pz of [-0.6, 0.6]) {
+        const px = cockpitX + 1.5;
+        const ps = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.5), pSeatMat);
+        ps.position.set(px, 0.6, pz); g.add(ps);
+        const pb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.5), pSeatMat);
+        pb.position.set(px - 0.25, 1.0, pz); pb.rotation.z = -0.1; g.add(pb);
         
-        // Panel instrumen & Layar Monitor (menyala hijau/biru ala glass cockpit)
-        const dash = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 1.0), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        dash.position.set(px + 1.2, 0.8, pz);
-        dash.rotation.z = -0.3;
-        g.add(dash);
+        const dash = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 1.2), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+        dash.position.set(px + 1.0, 0.7, pz); dash.rotation.z = -0.3; g.add(dash);
         
-        const scr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.8), new THREE.MeshStandardMaterial({ color: 0x22ff99, emissive: 0x22ff99, emissiveIntensity: 0.7 }));
-        scr.position.set(px + 0.95, 1.25, pz);
-        scr.rotation.z = -0.3;
-        g.add(scr);
+        const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4), mats.steel);
+        yoke.rotation.z = Math.PI / 2; yoke.position.set(px + 0.6, 0.8, pz); g.add(yoke);
+        const yokeWheel = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 8, 16), mats.steel);
+        yokeWheel.rotation.y = Math.PI / 2; yokeWheel.position.set(px + 0.4, 0.8, pz); g.add(yokeWheel);
+        
+        for (let s of [-0.3, 0, 0.3]) {
+            const scr = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.3, 0.25), new THREE.MeshStandardMaterial({ color: 0x11aaff, emissive: 0x11aaff, emissiveIntensity: 0.8 }));
+            scr.position.set(px + 0.8, 1.15, pz + s); scr.rotation.z = -0.3; g.add(scr);
+        }
     }
-    
-    // Konsol tengah (Center Pedestal) & Tuas Gas (Throttle)
-    const consoleM = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.7, 0.6), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-    consoleM.position.set(cockpitX + 2.0, 0.5, 0);
-    g.add(consoleM);
-    const throttle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.3), mats.steel);
-    throttle.position.set(cockpitX + 1.5, 0.9, 0);
-    g.add(throttle);
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+    ped.position.set(cockpitX + 1.5, 0.5, 0); g.add(ped);
 
-    // Kaca Depan Kokpit (Windshield)
-    const windGeom = new THREE.SphereGeometry(R-0.1, 24, 12, 0, Math.PI);
+    // Kaca Depan & Penutup Moncong
+    const windGeom = new THREE.SphereGeometry(2.0, 24, 12, 0, Math.PI);
     const windMat = new THREE.MeshStandardMaterial({ color: 0x050a14, roughness: 0.1, side: THREE.BackSide });
     const wind = new THREE.Mesh(windGeom, windMat);
-    wind.rotation.z = Math.PI / 2;
-    wind.rotation.y = Math.PI / 2;
-    wind.position.set(cockpitX + 3.0, R-0.6, 0);
-    g.add(wind);
+    wind.rotation.z = Math.PI / 2; wind.rotation.y = Math.PI / 2;
+    wind.position.set(cockpitX + 2.5, 1.5, 0); g.add(wind);
+    
+    const nose = new THREE.Mesh(windGeom, tubeMat);
+    nose.rotation.z = Math.PI / 2; nose.rotation.y = Math.PI / 2;
+    nose.position.set(cockpitX + 2.6, 1.5, 0); g.add(nose);
 
     g.position.set(origin.x, 0, origin.z);
     scene.add(g);
     
-    // Warm calming ambient LED lighting di kabin penumpang
-    engine.addPointLamp(origin.x, 2.4, origin.z, { color: 0xffe8cc, intensity: 45, distance: 30 });
-    engine.addPointLamp(origin.x - 10, 2.4, origin.z, { color: 0xffe8cc, intensity: 35, distance: 22 });
-    engine.addPointLamp(origin.x + 10, 2.4, origin.z, { color: 0xffe8cc, intensity: 35, distance: 22 });
+    // Pencahayaan Utama
+    engine.addPointLamp(origin.x, 2.4, origin.z, { color: 0xffddaa, intensity: 50, distance: 30 });
+    engine.addPointLamp(origin.x - 10, 2.4, origin.z, { color: 0xffddaa, intensity: 45, distance: 25 });
+    engine.addPointLamp(origin.x + 10, 2.4, origin.z, { color: 0xffddaa, intensity: 45, distance: 25 });
     
-    // Lampu redup berwarna biru di dalam kokpit
-    engine.addPointLamp(origin.x + cockpitX + 2.0, 2.2, origin.z, { color: 0x55aaff, intensity: 25, distance: 10 });
-    
-    // Area bebas berjalan (sampai ke pintu kokpit)
-    engine.addWalkRect(origin.x - L / 2 + 1, origin.z - R + 0.5, origin.x + cockpitX + 2, origin.z + R - 0.5);
+    engine.addWalkRect(origin.x - L / 2 + 1.5, origin.z - W + 0.5, origin.x + cockpitX + 1, origin.z + W - 0.5);
     
     return { origin, length: L, seatSpots };
 }

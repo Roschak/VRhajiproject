@@ -337,7 +337,8 @@ const scene01 = {
         
         // Animasi POV duduk
         await engine.fadeOut(600);
-        engine.camera.position.set(ps.x - 0.05, 1.25, ps.z); // Pov duduk bersandar (tinggi mata ~1.25m)
+        engine._prayerTargetY = 1.15; // Kunci ketinggian kamera pada POV duduk
+        engine.camera.position.set(ps.x - 0.05, 1.15, ps.z); // Pov duduk bersandar
         engine.camera.rotation.set(0, -Math.PI / 2, 0, 'YXZ');
         engine._camTargetYaw = undefined; // reset smoothing
         engine.walkRects.length = 0; // kunci pergerakan
@@ -450,7 +451,8 @@ const scene03 = {
         new Crowd(engine.scene, { count: 35, mode: 'wander', area: { x: 0, z: -130, w: 180, d: 15 }, colors: CASUAL }); // Luar Belakang
         
         refs.playerSeat = refs.seatSpots[15] || refs.seatSpots[0];
-        engine.spawn(refs.playerSeat.x, refs.playerSeat.z, THREE.MathUtils.radToDeg(refs.playerSeat.ry) + 180, 1.6);
+        engine._prayerTargetY = 1.15; // Set status duduk
+        engine.spawn(refs.playerSeat.x, refs.playerSeat.z, THREE.MathUtils.radToDeg(refs.playerSeat.ry) + 180, 1.15);
         return refs;
     },
     async run(engine, ctx) {
