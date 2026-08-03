@@ -1030,9 +1030,9 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
     engine.configureMinimap({
         scale: 1.0, center: { x: 0, z: 0 },
         features: [
-            { type: 'square', x: 0, z: 0, color: '#111111' },
-            { type: 'point', x: 11, z: 8.5, color: '#e8c96a' },
-            { type: 'point', x: 24, z: 5.3, color: '#8a5a2a' }
+            { type: 'square', x: 0, z: 0, color: '#111111', label: 'Ka\'bah' },
+            { type: 'point', x: 11, z: 8.5, color: '#e8c96a', label: 'Maqam' },
+            { type: 'point', x: 24, z: 5.3, color: '#8a5a2a', label: 'Start' }
         ]
     });
 
@@ -1238,8 +1238,8 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
     engine.configureMinimap({
         scale: 0.9, center: { x: ox, z: oz },
         features: [
-            { type: 'point', x: -L / 2 - 8 + ox, z: oz, color: '#37c978' },
-            { type: 'point', x: L / 2 + 8 + ox, z: oz, color: '#37c978' }
+            { type: 'point', x: -L / 2 - 8 + ox, z: oz, color: '#37c978', label: 'Shafa' },
+            { type: 'point', x: L / 2 + 8 + ox, z: oz, color: '#37c978', label: 'Marwah' }
         ]
     });
     return { shafaX: -L / 2 - 4 + ox, marwahX: L / 2 + 4 + ox, length: L, shafa, marwah };
@@ -1792,9 +1792,9 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     engine.configureMinimap({
         scale: 1.6, center: { x: 0, z: 0 },
         features: [
-            { type: 'square', x: -24, z: -24, color: '#57d987' },
-            { type: 'square', x: 24, z: -14, color: '#d98a57' },
-            { type: 'square', x: 36, z: 18, color: '#e8c96a' }
+            { type: 'square', x: -24, z: -24, color: '#57d987', label: 'Pintu Masuk' },
+            { type: 'square', x: 24, z: -14, color: '#d98a57', label: 'Check-in' },
+            { type: 'square', x: 36, z: 18, color: '#e8c96a', label: 'Pesawat' }
         ]
     });
 
@@ -2240,8 +2240,8 @@ export function nabawi(engine, origin = { x: 0, z: 0 }) {
     engine.configureMinimap({
         scale: 0.9, center: { x: origin.x, z: origin.z - 10 },
         features: [
-            { type: 'square', x: origin.x, z: origin.z + FZ, color: '#e8c96a' },
-            { type: 'point', x: origin.x + DX, z: origin.z + DZ, color: '#37c978' },
+            { type: 'square', x: origin.x, z: origin.z + FZ, color: '#e8c96a', label: 'Masjid Miqat' },
+            { type: 'point', x: origin.x + DX, z: origin.z + DZ, color: '#37c978', label: 'Mihrab' },
             ...spots.map(s => ({ type: 'point', x: origin.x + s.x, z: origin.z + s.z, color: '#6f8fb0' }))
         ]
     });
@@ -2743,10 +2743,12 @@ export function miqat(engine) {
             addArabHouse(root, -230, z, true, true);
         }
     });
+    const dMat1 = new THREE.MeshStandardMaterial({ color: 0xccc4b4, roughness: 1.0 });
+    const dMat2 = new THREE.MeshStandardMaterial({ color: 0xd4cfc5, roughness: 1.0 });
     for (let z = -280; z <= 280; z += 12) {
         const h1 = 8 + Math.random() * 16;
         const h2 = 8 + Math.random() * 16;
-        const dMat = Math.random() > 0.5 ? distantMat : distantMat2;
+        const dMat = Math.random() > 0.5 ? dMat1 : dMat2;
         // Baris kiri jauh
         miqatGroup.add(mesh(new THREE.BoxGeometry(8, h1, 10), dMat, -280 - Math.random() * 20, h1/2, z, { cast: false }));
         // Baris kanan jauh
@@ -3350,10 +3352,10 @@ export function miqat(engine) {
     engine.configureMinimap({
         scale: 1.5, center: { x: 0, z: 0 },
         features: [
-            { type: 'square', x: -20, z: -10, color: '#57a9d9' }, // Bilik Wudhu
-            { type: 'square', x: 0, z: -15, color: '#e8e2d2' }, // Rak Ihram
-            { type: 'point', x: 16, z: -25, color: '#37c978' }, // Sajadah Sholat
-            { type: 'square', x: 0, z: 54, color: '#d9d957' } // Bus
+            { type: 'square', x: -20, z: -10, color: '#57a9d9', label: 'Wudhu' },
+            { type: 'square', x: 0, z: -15, color: '#e8e2d2', label: 'Ihram' },
+            { type: 'point', x: 16, z: -25, color: '#37c978', label: 'Sholat' },
+            { type: 'square', x: 0, z: 54, color: '#d9d957', label: 'Bus' }
         ]
     });
 
@@ -3719,9 +3721,9 @@ export function arafah(engine) {
     engine.configureMinimap({
         scale: 0.7, center: { x: 0, z: 0 },
         features: [
-            { type: 'point', x: jabalPos.x, z: jabalPos.z, color: '#e8e2d2' },
-            { type: 'square', x: 40, z: -96, color: '#ebd9a2' },
-            { type: 'square', x: 70, z: 55, color: '#f9f7f1' }
+            { type: 'point', x: jabalPos.x, z: jabalPos.z, color: '#e8e2d2', label: 'Jabal Rahmah' },
+            { type: 'square', x: 40, z: -96, color: '#ebd9a2', label: 'Masjid Namirah' },
+            { type: 'square', x: 70, z: 55, color: '#f9f7f1', label: 'Tenda' }
         ]
     });
     return { jabal, pillar, jabalPos };

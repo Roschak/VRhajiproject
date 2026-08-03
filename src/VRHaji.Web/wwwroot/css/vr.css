@@ -364,3 +364,67 @@ kbd {
     .hud__subtitle { font-size: .9rem; bottom: 80px; }
     .hud__progress { display: none; }
 }
+
+.map-panel { max-width: 900px; width: 90%; }
+.map-body { padding: 2rem; background: #0f131a; position: relative; overflow: hidden; border-radius: 8px; }
+.game-map {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: #2b4028; /* Terrain green base */
+    background-image: 
+        radial-gradient(circle at 50% 50%, rgba(200, 180, 120, 0.2) 0%, transparent 60%),
+        radial-gradient(circle at 80% 30%, rgba(220, 200, 150, 0.4) 0%, transparent 40%),
+        radial-gradient(circle at 20% 70%, rgba(60, 90, 50, 0.6) 0%, transparent 50%);
+    overflow: hidden;
+    border-radius: 0 0 8px 8px;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+}
+.game-map-grid {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px);
+    background-size: 100px 100px;
+    pointer-events: none;
+}
+.game-map-grid::after {
+    content: "A B C D E F G H I J K L M N";
+    position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.5);
+    font-family: monospace; font-size: 14px; letter-spacing: 85px;
+}
+.game-map-grid::before {
+    content: "1\A 2\A 3\A 4\A 5\A 6\A 7\A 8";
+    position: absolute; top: 10px; left: 10px; color: rgba(255,255,255,0.5);
+    font-family: monospace; font-size: 14px; line-height: 100px; white-space: pre;
+}
+.game-map-routes {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+}
+.game-map-loc {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer;
+}
+.game-map-loc:hover { transform: translate(-50%, -50%) scale(1.1); }
+.loc-marker {
+    font-size: 2rem; background: rgba(0,0,0,0.6); border: 2px solid #e0c068;
+    border-radius: 50%; width: 50px; height: 50px; display: flex;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+.loc-name {
+    margin-top: 5px; background: rgba(0,0,0,0.8); color: white;
+    padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem;
+    border: 1px solid rgba(255,255,255,0.2); white-space: nowrap;
+}
+.loc-player-pin {
+    position: absolute; top: -30px; background: #e50000; color: white;
+    padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;
+    animation: bounce 1s infinite; white-space: nowrap;
+}
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes pulseMarker { 0% { box-shadow: 0 0 0 0 rgba(224,192,104,0.7); } 70% { box-shadow: 0 0 0 15px rgba(224,192,104,0); } 100% { box-shadow: 0 0 0 0 rgba(224,192,104,0); } }
+

@@ -2279,6 +2279,15 @@ export class Engine {
             g.fillStyle = f.color || '#e8c96a';
             if (f.type === 'square') g.fillRect(fx - 4, fz - 4, 8, 8);
             else { g.beginPath(); g.arc(fx, fz, 3.5, 0, 7); g.fill(); }
+            
+            if (f.label) {
+                g.font = 'bold 11px Arial';
+                g.textAlign = 'center';
+                g.fillStyle = 'rgba(0,0,0,0.8)';
+                g.fillText(f.label, fx, fz - 8);
+                g.fillStyle = '#ffffff';
+                g.fillText(f.label, fx, fz - 9);
+            }
         }
         return base;
     }

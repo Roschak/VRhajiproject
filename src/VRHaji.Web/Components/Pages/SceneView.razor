@@ -24,6 +24,7 @@
                 @* Tombol WebXR: engine JS yang memasang handler-nya (requestSession
                    wajib di sisi client). Disembunyikan sampai isSessionSupported true. *@
                 <button id="btn-enter-vr" class="btn btn--gold btn--small vr-enter-btn" hidden disabled>🥽 Masuk VR</button>
+                <button class="btn btn--ghost btn--small" @onclick="ToggleFullMap">🗺️ Peta (M)</button>
                 <button class="btn btn--ghost btn--small" @onclick="ToggleEdukasi">📖 Materi</button>
                 <a class="btn btn--ghost btn--small" href="/">✕ Menu</a>
             </div>
@@ -107,6 +108,53 @@
         </div>
     }
 
+    @if (_showFullMap)
+    {
+        <div class="overlay overlay--panel" style="z-index: 1000;">
+            <div class="edu-panel map-panel" style="max-width: 95vw; height: 90vh;">
+                <div class="edu-panel__header">
+                    <h2>🗺️ Peta Dunia Haji</h2>
+                    <button class="edu-panel__close" @onclick="ToggleFullMap">✕</button>
+                </div>
+                <div class="edu-panel__body map-body" style="height: calc(100% - 60px); padding: 0;">
+                    <div class="game-map">
+                        <div class="game-map-grid"></div>
+                        <svg class="game-map-routes" viewBox="0 0 1000 600" preserveAspectRatio="none">
+                            <path d="M 150 150 Q 300 200 450 350 T 700 450 T 850 250" fill="none" stroke="#e0c068" stroke-width="6" stroke-dasharray="10 10" />
+                            <path d="M 450 350 Q 550 500 700 450" fill="none" stroke="#fff" stroke-width="4" opacity="0.3" />
+                        </svg>
+                        
+                        <div class="game-map-loc" style="top: 25%; left: 15%;">
+                            <div class="loc-marker">✈️</div>
+                            <div class="loc-name">Bandara Jeddah</div>
+                            @if(Urutan == 1) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                        </div>
+                        <div class="game-map-loc" style="top: 58%; left: 45%;">
+                            <div class="loc-marker" style="animation: pulseMarker 2s infinite;">🕋</div>
+                            <div class="loc-name">Makkah (Masjidil Haram)</div>
+                            @if(Urutan >= 4 && Urutan <= 6 || Urutan == 10 || Urutan == 12) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                        </div>
+                        <div class="game-map-loc" style="top: 50%; left: 60%;">
+                            <div class="loc-marker">⛺</div>
+                            <div class="loc-name">Mina</div>
+                            @if(Urutan == 9 || Urutan == 11) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                        </div>
+                        <div class="game-map-loc" style="top: 75%; left: 70%;">
+                            <div class="loc-marker">🌌</div>
+                            <div class="loc-name">Muzdalifah</div>
+                            @if(Urutan == 8) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                        </div>
+                        <div class="game-map-loc" style="top: 41%; left: 85%;">
+                            <div class="loc-marker">⛰️</div>
+                            <div class="loc-name">Arafah</div>
+                            @if(Urutan == 7) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     @if (_showComplete)
     {
         <div class="overlay overlay--intro">
@@ -151,6 +199,7 @@
     private bool _loading = true;
     private bool _showEdukasi;
     private bool _showComplete;
+    private bool _showFullMap;
     private bool _vrActive;
     private string? _notification;
     private string _notificationType = "info";
@@ -204,7 +253,13 @@
     private async Task ToggleEdukasi()
     {
         _showEdukasi = !_showEdukasi;
-        await SetUiOpen(_showEdukasi);
+        await SetUiOpen(_showEdukasi || _showFullMap);
+    }
+
+    private async Task ToggleFullMap()
+    {
+        _showFullMap = !_showFullMap;
+        await SetUiOpen(_showEdukasi || _showFullMap);
     }
 
     private async Task CloseEdukasi()
