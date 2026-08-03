@@ -531,7 +531,7 @@ export class Crowd {
         const im = (geo, mat) => {
             const m = new THREE.InstancedMesh(geo, mat, count);
             m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-            m.castShadow = true;
+            m.castShadow = false; // OPTIMASI: Matikan bayangan untuk crowd
             return m;
         };
         // Bagian tubuh (L/R berbagi geometri; masing-masing instanceColor sendiri)
@@ -745,6 +745,12 @@ export class Crowd {
 
     update(dt, time) {
         const o = this.opts, L = this.L, qYaw = this._qYaw;
+        let camPos = null, camDir = null;
+        if (ACTIVE_ENGINE && ACTIVE_ENGINE.camera) {
+            camPos = ACTIVE_ENGINE.camera.getWorldPosition(new THREE.Vector3());
+            camDir = ACTIVE_ENGINE.camera.getWorldDirection(new THREE.Vector3());
+        }
+
         for (let i = 0; i < this.agents.length; i++) {
             const a = this.agents[i];
             let x, z, heading = a.heading ?? 0, moving = false;
@@ -1050,9 +1056,26 @@ export class Crowd {
             }
             a.wx = x; a.wz = z;
 
-            const sc = a.s;
+            let sc = a.s;
+            // OPTIMASI: Hanya gunakan distance culling. Directional culling (dot product) dihapus
+            // karena menyebabkan lag spike yang parah saat memutar kamera dengan cepat (ratusan agen tiba-tiba 'bangun').
+            if (camPos) {
+                const dx = x - camPos.x;
+                const dz = z - camPos.z;
+                if (dx * dx + dz * dz > 2025) { // Jarak 45 meter
+                    sc = 0;
+                }
+            }
+
             const wp = time * 5.5 * a.speed + a.phase;
             qYaw.setFromAxisAngle(this._up, heading);
+            
+            if (sc === 0) {
+                for (let pIdx = 0; pIdx < this.parts.length; pIdx++) {
+                    this._compose(this.parts[pIdx], i, x, -10, z, qYaw, 0);
+                }
+                continue;
+            }
 
             if (a.sit) {
                 // Duduk: di kursi atau lesehan di lantai
@@ -1380,7 +1403,8 @@ export class Engine {
         const sd = this.sunDir || new THREE.Vector3(-0.4, 0.8, 0.3);
         dir.position.copy(sd.clone().multiplyScalar(140));
         dir.castShadow = true;
-        dir.shadow.mapSize.set(4096, 4096);
+        // OPTIMASI: Turunkan resolusi bayangan dari 4096 ke 2048
+        dir.shadow.mapSize.set(2048, 2048);
         dir.shadow.camera.left = -90; dir.shadow.camera.right = 90;
         dir.shadow.camera.top = 90; dir.shadow.camera.bottom = -90;
         dir.shadow.camera.far = 420;
@@ -1696,6 +1720,7 @@ export class Engine {
             controller.userData.ray.scale.z = 6;
             controller.addEventListener('selectstart', () => this._onVRSelect(controller));
             this.dolly.add(controller);
+            
             // Universal VR Controller Model (mirip Oculus Touch/Valve Index)
             const ctrl = new THREE.Group();
             const bodyMat = new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.4, metalness: 0.8});
@@ -1793,6 +1818,19 @@ export class Engine {
         this.dolly.position.set(p.x, 0, p.z); // kaki di lantai; tinggi dari headset (local-floor)
         this.dolly.rotation.set(0, e.y, 0);
         this.camera.position.set(0, 0, 0);    // pose diambil alih headset
+        this.camera.rotation.set(0, 0, 0);
+        
+        // AUTO-SIT DETECTION: Jika user main sambil duduk, naikkan POV jadi tinggi orang berdiri (1.7m)
+        this._vrSittingOffset = 0;
+        setTimeout(() => {
+            const camXR = this.renderer.xr.getCamera();
+            // Posisi Y kamera XR adalah tinggi kepala fisik dari lantai ruangannya
+            if (camXR.position.y > 0 && camXR.position.y < 1.45) {
+                this._vrSittingOffset = 1.7 - camXR.position.y;
+                this.dolly.position.y = this._vrSittingOffset;
+            }
+        }, 500); // Beri jeda 0.5s sampai sensor ketinggian headset stabil
+        this.camera.position.set(0, 0, 0);    // pose diambil alih headset
         this._buildVRHud();
         if (this._vrHud) this._vrHud.visible = true;
         this._vrHudText = null;             // paksa gambar ulang panel HUD
@@ -1827,40 +1865,53 @@ export class Engine {
         for (const src of session.inputSources) {
             const ax = src.gamepad?.axes;
             if (!ax) continue;
-            const x = ax.length >= 4 ? ax[2] : (ax[0] || 0);
-            const y = ax.length >= 4 ? ax[3] : (ax[1] || 0);
+            // AMAN: Jangan pernah campur index 0/1 (sensor sentuh) dengan 2/3 (dorongan fisik).
+            // Sensor sentuh kapasitif pada Quest sering ngawur dan membuat arah menjadi kacau.
+            let x = 0, y = 0;
+            if (ax.length >= 4) {
+                x = ax[2];
+                y = ax[3];
+            } else if (ax.length >= 2) {
+                x = ax[0]; y = ax[1];
+            }
             if (src.handedness === 'right') tx += x;
             else { mx += x; my += y; }
         }
-        // Snap-turn: berputar mengelilingi kepala, bukan origin dolly.
-        if (Math.abs(tx) > 0.7) {
-            if (!this._snapArmed) {
-                this._snapArmed = true;
-                const head = this.playerPos(_vec);
-                const ang = -Math.sign(tx) * Math.PI / 6;
-                const d = this.dolly.position;
-                const dx = d.x - head.x, dz = d.z - head.z;
-                const c = Math.cos(ang), s = Math.sin(ang);
-                d.x = head.x + dx * c - dz * s;
-                d.z = head.z + dx * s + dz * c;
-                this.dolly.rotation.y += ang;
-            }
-        } else if (Math.abs(tx) < 0.4) {
-            this._snapArmed = false;
+        // Smooth-turn (putaran mulus) sesuai request user
+        if (Math.abs(tx) > 0.15) {
+            const head = this.playerPos(_vec);
+            // OPTIMASI: Kurva eksponensial (tx^3) membuat sentuhan pelan = putaran sangat lambat.
+            // Max speed diturunkan dari 1.5 jadi 0.9 rad/s (~50 derajat/detik) agar tidak mual.
+            const smoothTx = tx * tx * tx; 
+            const ang = -smoothTx * 0.9 * dt; 
+            const d = this.dolly.position;
+            const dx = d.x - head.x, dz = d.z - head.z;
+            const c = Math.cos(ang), s = Math.sin(ang);
+            d.x = head.x + dx * c - dz * s;
+            d.z = head.z + dx * s + dz * c;
+            this.dolly.rotation.y += ang;
         }
         if (Math.abs(mx) < 0.15 && Math.abs(my) < 0.15) return;
+        
         const cam = this.renderer.xr.getCamera();
-        _eulB.setFromQuaternion(cam.quaternion, 'YXZ');
-        const sinY = Math.sin(_eulB.y), cosY = Math.cos(_eulB.y);
-        const f = -my, s = mx; // thumbstick atas = maju (-Z)
+        // OPTIMASI ARAH: Gunakan Vektor alih-alih Euler untuk mencegah 'Gimbal Lock' 
+        // (arah terbalik otomatis saat user melihat terlalu ke atas / menunduk ke bawah).
+        _vec.set(0, 0, -1).applyQuaternion(cam.quaternion);
+        _vec.y = 0; _vec.normalize(); // Vektor maju mendatar
+        
+        const rightX = -_vec.z, rightZ = _vec.x; // Vektor kanan (rotasi 90 derajat dari maju)
+        
+        const f = -my, s = mx; // Standar baku: joystick ke atas (-1) = maju
         const speed = this.playerSpeed;
-        const stepX = (f * -sinY + s * cosY) * speed * dt;
-        const stepZ = (f * -cosY + s * -sinY) * speed * dt;
+        
+        const stepX = (f * _vec.x + s * rightX) * speed * dt;
+        const stepZ = (f * _vec.z + s * rightZ) * speed * dt;
         // offset kepala terhadap origin dolly (gerak fisik pemain di ruangannya)
         const head = this.playerPos(_vec);
         const offX = head.x - this.dolly.position.x, offZ = head.z - this.dolly.position.z;
         const hx = head.x + stepX, hz = head.z + stepZ;
-        if (this._walkable(hx, hz)) { this.dolly.position.set(hx - offX, 0, hz - offZ); }
+        const targetY = this._vrSittingOffset || 0;
+        if (this._walkable(hx, hz)) { this.dolly.position.set(hx - offX, targetY, hz - offZ); }
         else if (this._walkable(hx, head.z)) this.dolly.position.x = hx - offX;
         else if (this._walkable(head.x, hz)) this.dolly.position.z = hz - offZ;
     }
@@ -2343,6 +2394,13 @@ export class Engine {
     }
 
     _tick() {
+        if (this._targetFps && !this.renderer.xr.isPresenting) {
+            const rawNow = performance.now();
+            const minDelay = 1000 / this._targetFps;
+            if (rawNow - (this._lastFrameTime || 0) < minDelay) return;
+            this._lastFrameTime = rawNow;
+        }
+
         const now = performance.now();
         const dt = Math.min((now - this._lastTime) / 1000, 0.05);
         this._lastTime = now;
@@ -2411,6 +2469,7 @@ export class Engine {
 
     /** Jaga 60fps: turunkan resolusi render saat frame melar, naikkan lagi saat lega. */
     _adaptResolution(dt) {
+        if (this._lockResolution) return;
         // rata-rata bergerak; satu frame tersendat tak boleh memicu perubahan
         this._frameAvg += (dt * 1000 - this._frameAvg) * 0.05;
         if (this._prCooldown > 0) { this._prCooldown -= dt; return; }
@@ -2489,5 +2548,30 @@ export class Engine {
         this.renderer.dispose();
         this.renderer.domElement.remove();
         this.fadeEl.remove();
+    }
+
+    setGraphicsOptions(opts) {
+        if (opts.resolution !== undefined) {
+            this._lockResolution = true;
+            this._prMax = opts.resolution;
+            this._pr = opts.resolution;
+            this.renderer.setPixelRatio(this._pr);
+            this.composer.setPixelRatio(this._pr);
+            this.resize();
+        }
+        if (opts.shadows !== undefined) {
+            this.renderer.shadowMap.enabled = opts.shadows;
+            this.scene.traverse((child) => {
+                if (child.isLight && child.type === 'DirectionalLight') {
+                    child.castShadow = opts.shadows;
+                }
+                if (child.material) {
+                    child.material.needsUpdate = true;
+                }
+            });
+        }
+        if (opts.fps !== undefined) {
+            this._targetFps = opts.fps;
+        }
     }
 }

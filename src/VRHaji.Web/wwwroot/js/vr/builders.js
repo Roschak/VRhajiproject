@@ -570,10 +570,9 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
 
     const kb = kaaba(mats);
     scene.add(kb);
-    // Lampu sorot Ka'bah — menerangi kiswah agar tidak pekat di scene malam
-    for (const [lx, lz] of [[-16, -16], [-16, 16], [16, -16], [16, 16]]) {
-        engine.addPointLamp(lx, 9, lz, { color: 0xfff2d8, intensity: 60, distance: 50 });
-    }
+    // OPTIMASI PERFORM: Kurangi dari 4 PointLight menjadi 1 PointLight di tengah atas Ka'bah
+    // Menghitung 4 PointLight untuk ratusan karakter menyebabkan penurunan FPS yang parah. 1 lampu sudah cukup terang.
+    engine.addPointLamp(0, 16, 0, { color: 0xfff2d8, intensity: 140, distance: 80 });
 
     // Garis coklat mulai tawaf — dari sudut Hajar Aswad ke arah luar
     const line = mesh(new THREE.BoxGeometry(0.5, 0.02, 34),
@@ -634,14 +633,15 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
     const buildArcadeWall = (posX, posZ, rotY) => {
         const g = new THREE.Group();
         const ground = new THREE.Mesh(groundGeo, creamMat);
-        ground.castShadow = ground.receiveShadow = true;
+        // OPTIMASI PERFORM: Matikan bayangan pada dinding arsitektur yang poligonnya padat
+        ground.castShadow = false; ground.receiveShadow = true;
         g.add(ground);
         // Pita lantai antar-tingkat
         g.add(mesh(new THREE.BoxGeometry(SIDE, BAND_H, WALL_D + 0.5), creamHi, 0, GROUND_H + BAND_H / 2, WALL_D / 2));
         // Tingkat atas (galeri)
         const upper = new THREE.Mesh(upperGeo, creamMat);
         upper.position.y = GROUND_H + BAND_H;
-        upper.castShadow = upper.receiveShadow = true;
+        upper.castShadow = false; upper.receiveShadow = true;
         g.add(upper);
         // Parapet + merlon bergigi
         g.add(mesh(new THREE.BoxGeometry(SIDE, 1.4, WALL_D + 0.6), creamHi, 0, TOTAL_H + 0.7, WALL_D / 2));
