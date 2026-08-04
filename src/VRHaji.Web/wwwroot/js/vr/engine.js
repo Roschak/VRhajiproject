@@ -1864,6 +1864,7 @@ export class Engine {
         const session = this.renderer.xr.getSession && this.renderer.xr.getSession();
         if (!session || this.uiOpen) return;
         let mx = 0, my = 0, tx = 0;
+        let rightControllerSource = null;
         for (const src of session.inputSources) {
             const ax = src.gamepad?.axes;
             if (!ax) continue;
@@ -1876,7 +1877,10 @@ export class Engine {
             } else if (ax.length >= 2) {
                 x = ax[0]; y = ax[1];
             }
-            if (src.handedness === 'right') tx += x;
+            if (src.handedness === 'right') {
+                tx += x;
+                rightControllerSource = src;
+            }
             else { mx += x; my += y; }
         }
         // Smooth-turn (putaran mulus) sesuai request user
@@ -1896,9 +1900,40 @@ export class Engine {
         if (Math.abs(mx) < 0.15 && Math.abs(my) < 0.15) return;
         
         const cam = this.renderer.xr.getCamera();
-        // OPTIMASI ARAH: Gunakan Vektor alih-alih Euler untuk mencegah 'Gimbal Lock' 
-        // (arah terbalik otomatis saat user melihat terlalu ke atas / menunduk ke bawah).
-        _vec.set(0, 0, -1).applyQuaternion(cam.quaternion);
+        
+        // MENGGUNAKAN ARAH KONTROLER (Sesuai permintaan)
+        let steered = false;
+        const frame = this.renderer.xr.getFrame && this.renderer.xr.getFrame();
+        const refSpace = this.renderer.xr.getReferenceSpace && this.renderer.xr.getReferenceSpace();
+        
+        // Cari kontroler kiri (karena joystick jalannya di kiri), jika tidak ada pakai kanan
+        let targetSource = null;
+        for (const src of session.inputSources) {
+            if (src.handedness === 'left') targetSource = src;
+        }
+        if (!targetSource) {
+            for (const src of session.inputSources) {
+                if (src.handedness === 'right') targetSource = src;
+            }
+        }
+        
+        if (frame && refSpace && targetSource && targetSource.targetRaySpace) {
+            const pose = frame.getPose(targetSource.targetRaySpace, refSpace);
+            if (pose) {
+                const q = pose.transform.orientation;
+                const quat = new THREE.Quaternion(q.x, q.y, q.z, q.w);
+                _vec.set(0, 0, -1)
+                    .applyQuaternion(quat)                       // Rotasi lokal kontroler VR
+                    .applyQuaternion(this.dolly.quaternion);     // Rotasi dunia (setelah diputar)
+                steered = true;
+            }
+        }
+        
+        if (!steered) {
+            // Fallback aman ke arah kepala jika kontroler belum terdeteksi (menggunakan rotasi akurat)
+            _vec.set(0, 0, -1).applyQuaternion(cam.quaternion).applyQuaternion(this.dolly.quaternion);
+        }
+        
         _vec.y = 0; _vec.normalize(); // Vektor maju mendatar
         
         const rightX = -_vec.z, rightZ = _vec.x; // Vektor kanan (rotasi 90 derajat dari maju)
