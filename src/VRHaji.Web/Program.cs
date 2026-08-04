@@ -43,4 +43,18 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+app.MapGet("/api/tts", async (string text) =>
+{
+    // Menggunakan endpoint unofficial Google Translate TTS (gratis)
+    var url = $"https://translate.google.com/translate_tts?ie=UTF-8&q={Uri.EscapeDataString(text)}&tl=id&client=tw-ob";
+    using var client = new HttpClient();
+    var response = await client.GetAsync(url);
+    if (response.IsSuccessStatusCode)
+    {
+        var stream = await response.Content.ReadAsStreamAsync();
+        return Results.File(stream, "audio/mpeg");
+    }
+    return Results.StatusCode(500);
+});
+
 app.Run();

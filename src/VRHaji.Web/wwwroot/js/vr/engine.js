@@ -428,27 +428,21 @@ class AudioBed {
 class Narrator {
     constructor(subtitleEl) {
         this.el = subtitleEl;
-        this.voice = null;
-        this.enabled = 'speechSynthesis' in window;
-        if (this.enabled) {
-            const pick = () => {
-                const vs = speechSynthesis.getVoices();
-                this.voice = vs.find(v => v.lang?.toLowerCase().startsWith('id'))
-                    || vs.find(v => v.lang?.toLowerCase().startsWith('ms'))
-                    || null;
-            };
-            pick();
-            speechSynthesis.onvoiceschanged = pick;
-        }
+        this.audio = new Audio();
+        this.audio.crossOrigin = "anonymous";
     }
     stop() {
-        if (this.enabled) speechSynthesis.cancel();
+        this.audio.pause();
+        this.audio.currentTime = 0;
         if (this.el) this.el.textContent = '';
     }
-    say(text, { sub = null, rate = 1.02 } = {}) {
+    say(text, { sub = null, rate = 1.0 } = {}) {
         const subtitle = sub ?? text;
         if (this.el) this.el.textContent = subtitle;
+        
+        // Perkiraan waktu selesai sebagai fallback
         const minMs = Math.max(2200, subtitle.length * 62);
+        
         return new Promise(resolve => {
             let done = false;
             const finish = () => {
@@ -457,19 +451,24 @@ class Narrator {
                 if (this.el && this.el.textContent === subtitle) this.el.textContent = '';
                 resolve();
             };
-            if (this.enabled) {
-                try {
-                    const u = new SpeechSynthesisUtterance(text);
-                    u.lang = 'id-ID';
-                    if (this.voice) u.voice = this.voice;
-                    u.rate = rate;
-                    u.onend = finish;
-                    u.onerror = finish;
-                    speechSynthesis.speak(u);
-                    setTimeout(finish, minMs + 14000); // pengaman
-                } catch { setTimeout(finish, minMs); }
-            } else {
-                setTimeout(finish, minMs);
+
+            try {
+                // Memanggil endpoint API lokal yang meneruskan ke Cloud TTS
+                this.audio.src = `/api/tts?text=${encodeURIComponent(text)}`;
+                this.audio.playbackRate = rate;
+                this.audio.onended = finish;
+                this.audio.onerror = finish;
+                
+                // Mulai memutar suara
+                this.audio.play().catch(e => {
+                    console.warn("Audio play blocked or failed:", e);
+                    setTimeout(finish, minMs);
+                });
+                
+                // Pengaman jika audio macet
+                setTimeout(finish, minMs + 10000); 
+            } catch { 
+                setTimeout(finish, minMs); 
             }
         });
     }
