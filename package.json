@@ -18,6 +18,9 @@
   },
   "homepage": "https://github.com/Roschak/VRhajiproject#readme",
   "dependencies": {
-    "playwright-core": "^1.61.1"
+    "@types/three": "^0.185.4",
+    "jsdom": "^29.1.1",
+    "playwright-core": "^1.61.1",
+    "three": "^0.185.1"
   }
 }
