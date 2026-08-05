@@ -4,10 +4,44 @@
  */
 import { Engine } from './engine.js';
 import { SCENES } from './scenes.js';
+import * as THREE from 'three';
 
 let engine = null;
 let sceneDef = null;
 let started = false;
+let currentSceneIndex = 1;
+
+const SCENE_META = {
+    1: { title: 'Berangkat dari Indonesia', desc: 'Memulai perjalanan haji dari tanah air menuju Tanah Suci.', loc: 'Bandara Soekarno-Hatta', time: 'Pagi Hari' },
+    2: { title: 'Tiba di Madinah', desc: 'Tiba di Bandara Prince Mohammad Bin Abdulaziz, Madinah.', loc: 'Bandara Madinah', time: 'Siang Hari' },
+    3: { title: 'Miqat dan Niat Umrah', desc: 'Mengambil miqat di Bir Ali dan melafazkan niat umrah.', loc: 'Zulhulaifah (Bir Ali)', time: 'Sore Hari' },
+    4: { title: 'Masuk Masjidil Haram', desc: 'Pengalaman pertama memasuki Masjidil Haram: adab masuk masjid, doa, dan melihat Ka\'bah untuk pertama kalinya.', loc: 'Masjidil Haram, Makkah', time: 'Menjelang senja' },
+    5: { title: 'Tawaf Umrah', desc: 'Melaksanakan Tawaf mengelilingi Ka\'bah sebanyak 7 putaran.', loc: 'Mataf, Masjidil Haram', time: 'Malam Hari' },
+    6: { title: 'Sa\'i Umrah', desc: 'Melaksanakan Sa\'i antara bukit Shafa dan Marwah sebanyak 7 kali perjalanan.', loc: 'Masa\'a, Masjidil Haram', time: 'Malam Hari' },
+    7: { title: 'Wukuf di Arafah', desc: 'Puncak ibadah haji. Berdiam diri di padang Arafah untuk berdoa dan berzikir.', loc: 'Padang Arafah', time: 'Siang Hari (9 Dzulhijjah)' },
+    8: { title: 'Muzdalifah', desc: 'Mabit di Muzdalifah dan mengumpulkan batu kerikil untuk lontar jumrah.', loc: 'Muzdalifah', time: 'Malam Hari (9 Dzulhijjah)' },
+    9: { title: 'Jumrah Aqabah', desc: 'Melontar Jumrah Aqabah dengan 7 batu kerikil.', loc: 'Jamarat, Mina', time: 'Pagi Hari (10 Dzulhijjah)' },
+    10: { title: 'Tawaf Ifadhah & Sa\'i Haji', desc: 'Melaksanakan Tawaf Ifadhah dan dilanjutkan dengan Sa\'i Haji.', loc: 'Masjidil Haram', time: 'Siang Hari (10 Dzulhijjah)' },
+    11: { title: 'Mabit di Mina', desc: 'Mabit di Mina pada hari tasyrik dan melontar tiga jumrah.', loc: 'Tenda Mina & Jamarat', time: 'Hari Tasyrik' },
+    12: { title: 'Tawaf Wada\'', desc: 'Tawaf perpisahan sebelum meninggalkan kota Makkah.', loc: 'Masjidil Haram', time: 'Berbagai Waktu' }
+};
+
+function fillTextWrap(g, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
+    let currentY = y;
+    for(let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        if (g.measureText(testLine).width > maxWidth && n > 0) {
+            g.fillText(line, x, currentY);
+            line = words[n] + ' ';
+            currentY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    g.fillText(line, x, currentY);
+}
 
 /** Lepas tombol-tombol skip (skip scene & lewati langkah) dari DOM. */
 function removeSkipButtons() {
@@ -17,7 +51,13 @@ function removeSkipButtons() {
 }
 
 /** Muat scene (tanpa memulai alur) agar 3D siap saat intro tampil. */
-export function preload(containerId, sceneNo, dotnetRef) {
+export async function preload(containerId, sceneNo, dotnetRef) {
+    if (engine) return;
+    
+    currentSceneIndex = sceneNo;
+    
+    // Konfigurasi scene berdasarkan urutan
+    const totalScenes = SCENES.length;
     try {
         const container = document.getElementById(containerId);
         if (!container) throw new Error('Container tidak ditemukan: ' + containerId);
@@ -127,7 +167,53 @@ export async function start() {
             removeSkipButtons();
             engine.narrator.stop();
             engine.setObjective('');
-            await engine.dotnet.invokeMethodAsync('OnSceneCompleted');
+            
+            const totalScenes = Object.keys(SCENES).length;
+            const isLast = currentSceneIndex >= totalScenes;
+            
+            // Simpan progress secara asinkron (beri true agar Blazor tidak nge-lock UI dengan overlay)
+            if (engine.dotnet) {
+                engine.dotnet.invokeMethodAsync('OnSceneCompleted', !isLast);
+            }
+            
+            if (engine.renderer.xr.isPresenting) {
+                engine.setHint('');
+                
+                if (!isLast) {
+                    engine.audio.sfx('success');
+                    engine.setHint('Tahap Selesai! Memuat tahap selanjutnya...');
+                    await engine.fadeOut(1000);
+                    
+                    // Langsung hot swap ke scene selanjutnya tanpa keluar VR
+                    await hotSwapScene(currentSceneIndex + 1);
+                    
+                    // Beritahu Blazor untuk sinkronisasi map & UI (tanpa me-reload halaman)
+                    if (engine.dotnet) {
+                        engine.dotnet.invokeMethodAsync('OnSceneHotSwapped', currentSceneIndex);
+                    }
+                } else {
+                    // Jika ini scene terakhir, biarkan mereka melihat pesan selesai sejenak lalu keluar
+                    engine.audio.sfx('success');
+                    engine.setHint('Seluruh Simulasi Selesai!');
+                    await new Promise(r => setTimeout(r, 4000));
+                    await engine.fadeOut(1000);
+                    window.location.assign('/');
+                }
+            } else { 
+                // === Web Mode ===
+                if (!isLast) {
+                    engine.audio.sfx('success');
+                    engine.setHint('Tahap Selesai! Memuat tahap selanjutnya...');
+                    await engine.fadeOut(1000);
+                    window.location.assign('/scene/' + (currentSceneIndex + 1));
+                } else {
+                    engine.audio.sfx('success');
+                    engine.setHint('Seluruh Simulasi Selesai! Kembali ke menu utama...');
+                    await new Promise(r => setTimeout(r, 3000));
+                    await engine.fadeOut(1000);
+                    window.location.assign('/');
+                }
+            }
         },
         progress(pct) { engine.setProgress(pct); }
     };
@@ -267,6 +353,100 @@ export async function start() {
 /** Buka/tutup UI Blazor — pause input & pointer lock. */
 export function setUiOpen(open) {
     engine?.setUiOpen(open);
+}
+
+async function hotSwapScene(nextIndex) {
+    try {
+        console.log('[VR HotSwap] Starting transition to scene', nextIndex);
+        
+        currentSceneIndex = nextIndex;
+        sceneDef = SCENES[nextIndex];
+        if (!sceneDef) {
+            console.error('[VR HotSwap] Scene not found:', nextIndex);
+            return;
+        }
+        started = false;
+        
+        // 1. Batalkan semua langkah yang sedang ditunggu (walk/interact/narrate)
+        //    agar promise lama tidak menggantung
+        engine.skipStep();
+        
+        // 2. Hentikan narasi
+        if (engine.narrator) engine.narrator.stop();
+        
+        // 3. Hentikan audio ambient (AudioBed tidak punya stopAll, gunakan cara ini)
+        if (engine.audio && engine.audio.bedNodes) {
+            engine.audio.bedNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+            engine.audio.bedNodes = [];
+            if (engine.audio.bedGain) {
+                engine.audio.bedGain.gain.cancelScheduledValues(engine.audio.ctx?.currentTime || 0);
+                engine.audio.bedGain.gain.value = 0;
+            }
+        }
+        
+        // 4. Bersihkan state scene lama
+        engine.updaters = [];
+        engine.interactables = [];
+        engine.walkRects = [];
+        engine.walkCircles = [];
+        engine.blockers = [];
+        engine.heightZones = [];
+        engine._skipHandlers.clear();
+        engine._hover = null;
+        engine._pendingResolve = null;
+        
+        // 5. Hapus semua waypoint
+        if (engine.waypoint) { engine.hideWaypoint(); }
+        
+        // 6. Hapus semua objek 3D kecuali yang esensial
+        const toRemove = [];
+        engine.scene.traverse(c => {
+            if (c.parent === engine.scene && c !== engine.dolly && !c.isLight && c !== engine._guide && c !== engine._vrHud) {
+                toRemove.push(c);
+            }
+        });
+        for (const c of toRemove) {
+            engine.scene.remove(c);
+            c.traverse(child => {
+                child.geometry?.dispose?.();
+                if (child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach(m => { m.map?.dispose?.(); m.dispose?.(); });
+                }
+            });
+        }
+        
+        // 7. Bersihkan crowds (hindari memory leak dan bug tabrakan ghost)
+        if (engine.clearCrowds) engine.clearCrowds();
+        
+        // 8. Reset posisi pemain
+        engine.movePlayerTo(0, 0);
+        
+        // 9. Reset HUD
+        engine.setObjective('');
+        engine.setHint('');
+        engine.setProgress(0);
+        
+        // 10. Update environment (skybox/lighting)
+        engine.setEnvironment(sceneDef.env);
+        
+        // 11. Build scene baru
+        engine._sceneRefs = sceneDef.build(engine);
+        
+        // 12. Update URL
+        window.history.replaceState(null, '', '/scene/' + nextIndex);
+        
+        // 13. Fade in dan mulai scene baru
+        await engine.fadeIn(800);
+        
+        console.log('[VR HotSwap] Scene', nextIndex, 'ready, starting...');
+        await start();
+        
+    } catch (err) {
+        console.error('[VR HotSwap] Error:', err);
+        // Fallback: jika hot swap gagal, paksa redirect
+        window.location.assign('/scene/' + nextIndex);
+    }
 }
 
 export function dispose() {

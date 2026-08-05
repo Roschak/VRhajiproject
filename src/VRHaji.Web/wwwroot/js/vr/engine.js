@@ -682,6 +682,7 @@ export class Crowd {
             const carpetGeo = new THREE.BoxGeometry(2.0, 0.02, 1.4);
             const carpetMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
             const instCarpet = new THREE.InstancedMesh(carpetGeo, carpetMat, count);
+            this.instCarpet = instCarpet;
             instCarpet.castShadow = false;
             instCarpet.receiveShadow = true;
             const dummy = new THREE.Object3D();
@@ -700,6 +701,26 @@ export class Crowd {
         }
         
         this.update(0, 0);
+    }
+
+    dispose() {
+        // Remove from ACTIVE_CROWDS to prevent memory leaks and ghost collisions
+        const idx = ACTIVE_CROWDS.indexOf(this);
+        if (idx !== -1) ACTIVE_CROWDS.splice(idx, 1);
+        
+        // Remove parts from scene and dispose
+        if (this.parts) {
+            this.parts.forEach(p => {
+                if (p.parent) p.parent.remove(p);
+                if (p.geometry) p.geometry.dispose();
+                if (p.material) p.material.dispose();
+            });
+        }
+        if (this.instCarpet) {
+            if (this.instCarpet.parent) this.instCarpet.parent.remove(this.instCarpet);
+            if (this.instCarpet.geometry) this.instCarpet.geometry.dispose();
+            if (this.instCarpet.material) this.instCarpet.material.dispose();
+        }
     }
 
     /** Susun matriks satu bagian dari posisi dunia + orientasi + skala seragam. */
@@ -1464,8 +1485,25 @@ export class Engine {
     /* ------------ Player, navigasi, collision ------------ */
 
     spawn(x, z, yawDeg = 0, y = 1.7) {
-        this.camera.position.set(x, y, z);
-        this.camera.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0, 'YXZ');
+        if (this.renderer && this.renderer.xr.isPresenting && this.dolly) {
+            // Di VR, camera.position di-override oleh headset. Kita harus menggeser dolly.
+            // 1. Putar dolly agar arah pandang sesuai target
+            const currentYaw = this.playerYaw();
+            const targetYawRad = THREE.MathUtils.degToRad(yawDeg);
+            this.dolly.rotation.y += (targetYawRad - currentYaw);
+            this.dolly.updateMatrixWorld(true);
+            
+            // 2. Karena dolly diputar, posisi dunia kepala berubah. 
+            // Ukur ulang posisi dunia kepala, lalu geser dolly agar kepala pas di (x, z)
+            const headPosWorld = this.camera.getWorldPosition(new THREE.Vector3());
+            this.dolly.position.x += (x - headPosWorld.x);
+            this.dolly.position.z += (z - headPosWorld.z);
+            this.dolly.updateMatrixWorld(true);
+        } else {
+            // Di Desktop biasa
+            this.camera.position.set(x, y, z);
+            this.camera.rotation.set(0, THREE.MathUtils.degToRad(yawDeg), 0, 'YXZ');
+        }
         this._currentY = y;
         this._prayerTargetY = undefined;
         this._camTargetYaw = undefined;
@@ -1786,11 +1824,49 @@ export class Engine {
                 optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers']
             });
             this._vrSession = session;
+            
+            // === AUTO-OPTIMASI VR: kurangi beban GPU untuk framerate stabil ===
+            // Simpan setting lama agar bisa dikembalikan saat keluar VR
+            this._preVRSettings = {
+                shadows: this.renderer.shadowMap.enabled,
+                resolution: this._pr,
+                bloomStrength: this.bloom?.strength
+            };
+            // Matikan bayangan (hemat ~30% GPU)
+            this.renderer.shadowMap.enabled = false;
+            this.scene.traverse(child => {
+                if (child.isLight && child.castShadow) child.castShadow = false;
+                if (child.material) child.material.needsUpdate = true;
+            });
+            // Turunkan resolusi render (Quest 2 butuh ringan)
+            this._lockResolution = true;
+            this._prMax = 0.6;
+            this._pr = 0.6;
+            this.renderer.setPixelRatio(0.6);
+            // Matikan bloom effect (hemat GPU)
+            if (this.bloom) this.bloom.strength = 0;
+            
+            console.log('[VR] Auto-optimasi aktif: shadows OFF, resolution 0.6, bloom OFF');
+            
             session.addEventListener('end', () => {
                 this._vrSession = null;
                 if (this._vrButton) {
                     this._vrButton.textContent = '🥽 Masuk VR';
                     this._vrButton.disabled = false;
+                }
+                // Kembalikan setting grafis saat keluar VR
+                if (this._preVRSettings) {
+                    this.renderer.shadowMap.enabled = this._preVRSettings.shadows;
+                    if (this._preVRSettings.resolution) {
+                        this._pr = this._preVRSettings.resolution;
+                        this._prMax = this._preVRSettings.resolution;
+                        this.renderer.setPixelRatio(this._pr);
+                    }
+                    if (this.bloom && this._preVRSettings.bloomStrength !== undefined) {
+                        this.bloom.strength = this._preVRSettings.bloomStrength;
+                    }
+                    this._lockResolution = false;
+                    this.resize();
                 }
             });
             this.renderer.xr.setReferenceSpaceType('local-floor');
@@ -2551,10 +2627,26 @@ export class Engine {
         }
     }
 
+    clearCrowds() {
+        for (const c of ACTIVE_CROWDS) {
+            if (c.parts) c.parts.forEach(p => {
+                if (p.parent) p.parent.remove(p);
+                if (p.geometry) p.geometry.dispose();
+                if (p.material) p.material.dispose();
+            });
+            if (c.instCarpet) {
+                if (c.instCarpet.parent) c.instCarpet.parent.remove(c.instCarpet);
+                if (c.instCarpet.geometry) c.instCarpet.geometry.dispose();
+                if (c.instCarpet.material) c.instCarpet.material.dispose();
+            }
+        }
+        ACTIVE_CROWDS.length = 0;
+    }
+
     dispose() {
         this.renderer.setAnimationLoop(null);
         this._skipHandlers.clear();
-        ACTIVE_CROWDS.length = 0;
+        this.clearCrowds();
         if (ACTIVE_ENGINE === this) ACTIVE_ENGINE = null;
         // Bersihkan WebXR: akhiri sesi & lepas tombol Masuk VR
         try { this.renderer.xr.getSession()?.end(); } catch { }

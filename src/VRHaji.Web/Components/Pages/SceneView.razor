@@ -293,12 +293,33 @@
 
     /// <summary>Dipanggil engine JS saat seluruh alur scene selesai.</summary>
     [JSInvokable]
-    public async Task OnSceneCompleted()
+    public async Task OnSceneCompleted(bool autoAdvance = false)
     {
         await ProgressService.SaveCheckpointAsync(_userId, _scene!.Id, 0, 100);
         _sceneScore += 100;
-        _showComplete = true;
-        await SetUiOpen(true);
+        
+        if (!autoAdvance)
+        {
+            _showComplete = true;
+            await SetUiOpen(true);
+        }
+        
+        StateHasChanged();
+    }
+
+    /// <summary>Dipanggil engine JS saat VR berhasil pindah scene tanpa reload.</summary>
+    [JSInvokable]
+    public async Task OnSceneHotSwapped(int newSceneIndex)
+    {
+        _showComplete = false;
+        Urutan = newSceneIndex;
+        await SetUiOpen(false); // Unlock VR input!
+        // Sync data Blazor
+        _scene = await SceneService.GetSceneByUrutanAsync(newSceneIndex);
+        if (_scene is not null) 
+        {
+            _edukasi = SceneService.ParseEdukasi(_scene);
+        }
         StateHasChanged();
     }
 
