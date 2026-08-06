@@ -531,6 +531,7 @@ export class Crowd {
             const m = new THREE.InstancedMesh(geo, mat, count);
             m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
             m.castShadow = false; // OPTIMASI: Matikan bayangan untuk crowd
+            m.frustumCulled = false; // Mencegah orang hilang saat dilihat dari sudut tertentu
             return m;
         };
         // Bagian tubuh (L/R berbagi geometri; masing-masing instanceColor sendiri)

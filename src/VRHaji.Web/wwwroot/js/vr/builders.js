@@ -1444,42 +1444,39 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     const STAFF_BARISTA = 0x6b3f22; // barista kafe — cokelat
     const staffSpots = [];
 
-    // Counter check-in (4 buah) — gaya Madinah: meja gelap SAUDIA + totem layar biru "C6…C9"
+    // Counter check-in (4 buah) - menggunakan aset 3D GLB yang realistis
     const counters = new THREE.Group();
-    const deskMat = madinah ? new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.6, metalness: 0.2 }) : mats.wood;
-    const totemScreenMat = madinah
-        ? new THREE.MeshStandardMaterial({ color: 0x9cc8ff, emissive: 0x2f8bff, emissiveIntensity: 1.5 })
-        : null;
-    for (let i = 0; i < 4; i++) {
-        const c = new THREE.Group();
-        c.add(mesh(new THREE.BoxGeometry(5, 1.15, 1.6), deskMat, 0, 0.575, 0));
-        c.add(mesh(new THREE.BoxGeometry(5, 0.08, 1.9), mats.steel, 0, 1.2, 0, { cast: false }));
-        if (madinah) {
-            const st = Tex.sign('السعودية — SAUDIA', { bg: '#f5f2e9', fg: '#1c5c34', w: 512, h: 96 });
-            c.add(mesh(new THREE.BoxGeometry(3.6, 0.7, 0.06),
-                new THREE.MeshStandardMaterial({ map: st, roughness: 0.6 }), 0, 0.62, 0.82, { cast: false }));
-            c.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.95, 8), mats.steel, 0, 1.66, 0, { cast: false }));
-            c.add(mesh(new THREE.BoxGeometry(0.85, 1.5, 0.1), totemScreenMat, 0, 2.85, 0, { cast: false }));
-            const ht = Tex.sign(`C${6 + i}`, { bg: '#0b0e13', fg: '#f2f5f9', w: 256, h: 128, font: 'bold 88px "Segoe UI", sans-serif' });
-            c.add(mesh(new THREE.BoxGeometry(0.95, 0.5, 0.12),
-                new THREE.MeshStandardMaterial({ map: ht, emissive: 0xffffff, emissiveMap: ht, emissiveIntensity: 0.9 }),
-                0, 3.85, 0, { cast: false }));
-        } else {
-            const scrTex = Tex.sign(`CHECK-IN ${String.fromCharCode(65 + i)}`, { bg: '#123c1e', fg: '#7dffa5', w: 512, h: 96 });
-            c.add(mesh(new THREE.BoxGeometry(3.6, 0.9, 0.12),
-                new THREE.MeshStandardMaterial({ map: scrTex, emissive: 0xffffff, emissiveMap: scrTex, emissiveIntensity: 1.4 }),
-                0, 3.0, 0, { cast: false }));
-            c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, -1.6, 1.8, 0));
-            c.add(mesh(new THREE.BoxGeometry(0.15, 2.4, 0.15), mats.steel, 1.6, 1.8, 0));
-        }
-        // timbangan bagasi di samping counter
-        c.add(mesh(new THREE.BoxGeometry(0.9, 0.32, 1.2), mats.darkGrey, 3.0, 0.16, 0.2));
+    for (let i = 0; i < 5; i++) { // Dibuat sampai 5 booth
         const cx = -24 + i * 8.5;
-        c.position.set(cx, 0, -24);
-        counters.add(c);
-        engine.addBlocker(cx - 2.6, -24.9, cx + 2.6, -23.1);
-        // Petugas berdiri di belakang meja (meja: z −24.8…−23.2), menghadap antrian
+        
+        loadGltf('/assets/checkin_booth.glb').then(model => {
+            // PENTING: Gunakan .clone() agar aset bisa diduplikat untuk ke-4 posisi
+            const booth = model.clone();
+            booth.position.set(cx, 0, -24);
+            booth.scale.set(3, 3, 3); // Kembali ke ukuran awal (besar)
+            booth.rotation.y = Math.PI; // putar 180 derajat menghadap antrian
+            counters.add(booth);
+        }).catch(err => {
+            console.warn("Gagal memuat checkin_booth.glb, menggunakan fallback.", err);
+            // Fallback sederhana jika aset tidak ada
+            const fb = new THREE.Group();
+            fb.add(mesh(new THREE.BoxGeometry(5, 1.15, 1.6), mats.wood, 0, 0.575, 0));
+            fb.position.set(cx, 0, -24);
+            counters.add(fb);
+        });
+
+        // Blocker agar user tidak bisa menembus meja (kembali ke blocker awal)
+        engine.addBlocker(cx - 3.0, -25.5, cx + 3.0, -22.5);
+
+        // Petugas check-in kembali ke posisi semula (di belakang meja)
         staffSpots.push({ x: cx - 0.9, z: -25.5, ry: 0, color: STAFF_AIRLINE });
+
+        // Papan penanda (Sign) "CHECK-IN 1", "CHECK-IN 2", dst.
+        const signTex = Tex.sign('CHECK-IN ' + (i + 1), { bg: '#0d2b4d', fg: '#ffe9a8', w: 320, h: 64 });
+        const signMesh = mesh(new THREE.BoxGeometry(2.0, 0.4, 0.1),
+            new THREE.MeshStandardMaterial({ map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.8 }),
+            cx, 3.0, -24.0);
+        counters.add(signMesh);
     }
     scene.add(counters);
     // Conveyor bagasi
@@ -1490,16 +1487,16 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     const postGeo = new THREE.CylinderGeometry(0.045, 0.06, 0.95, 8);
     const ropeGeo = new THREE.BoxGeometry(2.16, 0.035, 0.035);
     const ropeMat = new THREE.MeshStandardMaterial({ color: 0x7a1f2b, roughness: 0.6 });
-    const posts = new THREE.InstancedMesh(postGeo, mats.steel, 14);
-    const ropes = new THREE.InstancedMesh(ropeGeo, ropeMat, 12);
+    const posts = new THREE.InstancedMesh(postGeo, mats.steel, 44); // 22 x 2 baris
+    const ropes = new THREE.InstancedMesh(ropeGeo, ropeMat, 42); // 21 x 2 baris
     let pi = 0, ri = 0;
     for (const qz of [-21.3, -19.2]) {
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 22; i++) { // Memanjang melewati 5 booth
             const qx = -30 + i * 2.2;
             setInst(posts, pi++, qx, 0.48, qz);
-            if (i < 6) setInst(ropes, ri++, qx + 1.1, 0.82, qz);
+            if (i < 21) setInst(ropes, ri++, qx + 1.1, 0.82, qz);
         }
-        engine.addBlocker(-30.2, qz - 0.18, -16.6, qz + 0.18);
+        engine.addBlocker(-30.2, qz - 0.18, 16.6, qz + 0.18);
     }
     posts.castShadow = true;
     scene.add(posts, ropes);
@@ -1634,42 +1631,54 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
         engine.addBlocker(vx * 3 - 0.85, 28.4, vx * 3 + 0.85, 29.4);
     }
 
-    // Booth imigrasi
+    // Booth imigrasi (Jejeran Autogate Modern)
     const imigrasi = new THREE.Group();
-    for (let i = 0; i < 2; i++) {
-        const b = new THREE.Group();
-        b.add(mesh(new THREE.BoxGeometry(2.2, 1.2, 2.2), mats.wood, 0, 0.6, 0));
-        b.add(mesh(new THREE.BoxGeometry(2.4, 0.1, 2.4), mats.steel, 0, 2.6, 0, { cast: false }));
-        b.add(mesh(new THREE.BoxGeometry(0.12, 1.5, 0.12), mats.steel, -1.1, 1.85, -1.1));
-        b.add(mesh(new THREE.BoxGeometry(0.12, 1.5, 0.12), mats.steel, 1.1, 1.85, 1.1));
-        const it = Tex.sign(arabic ? 'الجوازات — PASSPORT' : 'IMIGRASI', { bg: '#4d130d', fg: '#ffd7a0', w: 512, h: 96 });
-        b.add(mesh(new THREE.BoxGeometry(2.2, 0.6, 0.1),
-            new THREE.MeshStandardMaterial({ map: it, emissive: 0xffffff, emissiveMap: it, emissiveIntensity: 1.2 }),
-            0, 3.1, 0, { cast: false }));
-        const bz = -18 + i * 8;
-        b.position.set(24, 0, bz);
-        imigrasi.add(b);
-        engine.addBlocker(24 - 1.3, bz - 1.3, 24 + 1.3, bz + 1.3);
-        // Petugas berdiri di sisi booth yang membelakangi koridor antrian (z −16.5…−11.5),
-        // menghadap ke koridor: booth utara menghadap +z, booth selatan menghadap −z.
-        const queueSide = i === 0 ? 1 : -1;
-        staffSpots.push({ x: 24, z: bz - queueSide * 1.8, ry: i === 0 ? 0 : Math.PI, color: STAFF_OFFICER });
+    for (let i = 0; i < 5; i++) {
+        // Geser sedikit ke kiri (Z lebih negatif) agar tepat di tengah jalur player (z = -14)
+        const bz = -19 + i * 2.5; 
+        
+        loadGltf('/assets/autogate_pro.glb').then(model => {
+            const booth = model.clone();
+            booth.position.set(24, 0, bz);
+            booth.scale.set(1.5, 1.5, 1.5); 
+            booth.rotation.y = Math.PI; 
+            imigrasi.add(booth);
+        }).catch(err => {
+            console.warn("Gagal memuat autogate_pro.glb, menggunakan fallback.", err);
+        });
+
+        // Blocker statis untuk tiang kiri dan kanan autogate (permanen)
+        engine.addBlocker(23.0, bz - 1.3, 25.0, bz - 0.7); 
+        engine.addBlocker(23.0, bz + 0.7, 25.0, bz + 1.3); 
+        
+        // Blocker DINAMIS untuk kaca di tengah lorong (bisa dilewati nanti)
+        engine.addBlocker(23.5, bz - 0.7, 24.5, bz + 0.7);
+        engine.blockers[engine.blockers.length - 1].isAutogateDoor = true;
+        
+        // Pembatas kaca (Glass dividers) yang menjulur ke depan (membentuk jalur/lorong)
+        const glassMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.25, roughness: 0.0, side: THREE.DoubleSide });
+        
+        // Kaca di sisi kiri mesin
+        const glassL = mesh(new THREE.BoxGeometry(3.0, 1.2, 0.05), glassMat, 22.5, 0.6, bz - 1.25);
+        imigrasi.add(glassL);
+        engine.addBlocker(21.0, bz - 1.35, 24.0, bz - 1.15);
+
+        // Jika ini mesin terakhir (paling kanan), tambahkan juga kaca penutup di sisi kanannya
+        if (i === 4) {
+            const glassR = mesh(new THREE.BoxGeometry(3.0, 1.2, 0.05), glassMat, 22.5, 0.6, bz + 1.25);
+            imigrasi.add(glassR);
+            engine.addBlocker(21.0, bz + 1.15, 24.0, bz + 1.35);
+        }
+
+        // Petugas Imigrasi digeser sedikit menyesuaikan pilar kaca
+        if (i === 0) {
+            staffSpots.push({ x: 23, z: -20.5, ry: -Math.PI / 2, color: STAFF_OFFICER });
+        } else if (i === 4) {
+            staffSpots.push({ x: 23, z: -7.5, ry: -Math.PI / 2, color: STAFF_OFFICER });
+        }
     }
     scene.add(imigrasi);
-    // Koridor antrian imigrasi (tali pembatas dua sisi)
-    const posts2 = new THREE.InstancedMesh(postGeo, mats.steel, 10);
-    const ropes2 = new THREE.InstancedMesh(ropeGeo, ropeMat, 8);
-    let p2 = 0, r2 = 0;
-    for (const qz of [-16.5, -11.5]) {
-        for (let i = 0; i < 5; i++) {
-            const qx = 18 + i * 2.2;
-            setInst(posts2, p2++, qx, 0.48, qz);
-            if (i < 4) setInst(ropes2, r2++, qx + 1.1, 0.82, qz);
-        }
-        engine.addBlocker(17.8, qz - 0.18, 26.8, qz + 0.18);
-    }
-    posts2.castShadow = true;
-    scene.add(posts2, ropes2);
+    // (Pembatas tali/ropes sudah dihapus, diganti lorong kaca autogate di atas)
 
     // Gate
     const gate = new THREE.Group();

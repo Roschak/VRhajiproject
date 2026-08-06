@@ -289,7 +289,13 @@ const scene01 = {
         // penumpang duduk di bangku ruang tunggu
         new Crowd(engine.scene, { count: 52, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
         // antrian di depan check-in
-        new Crowd(engine.scene, { count: 12, mode: 'idle', area: { x: -26, z: -20.2, w: 8, d: 1 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 5, mode: 'post', spots: [
+            { x: -24, z: -20.2, ry: Math.PI },
+            { x: -15.5, z: -20.2, ry: Math.PI },
+            { x: -7, z: -20.2, ry: Math.PI },
+            { x: 1.5, z: -20.2, ry: Math.PI },
+            { x: 10, z: -20.2, ry: Math.PI }
+        ], colors: CASUAL });
         // petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
         new Crowd(engine.scene, { count: refs.staffSpots.length, mode: 'post', spots: refs.staffSpots, capChance: 0.75 });
         engine.spawn(0, 20, 0);
@@ -317,9 +323,13 @@ const scene01 = {
             label: 'Serahkan paspor ke petugas imigrasi', radius: 8
         });
         engine.audio.sfx('stamp');
+        
+        // Hapus blocker pintu kaca autogate agar pemain bisa lewat
+        engine.blockers = engine.blockers.filter(b => !b.isAutogateDoor);
+
         await engine.narrate(
-            'Petugas imigrasi memeriksa dan mencap paspor Anda. Proses keimigrasian selesai. Selanjutnya kita menuju checkpoint pemahaman pertama.',
-            { sub: '🛂 Paspor dicap — pemeriksaan imigrasi selesai.' });
+            'Petugas imigrasi memeriksa dan mencap paspor Anda. Proses keimigrasian selesai. Pintu autogate telah terbuka untuk Anda. Selanjutnya kita menuju checkpoint pemahaman pertama.',
+            { sub: '🛂 Paspor dicap — pintu terbuka, silakan lewat.' });
         ctx.progress(45);
 
         await ctx.checkpoint(1);
