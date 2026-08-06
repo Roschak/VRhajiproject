@@ -298,6 +298,16 @@ const scene01 = {
         ], colors: CASUAL });
         // petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
         new Crowd(engine.scene, { count: refs.staffSpots.length, mode: 'post', spots: refs.staffSpots, capChance: 0.75 });
+        
+        // Memuat koper di samping konter check-in (sebagai koper player)
+        if (typeof loadGltf !== 'undefined') {
+            loadGltf('/assets/suitcase.glb').then(model => {
+                model.position.set(-23.5, 0, -19.5);
+                model.scale.set(0.015, 0.015, 0.015);
+                engine.scene.add(model);
+            }).catch(e => console.warn('Gagal memuat Koper.glb', e));
+        }
+
         engine.spawn(0, 20, 0);
         return refs;
     },

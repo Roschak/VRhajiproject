@@ -1590,17 +1590,27 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     trolley(30, 2, 0.9);
 
     // Koper penumpang di ruang tunggu
-    const bagColors = [0x8a2f2f, 0x2f4d8a, 0x3d3d44, 0x76552e, 0x2e6650];
-    for (const [bx2, bz2, bry] of [[-11.2, 9.1, 0.3], [-1.8, 13.2, -0.6], [6.6, 15.9, 1.2], [14.8, 8.2, 0.1], [-6.4, 18.3, 2.1]]) {
-        const bag = new THREE.Group();
-        const bc = bagColors[Math.floor(Math.random() * bagColors.length)];
-        bag.add(mesh(new THREE.BoxGeometry(0.44, 0.66, 0.26), new THREE.MeshStandardMaterial({ color: bc, roughness: 0.75 }), 0, 0.33, 0));
-        bag.add(mesh(new THREE.BoxGeometry(0.05, 0.24, 0.05), mats.steel, -0.1, 0.78, 0, { cast: false }));
-        bag.add(mesh(new THREE.BoxGeometry(0.05, 0.24, 0.05), mats.steel, 0.1, 0.78, 0, { cast: false }));
-        bag.add(mesh(new THREE.BoxGeometry(0.26, 0.05, 0.05), mats.steel, 0, 0.88, 0, { cast: false }));
-        bag.position.set(bx2, 0, bz2);
-        bag.rotation.y = bry;
-        scene.add(bag);
+    if (typeof loadGltf !== 'undefined') {
+        const bagColors = [0x8a2f2f, 0x2f4d8a, 0x3d3d44, 0x76552e, 0x2e6650];
+        loadGltf('/assets/suitcase.glb').then(proto => {
+            for (const [bx2, bz2, bry] of [[-11.2, 9.1, 0.3], [-1.8, 13.2, -0.6], [6.6, 15.9, 1.2], [14.8, 8.2, 0.1], [-6.4, 18.3, 2.1]]) {
+                const bag = proto.clone();
+                bag.position.set(bx2, 0, bz2);
+                bag.rotation.y = bry;
+                bag.scale.set(0.015, 0.015, 0.015);
+                
+                const bc = bagColors[Math.floor(Math.random() * bagColors.length)];
+                bag.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material = child.material.clone();
+                        // Mewarnai material (tint)
+                        child.material.color.setHex(bc);
+                    }
+                });
+                
+                scene.add(bag);
+            }
+        }).catch(e => console.warn('Gagal memuat Koper.glb untuk ruang tunggu', e));
     }
 
     // Kios kafe di sisi barat
