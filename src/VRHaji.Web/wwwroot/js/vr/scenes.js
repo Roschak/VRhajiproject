@@ -473,6 +473,7 @@ const scene03 = {
         refs.playerSeat = refs.seatSpots[15] || refs.seatSpots[0];
         engine._prayerTargetY = 1.15; // Set status duduk
         engine.spawn(refs.playerSeat.x, refs.playerSeat.z, THREE.MathUtils.radToDeg(refs.playerSeat.ry) + 180, 1.15);
+        
         return refs;
     },
     async run(engine, ctx) {

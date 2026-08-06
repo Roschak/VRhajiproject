@@ -103,6 +103,49 @@ export function lampPost(mats, h = 6) {
     return g;
 }
 
+let miqatLampProto = null;
+export function lampPostMiqat(mats, h = 6) {
+    if (!miqatLampProto) {
+        miqatLampProto = new THREE.Group();
+        const poleGeom = new THREE.CylinderGeometry(0.06, 0.08, h, 8);
+        const armGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+        // Dimensi dibuat datar/pipih (panjang=0.4, tebal=0.1, lebar=0.3)
+        const boxGeom = new THREE.BoxGeometry(0.4, 0.1, 0.3);
+        const lightGeom = new THREE.BoxGeometry(0.36, 0.02, 0.26);
+
+        miqatLampProto.add(mesh(poleGeom, mats.white, 0, h / 2, 0));
+        
+        for (let i = 0; i < 3; i++) {
+            const angle = i * (Math.PI * 2 / 3);
+            const head = new THREE.Group();
+            
+            // Lengan lurus
+            const arm = mesh(armGeom, mats.white, 0.2, 0, 0);
+            arm.rotation.z = Math.PI / 2;
+            head.add(arm);
+            
+            // Grup kotak lampu (housing) agar bisa dimiringkan ke bawah dengan presisi
+            const housingGroup = new THREE.Group();
+            housingGroup.position.set(0.5, 0, 0); // Di ujung lengan
+            housingGroup.rotation.z = -0.15; // Menunduk ke bawah
+
+            const box = mesh(boxGeom, mats.darkGrey, 0, 0, 0);
+            housingGroup.add(box);
+            
+            // Panel lampu ditempel di bagian bawah kotak (y = -0.05)
+            const light = mesh(lightGeom, mats.emissiveWarm, 0, -0.05, 0, { cast: false });
+            housingGroup.add(light);
+            
+            head.add(housingGroup);
+            
+            head.position.y = h;
+            head.rotation.y = angle;
+            miqatLampProto.add(head);
+        }
+    }
+    return miqatLampProto.clone();
+}
+
 export function minaret(mats, h = 40, r = 1.6) {
     const g = new THREE.Group();
     g.add(mesh(new THREE.CylinderGeometry(r * 0.75, r, h * 0.62, 12), mats.cream, 0, h * 0.31, 0));
@@ -2647,62 +2690,90 @@ export function miqat(engine) {
         // Blocker agar tidak bisa ditembus
         engine.addBlocker(x - bW/2 - 0.5, z - bD/2 - 0.5, x + bW/2 + 0.5, z + bD/2 + 0.5);
 
-        // === Struktur dasar rumah ===
+        // === Struktur dasar (Box) tetap ada agar terlihat bervolume ===
         bld.add(mesh(new THREE.BoxGeometry(bW, h, bD), mat, 0, h/2, 0));
         
-        // === PARAPET ATAP (Benteng kecil di atap khas Arab) ===
+        // FACADE TECHNIQUE: Hanya pasang detail di sisi depan yang terlihat (menghadap jalan)
+        const frontZ = (z > 0) ? -bD/2 : bD/2; // Jika di utara (z>0), depan adalah sisi selatan (-Z)
+        const frontX = (x > 0) ? -bW/2 : bW/2; // Jika di timur (x>0), depan adalah sisi barat (-X)
         const parapetH = 0.8 + Math.random() * 0.6;
-        bld.add(mesh(new THREE.BoxGeometry(bW, parapetH, 0.3), mat, 0, h + parapetH/2, bD/2 - 0.15));
-        bld.add(mesh(new THREE.BoxGeometry(bW, parapetH, 0.3), mat, 0, h + parapetH/2, -bD/2 + 0.15));
-        bld.add(mesh(new THREE.BoxGeometry(0.3, parapetH, bD - 0.6), mat, bW/2 - 0.15, h + parapetH/2, 0));
-        bld.add(mesh(new THREE.BoxGeometry(0.3, parapetH, bD - 0.6), mat, -bW/2 + 0.15, h + parapetH/2, 0));
         
-        // Gerigi crenellation pada parapet (khas arsitektur Arab)
-        if (!isDistant) {
-            for (let cx = -bW/2 + 0.5; cx <= bW/2 - 0.5; cx += 1.2) {
-                bld.add(mesh(new THREE.BoxGeometry(0.4, 0.35, 0.35), mat, cx, h + parapetH + 0.17, bD/2 - 0.15, { cast: false }));
-                bld.add(mesh(new THREE.BoxGeometry(0.4, 0.35, 0.35), mat, cx, h + parapetH + 0.17, -bD/2 + 0.15, { cast: false }));
+        if (!facingX) {
+            // === RUMAH MENGHADAP Z (Utara/Selatan) ===
+            bld.add(mesh(new THREE.BoxGeometry(bW, parapetH, 0.3), mat, 0, h + parapetH/2, frontZ)); // Parapet Depan Saja
+            
+            // Gerigi pada parapet (Hanya Depan)
+            if (!isDistant) {
+                for (let cx = -bW/2 + 0.5; cx <= bW/2 - 0.5; cx += 1.2) {
+                    bld.add(mesh(new THREE.BoxGeometry(0.4, 0.35, 0.35), mat, cx, h + parapetH + 0.17, frontZ, { cast: false }));
+                }
             }
-        }
 
-        // === JENDELA (Mashrabiya style — frame lebih kaya) ===
-        const winW = isDistant ? 1.0 : 1.2;
-        const winH = isDistant ? 1.2 : 1.6;
-        for(let wy = 3; wy < h - 2; wy += 3.5) {
-            if (!facingX) { 
+            // Jendela (Hanya Depan)
+            const winW = isDistant ? 1.0 : 1.2;
+            const winH = isDistant ? 1.2 : 1.6;
+            for(let wy = 3; wy < h - 2; wy += 3.5) {
                 for(let wx = -bW/2 + 2.5; wx <= bW/2 - 2.5; wx += 3.5) {
-                    // Jendela gelap
-                    bld.add(mesh(new THREE.BoxGeometry(winW, winH, 0.12), winMat, wx, wy, bD/2 + 0.01));
-                    bld.add(mesh(new THREE.BoxGeometry(winW, winH, 0.12), winMat, wx, wy, -bD/2 - 0.01));
+                    bld.add(mesh(new THREE.BoxGeometry(winW, winH, 0.12), winMat, wx, wy, frontZ));
                     if (!isDistant) {
-                        // Frame jendela (kusen) — warna sedikit lebih gelap dari dinding
-                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy + winH/2, bD/2 + 0.02, { cast: false }));
-                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy - winH/2, bD/2 + 0.02, { cast: false }));
-                        // Ambang jendela bawah (sill)
-                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.4, 0.08, 0.25), mat, wx, wy - winH/2 - 0.04, bD/2 + 0.05, { cast: false }));
-                    }
-                }
-            } else { 
-                for(let wz = -bD/2 + 2.5; wz <= bD/2 - 2.5; wz += 3.5) {
-                    bld.add(mesh(new THREE.BoxGeometry(0.12, winH, winW), winMat, bW/2 + 0.01, wy, wz));
-                    bld.add(mesh(new THREE.BoxGeometry(0.12, winH, winW), winMat, -bW/2 - 0.01, wy, wz));
-                    if (!isDistant) {
-                        bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, bW/2 + 0.02, wy + winH/2, wz, { cast: false }));
-                        bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, bW/2 + 0.02, wy - winH/2, wz, { cast: false }));
+                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy + winH/2, frontZ, { cast: false }));
+                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy - winH/2, frontZ, { cast: false }));
+                        const sillZ = frontZ + (frontZ < 0 ? -0.05 : 0.05);
+                        bld.add(mesh(new THREE.BoxGeometry(winW + 0.4, 0.08, 0.25), mat, wx, wy - winH/2 - 0.04, sillZ, { cast: false }));
                     }
                 }
             }
-        }
 
-        // === PINTU MASUK (hanya bangunan dekat) ===
-        if (!isDistant) {
-            if (!facingX) {
-                bld.add(mesh(new THREE.BoxGeometry(1.2, 2.4, 0.12), doorMat, 0, 1.2, bD/2 + 0.02));
-                // Arch di atas pintu
-                bld.add(mesh(new THREE.BoxGeometry(1.6, 0.3, 0.15), mat, 0, 2.55, bD/2 + 0.02, { cast: false }));
-            } else {
-                bld.add(mesh(new THREE.BoxGeometry(0.12, 2.4, 1.2), doorMat, bW/2 + 0.02, 1.2, 0));
-                bld.add(mesh(new THREE.BoxGeometry(0.15, 0.3, 1.6), mat, bW/2 + 0.02, 2.55, 0, { cast: false }));
+            // Pintu, AC, Balkon, Tanaman (Hanya Depan)
+            if (!isDistant) {
+                bld.add(mesh(new THREE.BoxGeometry(1.2, 2.4, 0.12), doorMat, 0, 1.2, frontZ));
+                bld.add(mesh(new THREE.BoxGeometry(1.6, 0.3, 0.15), mat, 0, 2.55, frontZ, { cast: false }));
+                
+                if (Math.random() > 0.4) {
+                    const acSide = Math.random() > 0.5 ? 1 : -1;
+                    bld.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), acMat, acSide * (bW/2 - 2), h - 1.5, frontZ, { cast: false }));
+                }
+                
+                if (h > 8 && Math.random() > 0.5) {
+                    const balcY = 5 + Math.random() * 2;
+                    const balcZ = frontZ + (frontZ < 0 ? -0.6 : 0.6);
+                    const railZ = frontZ + (frontZ < 0 ? -1.15 : 1.15);
+                    bld.add(mesh(new THREE.BoxGeometry(3, 0.15, 1.2), mat, 0, balcY, balcZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(3, 0.8, 0.1), balconyMat, 0, balcY + 0.4, railZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, -1.45, balcY + 0.4, balcZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, 1.45, balcY + 0.4, balcZ, { cast: false }));
+                }
+                const bushZ = frontZ + (frontZ < 0 ? -1.2 : 1.2);
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, -bW/2 + 2.0, 0.4, bushZ, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bW/2 - 2.0, 0.4, bushZ, { cast: false }));
+            }
+        } else {
+            // === RUMAH MENGHADAP X (Timur/Barat) ===
+            bld.add(mesh(new THREE.BoxGeometry(0.3, parapetH, bD), mat, frontX, h + parapetH/2, 0));
+            
+            const winW = isDistant ? 1.0 : 1.2;
+            const winH = isDistant ? 1.2 : 1.6;
+            for(let wy = 3; wy < h - 2; wy += 3.5) {
+                for(let wz = -bD/2 + 2.5; wz <= bD/2 - 2.5; wz += 3.5) {
+                    bld.add(mesh(new THREE.BoxGeometry(0.12, winH, winW), winMat, frontX, wy, wz));
+                    if (!isDistant) {
+                        bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, frontX, wy + winH/2, wz, { cast: false }));
+                        bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, frontX, wy - winH/2, wz, { cast: false }));
+                    }
+                }
+            }
+
+            if (!isDistant) {
+                bld.add(mesh(new THREE.BoxGeometry(0.12, 2.4, 1.2), doorMat, frontX, 1.2, 0));
+                bld.add(mesh(new THREE.BoxGeometry(0.15, 0.3, 1.6), mat, frontX, 2.55, 0, { cast: false }));
+                
+                if (Math.random() > 0.4) {
+                    const acSide = Math.random() > 0.5 ? 1 : -1;
+                    bld.add(mesh(new THREE.BoxGeometry(0.4, 0.5, 0.8), acMat, frontX, h - 1.5, acSide * (bD/2 - 2), { cast: false }));
+                }
+                const bushX = frontX + (frontX < 0 ? -1.2 : 1.2);
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bushX, 0.4, -bD/2 + 2.0, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bushX, 0.4, bD/2 - 2.0, { cast: false }));
             }
         }
 
@@ -2836,18 +2907,20 @@ export function miqat(engine) {
     addSmallMosqueTower(210, 195);
 
     // ================================================================
-    // 5. TIANG LAMPU JALAN DI TROTOAR
+    // 5. TIANG LAMPU JALAN DI TROTOAR & HALAMAN (Tanpa area beratap)
     // ================================================================
-    for (const lz of [-60, -30, 30, 60, 90, -90]) {
+    // Menghapus lz: -60 dan -30 karena berada di dalam ruangan beratap masjid
+    for (const lz of [30, 60, 90, -90, -120]) {
         for (const sx of [-1, 1]) {
-            const lp = lampPost(mats, 5);
+            const lp = lampPostMiqat(mats, 8); // Ditinggikan menjadi 8
             lp.position.set(sx * 9.5, 0, lz);
             miqatGroup.add(lp);
         }
     }
-    for (const lx of [-60, -30, 30, 60, 90, -90]) {
+    // Mengembalikan lx: -30 dan 30 karena posisinya di pelataran/halaman terbuka (z=9.5)
+    for (const lx of [-30, 30, -60, 60, 90, -90, -120]) {
         for (const sz of [-1, 1]) {
-            const lp = lampPost(mats, 5);
+            const lp = lampPostMiqat(mats, 8); // Ditinggikan menjadi 8
             lp.position.set(lx, 0, sz * 9.5);
             miqatGroup.add(lp);
         }
@@ -3117,13 +3190,7 @@ export function miqat(engine) {
         engine.addBlocker(tx - 0.6, tz - 0.6, tx + 0.6, tz + 0.6); // Pohon solid
     }
 
-    // Tiang lampu antik
-    for (let i = -1; i <= 1; i+=2) {
-        const lp = lampPost(mats, 6);
-        lp.position.set(i * 12, 0, 5);
-        miqatGroup.add(lp);
-        engine.addBlocker(i * 12 - 0.5, 4.5, i * 12 + 0.5, 5.5); // Tiang lampu solid
-    }
+    // Tiang lampu antik (dihapus sesuai permintaan)
 
     // 8. BUS JAMAAH PARKIR DI DEPAN GERBANG
     const { bus, busDoor } = busModel(mats);
