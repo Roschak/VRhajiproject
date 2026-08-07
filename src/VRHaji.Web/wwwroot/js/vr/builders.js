@@ -702,7 +702,9 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
         // Atap interior gelap
         g.add(mesh(new THREE.BoxGeometry(BACK_W, 0.5, INTERIOR_D), darkInteriorMat, 0, TOTAL_H, -INTERIOR_D / 2, { cast: false }));
         // Dinding belakang tertutup rapat dan gelap gulita
-        g.add(mesh(new THREE.BoxGeometry(BACK_W, TOTAL_H, 1.0), darkInteriorMat, 0, TOTAL_H / 2, -INTERIOR_D - 0.5, { cast: false }));
+        const backWall = mesh(new THREE.BoxGeometry(BACK_W, TOTAL_H, 1.0), darkInteriorMat, 0, TOTAL_H / 2, -INTERIOR_D - 0.5, { cast: false });
+        g.add(backWall);
+        if (engine.chunkManager) engine.chunkManager.addOccluder(backWall);
         
         g.position.set(posX, 0, posZ); g.rotation.y = rotY; scene.add(g);
     };
@@ -810,7 +812,9 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
 
     // Main shaft (Bawah jam) - Dengan Jendela Menyala
     const clockTowerMain = new THREE.Group();
-    clockTowerMain.add(mesh(new THREE.BoxGeometry(TW, 140, TW), towerMat, 0, 70, 0));
+    const towerShaft = mesh(new THREE.BoxGeometry(TW, 140, TW), towerMat, 0, 70, 0);
+    clockTowerMain.add(towerShaft);
+    if (engine.chunkManager) engine.chunkManager.addOccluder(towerShaft);
     for(let wy = 15; wy < 130; wy += 4.5) {
         for(let wx = -TW/2 + 3; wx <= TW/2 - 3; wx += 4) {
             clockTowerMain.add(mesh(new THREE.BoxGeometry(1.5, 2.5, 0.2), hotelWinMat, wx, wy, TW/2 + 0.05));
@@ -2975,14 +2979,20 @@ export function miqat(engine) {
     const wallThick = 1.2;
     // Tembok belakang (Utara)
     // Dimundurkan ke -70 agar tidak memotong ruang dalam masjid yang tembus sampai -68
-    miqatGroup.add(mesh(new THREE.BoxGeometry(80, wallH + 4, wallThick), mats.cream, 0, (wallH + 4)/2, -70));
+    const wallUtara = mesh(new THREE.BoxGeometry(80, wallH + 4, wallThick), mats.cream, 0, (wallH + 4)/2, -70);
+    miqatGroup.add(wallUtara);
+    if (engine.chunkManager) engine.chunkManager.addOccluder(wallUtara);
     // Blocker belakang global dihapus agar jemaah bisa masuk ke dalam masjid
     // Tembok Samping Kiri (Barat) & Kanan (Timur)
     for (const sx of [-1, 1]) {
         // Dinding bawah coklat (panjang 110 dari -70 sampai 40, tengah di -15)
-        miqatGroup.add(mesh(new THREE.BoxGeometry(wallThick, 3, 110), brownStone, sx * 40, 1.5, -15));
+        const wallBawah = mesh(new THREE.BoxGeometry(wallThick, 3, 110), brownStone, sx * 40, 1.5, -15);
+        miqatGroup.add(wallBawah);
+        if (engine.chunkManager) engine.chunkManager.addOccluder(wallBawah);
         // Dinding atas putih
-        miqatGroup.add(mesh(new THREE.BoxGeometry(wallThick, wallH - 3, 110), mats.cream, sx * 40, 3 + (wallH - 3)/2, -15));
+        const wallAtas = mesh(new THREE.BoxGeometry(wallThick, wallH - 3, 110), mats.cream, sx * 40, 3 + (wallH - 3)/2, -15);
+        miqatGroup.add(wallAtas);
+        if (engine.chunkManager) engine.chunkManager.addOccluder(wallAtas);
         // Gigi-gigi benteng (Crenellations)
         for(let z=-69; z<=39; z+=2) {
             miqatGroup.add(mesh(new THREE.BoxGeometry(wallThick, 0.8, 1), mats.cream, sx * 40, wallH + 0.4, z));
@@ -3952,7 +3962,15 @@ export function muzdalifah(engine) {
     const tentBodyGeo = new THREE.BoxGeometry(6.4, 3.2, 6.4);
     const tentRoofGeo = new THREE.ConeGeometry(4.8, 1.8, 4);
     const tentMat = new THREE.MeshStandardMaterial({ color: 0xf9f7f1, roughness: 0.9, side: THREE.DoubleSide });
-    const tents = new THREE.Group();
+    
+    let useInstancing = false;
+    if (engine.chunkManager) {
+        useInstancing = true;
+        engine.chunkManager.createInstancedGroup('muzdalifah-tent-body', tentBodyGeo, tentMat, 2000);
+        engine.chunkManager.createInstancedGroup('muzdalifah-tent-roof', tentRoofGeo, tentMat, 2000);
+    } else {
+        var tents = new THREE.Group();
+    }
     
     for (let row = -15; row < 15; row++) {
         for (let col = 2; col < 15; col++) { // Mengisi X positif (separuh area) secara masif sejauh mata memandang
@@ -3960,14 +3978,19 @@ export function muzdalifah(engine) {
             const tx = col * 9;
             const tz = row * 9;
             
-            const tBody = mesh(tentBodyGeo, tentMat, tx, 1.6, tz);
-            const tRoof = mesh(tentRoofGeo, tentMat, tx, 4.1, tz);
-            tRoof.rotation.y = Math.PI/4;
-            tents.add(tBody, tRoof);
+            if (useInstancing) {
+                engine.chunkManager.addInstance('muzdalifah-tent-body', new THREE.Vector3(tx, 1.6, tz));
+                engine.chunkManager.addInstance('muzdalifah-tent-roof', new THREE.Vector3(tx, 4.1, tz), new THREE.Euler(0, Math.PI/4, 0));
+            } else {
+                const tBody = mesh(tentBodyGeo, tentMat, tx, 1.6, tz);
+                const tRoof = mesh(tentRoofGeo, tentMat, tx, 4.1, tz);
+                tRoof.rotation.y = Math.PI/4;
+                tents.add(tBody, tRoof);
+            }
             engine.addBlocker(tx - 3.2, tz - 3.2, tx + 3.2, tz + 3.2);
         }
     }
-    scene.add(tents);
+    if (!useInstancing) scene.add(tents);
     // (Bus telah dihilangkan sepenuhnya)
 
     // Batu kerikil interaktif — tersebar secara tunggal maupun mengelompok
@@ -4108,11 +4131,15 @@ export function mina(engine, { withAllJamarat = false } = {}) {
     const wallH = 18;
     const wThick = 2;
     // Dinding Belakang (Z = -70) - Full Solid
-    scene.add(mesh(new THREE.BoxGeometry(105, wallH, wThick), mats.cream, -27.5, wallH/2, -70));
+    const minaWallBack = mesh(new THREE.BoxGeometry(105, wallH, wThick), mats.cream, -27.5, wallH/2, -70);
+    scene.add(minaWallBack);
+    if (engine.chunkManager) engine.chunkManager.addOccluder(minaWallBack);
     engine.addBlocker(-80, -71, 25, -69);
 
     // Dinding Kiri (X = -80) - Full Solid
-    scene.add(mesh(new THREE.BoxGeometry(wThick, wallH, 80), mats.cream, -80, wallH/2, -30));
+    const minaWallLeft = mesh(new THREE.BoxGeometry(wThick, wallH, 80), mats.cream, -80, wallH/2, -30);
+    scene.add(minaWallLeft);
+    if (engine.chunkManager) engine.chunkManager.addOccluder(minaWallLeft);
     engine.addBlocker(-81, -70, -79, 10);
 
     // Dinding Depan (Z = 10) - Solid dengan Gerbang Masuk Raksasa di tengah (X=-40 to 10)
