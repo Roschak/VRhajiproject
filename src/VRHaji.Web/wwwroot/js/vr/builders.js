@@ -2677,11 +2677,16 @@ export function miqat(engine) {
     // 4. PEMUKIMAN KHAS ARAB — Sepanjang mata memandang
     // ================================================================
     // Fungsi bangunan Arab detail: jendela mashrabiya, parapet atap, pintu, AC unit
-    function addArabHouse(parent, x, z, facingX, isDistant) {
+    function addArabHouse(parent, x, z, facingX, isDistant, M) {
+        // M = material bag khusus chunk (dibuat DI DALAM buildFn chunk, lihat
+        // chunkMaterials()). ChunkManager meng-dispose material chunk saat
+        // unload — bila memakai material bersama milik miqat(), scene utama
+        // ikut rusak. Bila M kosong → perilaku lama (material bersama).
+        const H = M || { bMats, winMat, doorMat, acMat, balconyMat, bushMat };
         const h = isDistant ? (5 + Math.random() * 10) : (6 + Math.random() * 6);
         const w = isDistant ? (8 + Math.random() * 6) : (12 + Math.random() * 4); 
         const d = isDistant ? (7 + Math.random() * 5) : (10 + Math.random() * 6); 
-        const mat = bMats[Math.floor(Math.random() * bMats.length)];
+        const mat = H.bMats[Math.floor(Math.random() * H.bMats.length)];
         const bld = new THREE.Group();
         
         const bW = facingX ? d : w;
@@ -2714,7 +2719,7 @@ export function miqat(engine) {
             const winH = isDistant ? 1.2 : 1.6;
             for(let wy = 3; wy < h - 2; wy += 3.5) {
                 for(let wx = -bW/2 + 2.5; wx <= bW/2 - 2.5; wx += 3.5) {
-                    bld.add(mesh(new THREE.BoxGeometry(winW, winH, 0.12), winMat, wx, wy, frontZ));
+                    bld.add(mesh(new THREE.BoxGeometry(winW, winH, 0.12), H.winMat, wx, wy, frontZ));
                     if (!isDistant) {
                         bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy + winH/2, frontZ, { cast: false }));
                         bld.add(mesh(new THREE.BoxGeometry(winW + 0.3, 0.12, 0.15), mat, wx, wy - winH/2, frontZ, { cast: false }));
@@ -2726,12 +2731,12 @@ export function miqat(engine) {
 
             // Pintu, AC, Balkon, Tanaman (Hanya Depan)
             if (!isDistant) {
-                bld.add(mesh(new THREE.BoxGeometry(1.2, 2.4, 0.12), doorMat, 0, 1.2, frontZ));
+                bld.add(mesh(new THREE.BoxGeometry(1.2, 2.4, 0.12), H.doorMat, 0, 1.2, frontZ));
                 bld.add(mesh(new THREE.BoxGeometry(1.6, 0.3, 0.15), mat, 0, 2.55, frontZ, { cast: false }));
                 
                 if (Math.random() > 0.4) {
                     const acSide = Math.random() > 0.5 ? 1 : -1;
-                    bld.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), acMat, acSide * (bW/2 - 2), h - 1.5, frontZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), H.acMat, acSide * (bW/2 - 2), h - 1.5, frontZ, { cast: false }));
                 }
                 
                 if (h > 8 && Math.random() > 0.5) {
@@ -2739,13 +2744,13 @@ export function miqat(engine) {
                     const balcZ = frontZ + (frontZ < 0 ? -0.6 : 0.6);
                     const railZ = frontZ + (frontZ < 0 ? -1.15 : 1.15);
                     bld.add(mesh(new THREE.BoxGeometry(3, 0.15, 1.2), mat, 0, balcY, balcZ, { cast: false }));
-                    bld.add(mesh(new THREE.BoxGeometry(3, 0.8, 0.1), balconyMat, 0, balcY + 0.4, railZ, { cast: false }));
-                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, -1.45, balcY + 0.4, balcZ, { cast: false }));
-                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, 1.45, balcY + 0.4, balcZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(3, 0.8, 0.1), H.balconyMat, 0, balcY + 0.4, railZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), H.balconyMat, -1.45, balcY + 0.4, balcZ, { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), H.balconyMat, 1.45, balcY + 0.4, balcZ, { cast: false }));
                 }
                 const bushZ = frontZ + (frontZ < 0 ? -1.2 : 1.2);
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, -bW/2 + 2.0, 0.4, bushZ, { cast: false }));
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bW/2 - 2.0, 0.4, bushZ, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, -bW/2 + 2.0, 0.4, bushZ, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bW/2 - 2.0, 0.4, bushZ, { cast: false }));
             }
         } else {
             // === RUMAH MENGHADAP X (Timur/Barat) ===
@@ -2755,7 +2760,7 @@ export function miqat(engine) {
             const winH = isDistant ? 1.2 : 1.6;
             for(let wy = 3; wy < h - 2; wy += 3.5) {
                 for(let wz = -bD/2 + 2.5; wz <= bD/2 - 2.5; wz += 3.5) {
-                    bld.add(mesh(new THREE.BoxGeometry(0.12, winH, winW), winMat, frontX, wy, wz));
+                    bld.add(mesh(new THREE.BoxGeometry(0.12, winH, winW), H.winMat, frontX, wy, wz));
                     if (!isDistant) {
                         bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, frontX, wy + winH/2, wz, { cast: false }));
                         bld.add(mesh(new THREE.BoxGeometry(0.15, 0.12, winW + 0.3), mat, frontX, wy - winH/2, wz, { cast: false }));
@@ -2764,16 +2769,16 @@ export function miqat(engine) {
             }
 
             if (!isDistant) {
-                bld.add(mesh(new THREE.BoxGeometry(0.12, 2.4, 1.2), doorMat, frontX, 1.2, 0));
+                bld.add(mesh(new THREE.BoxGeometry(0.12, 2.4, 1.2), H.doorMat, frontX, 1.2, 0));
                 bld.add(mesh(new THREE.BoxGeometry(0.15, 0.3, 1.6), mat, frontX, 2.55, 0, { cast: false }));
                 
                 if (Math.random() > 0.4) {
                     const acSide = Math.random() > 0.5 ? 1 : -1;
-                    bld.add(mesh(new THREE.BoxGeometry(0.4, 0.5, 0.8), acMat, frontX, h - 1.5, acSide * (bD/2 - 2), { cast: false }));
+                    bld.add(mesh(new THREE.BoxGeometry(0.4, 0.5, 0.8), H.acMat, frontX, h - 1.5, acSide * (bD/2 - 2), { cast: false }));
                 }
                 const bushX = frontX + (frontX < 0 ? -1.2 : 1.2);
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bushX, 0.4, -bD/2 + 2.0, { cast: false }));
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bushX, 0.4, bD/2 - 2.0, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bushX, 0.4, -bD/2 + 2.0, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bushX, 0.4, bD/2 - 2.0, { cast: false }));
             }
         }
 
@@ -2781,9 +2786,9 @@ export function miqat(engine) {
         if (!isDistant && Math.random() > 0.4) {
             const acSide = Math.random() > 0.5 ? 1 : -1;
             if (!facingX) {
-                bld.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), acMat, acSide * (bW/2 - 2), h - 1.5, bD/2 + 0.2, { cast: false }));
+                bld.add(mesh(new THREE.BoxGeometry(0.8, 0.5, 0.4), H.acMat, acSide * (bW/2 - 2), h - 1.5, bD/2 + 0.2, { cast: false }));
             } else {
-                bld.add(mesh(new THREE.BoxGeometry(0.4, 0.5, 0.8), acMat, bW/2 + 0.2, h - 1.5, acSide * (bD/2 - 2), { cast: false }));
+                bld.add(mesh(new THREE.BoxGeometry(0.4, 0.5, 0.8), H.acMat, bW/2 + 0.2, h - 1.5, acSide * (bD/2 - 2), { cast: false }));
             }
         }
 
@@ -2792,20 +2797,20 @@ export function miqat(engine) {
             const balcY = 5 + Math.random() * 2;
             if (!facingX) {
                 bld.add(mesh(new THREE.BoxGeometry(3, 0.15, 1.2), mat, 0, balcY, bD/2 + 0.6, { cast: false }));
-                bld.add(mesh(new THREE.BoxGeometry(3, 0.8, 0.1), balconyMat, 0, balcY + 0.4, bD/2 + 1.15, { cast: false }));
-                bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, -1.45, balcY + 0.4, bD/2 + 0.6, { cast: false }));
-                bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), balconyMat, 1.45, balcY + 0.4, bD/2 + 0.6, { cast: false }));
+                bld.add(mesh(new THREE.BoxGeometry(3, 0.8, 0.1), H.balconyMat, 0, balcY + 0.4, bD/2 + 1.15, { cast: false }));
+                bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), H.balconyMat, -1.45, balcY + 0.4, bD/2 + 0.6, { cast: false }));
+                bld.add(mesh(new THREE.BoxGeometry(0.1, 0.8, 1.2), H.balconyMat, 1.45, balcY + 0.4, bD/2 + 0.6, { cast: false }));
             }
         }
         
         // === TANAMAN HIAS di depan rumah ===
         if (!isDistant) {
             if (!facingX) {
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, -bW/2 + 2.0, 0.4, bD/2 + 1.2, { cast: false }));
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bW/2 - 2.0, 0.4, bD/2 + 1.2, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, -bW/2 + 2.0, 0.4, bD/2 + 1.2, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bW/2 - 2.0, 0.4, bD/2 + 1.2, { cast: false }));
             } else {
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bW/2 + 1.2, 0.4, -bD/2 + 2.0, { cast: false }));
-                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), bushMat, bW/2 + 1.2, 0.4, bD/2 - 2.0, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bW/2 + 1.2, 0.4, -bD/2 + 2.0, { cast: false }));
+                bld.add(mesh(new THREE.SphereGeometry(0.8, 6, 6), H.bushMat, bW/2 + 1.2, 0.4, bD/2 - 2.0, { cast: false }));
             }
         }
 
@@ -2825,13 +2830,28 @@ export function miqat(engine) {
     // 4a-d. PEMUKIMAN KHAS ARAB (Dioptimasi dengan ChunkManager VR)
     // ================================================================
     
+    // Material khusus chunk — clone dari material bersama miqat(). ChunkManager
+    // membebaskan material chunk SEPENUHNYA saat unload (geometry+material+
+    // texture dispose); memakai material bersama akan merusak scene utama.
+    function chunkMaterials() {
+        return {
+            bMats: bMats.map(m => m.clone()),
+            winMat: winMat.clone(),
+            doorMat: doorMat.clone(),
+            acMat: acMat.clone(),
+            balconyMat: balconyMat.clone(),
+            bushMat: bushMat.clone()
+        };
+    }
+    
     // Chunk Utara (Depan Jauh)
     engine.chunkManager.registerChunk('miqat-utara', new THREE.Vector3(0, 0, 180), 200, 250, (root) => {
-        for(let x = -180; x <= 180; x += 16) if(Math.abs(x) > 20) addArabHouse(root, x, 115, false, false);
-        for(let x = -200; x <= 200; x += 14) addArabHouse(root, x, 140, false, false);
+        const M = chunkMaterials();
+        for(let x = -180; x <= 180; x += 16) if(Math.abs(x) > 20) addArabHouse(root, x, 115, false, false, M);
+        for(let x = -200; x <= 200; x += 14) addArabHouse(root, x, 140, false, false, M);
         for(let x = -250; x <= 250; x += 16) {
-            addArabHouse(root, x, 195, false, true);
-            addArabHouse(root, x, 230, false, true);
+            addArabHouse(root, x, 195, false, true, M);
+            addArabHouse(root, x, 230, false, true, M);
         }
         const distantMat = new THREE.MeshStandardMaterial({ color: 0xccc4b4, roughness: 1.0 });
         for (let x = -320; x <= 320; x += 12) {
@@ -2842,11 +2862,12 @@ export function miqat(engine) {
 
     // Chunk Selatan (Belakang Jauh)
     engine.chunkManager.registerChunk('miqat-selatan', new THREE.Vector3(0, 0, -180), 200, 250, (root) => {
-        for(let x = -180; x <= 180; x += 16) if(Math.abs(x) > 20) addArabHouse(root, x, -145, false, false);
-        for(let x = -200; x <= 200; x += 14) addArabHouse(root, x, -170, false, false);
+        const M = chunkMaterials();
+        for(let x = -180; x <= 180; x += 16) if(Math.abs(x) > 20) addArabHouse(root, x, -145, false, false, M);
+        for(let x = -200; x <= 200; x += 14) addArabHouse(root, x, -170, false, false, M);
         for(let x = -250; x <= 250; x += 16) {
-            addArabHouse(root, x, -210, false, true);
-            addArabHouse(root, x, -245, false, true);
+            addArabHouse(root, x, -210, false, true, M);
+            addArabHouse(root, x, -245, false, true, M);
         }
         const distantMat2 = new THREE.MeshStandardMaterial({ color: 0xd4cfc5, roughness: 1.0 });
         for (let x = -320; x <= 320; x += 12) {
@@ -2857,21 +2878,23 @@ export function miqat(engine) {
 
     // Chunk Timur (Kanan Jauh)
     engine.chunkManager.registerChunk('miqat-timur', new THREE.Vector3(180, 0, 0), 200, 250, (root) => {
-        for(let z = -120; z <= 90; z += 16) if(Math.abs(z) > 20) addArabHouse(root, 115, z, true, false);
-        for(let z = -160; z <= 130; z += 14) addArabHouse(root, 140, z, true, false);
+        const M = chunkMaterials();
+        for(let z = -120; z <= 90; z += 16) if(Math.abs(z) > 20) addArabHouse(root, 115, z, true, false, M);
+        for(let z = -160; z <= 130; z += 14) addArabHouse(root, 140, z, true, false, M);
         for(let z = -230; z <= 220; z += 16) {
-            addArabHouse(root, 195, z, true, true);
-            addArabHouse(root, 230, z, true, true);
+            addArabHouse(root, 195, z, true, true, M);
+            addArabHouse(root, 230, z, true, true, M);
         }
     });
 
     // Chunk Barat (Kiri Jauh)
     engine.chunkManager.registerChunk('miqat-barat', new THREE.Vector3(-180, 0, 0), 200, 250, (root) => {
-        for(let z = -120; z <= 90; z += 16) if(Math.abs(z) > 20) addArabHouse(root, -115, z, true, false);
-        for(let z = -160; z <= 130; z += 14) addArabHouse(root, -140, z, true, false);
+        const M = chunkMaterials();
+        for(let z = -120; z <= 90; z += 16) if(Math.abs(z) > 20) addArabHouse(root, -115, z, true, false, M);
+        for(let z = -160; z <= 130; z += 14) addArabHouse(root, -140, z, true, false, M);
         for(let z = -230; z <= 220; z += 16) {
-            addArabHouse(root, -195, z, true, true);
-            addArabHouse(root, -230, z, true, true);
+            addArabHouse(root, -195, z, true, true, M);
+            addArabHouse(root, -230, z, true, true, M);
         }
     });
     const dMat1 = new THREE.MeshStandardMaterial({ color: 0xccc4b4, roughness: 1.0 });

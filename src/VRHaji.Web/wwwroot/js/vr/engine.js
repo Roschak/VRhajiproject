@@ -1232,6 +1232,9 @@ export class Engine {
         this.dolly = new THREE.Group();
         this.dolly.name = 'xr-rig';
         this.chunkManager = new ChunkManager(this); // Minecraft-style VR chunk optimization
+        // Hook inspeksi untuk tooling verifikasi & debugging (verify_chunk_live.mjs,
+        // konsol browser). Aman: referensi ke engine sudah dipegang closure lain.
+        if (typeof window !== 'undefined') window.__vrEngine = this;
         this.dolly.add(this.camera);
         this.scene.add(this.dolly);
 
@@ -2648,7 +2651,12 @@ export class Engine {
         this.renderer.setAnimationLoop(null);
         this._skipHandlers.clear();
         this.clearCrowds();
+        // Lepas chunk/objek yang masih loaded + instanced pools + listener XR
+        // dari ChunkManager (mencegah bocor VRAM antar scene/halaman).
+        if (this.chunkManager) this.chunkManager.dispose();
         if (ACTIVE_ENGINE === this) ACTIVE_ENGINE = null;
+        // Lepas hook inspeksi agar tidak menahan referensi engine setelah dispose.
+        if (typeof window !== 'undefined' && window.__vrEngine === this) window.__vrEngine = null;
         // Bersihkan WebXR: akhiri sesi & lepas tombol Masuk VR
         try { this.renderer.xr.getSession()?.end(); } catch { }
         clearTimeout(this._vrMsgTimer);

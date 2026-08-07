@@ -416,6 +416,12 @@ async function hotSwapScene(nextIndex) {
             });
         }
         
+        // 6b. Kosongkan registry chunk/objek ChunkManager — scene lama sudah
+        //     dibersihkan & di-dispose di atas, jadi cukup clear registry agar
+        //     chunk mati tidak menumpuk dan tidak dievaluasi di scene baru.
+        engine.chunkManager?.clearChunks?.();
+        engine.chunkManager?.clearObjects?.();
+        
         // 7. Bersihkan crowds (hindari memory leak dan bug tabrakan ghost)
         if (engine.clearCrowds) engine.clearCrowds();
         
