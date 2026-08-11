@@ -9,9 +9,9 @@ export function getUserId() {
 }
 
 export function hasSeenAnnouncement() {
-    return localStorage.getItem('vrhaji_announcement_v2') === 'true';
+    return sessionStorage.getItem('vrhaji_announcement_session') === 'true';
 }
 
 export function setAnnouncementSeen() {
-    localStorage.setItem('vrhaji_announcement_v2', 'true');
+    sessionStorage.setItem('vrhaji_announcement_session', 'true');
 }
