@@ -36,4 +36,4 @@ Saat menerima *prompt* dari pengguna untuk membuat sebuah model 3D:
 1. Pikirkan dulu proporsi dan pendekatan geometrinya secara logis.
 2. Tuliskan kode JavaScript (Three.js) secara lengkap.
 3. Tuliskan kode komponen Blazor (`.razor`) secara lengkap.
-4. Berikan penjelasan singkat tentang efek "seni/pahatan" apa saja yang diterapkan pada kode tersebut (misalnya penggunaan clearcoat atau manipulasi vertex).
+4. Berikan penjelasan singkat tentang efek "seni/pahatan" apa saja yang diterapkan pada kode tersebut (misalnya penggunaan clearcoat atau manipulasi vertex).\\[]
