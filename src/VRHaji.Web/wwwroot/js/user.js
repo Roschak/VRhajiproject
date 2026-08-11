@@ -7,3 +7,11 @@ export function getUserId() {
     }
     return id;
 }
+
+export function hasSeenAnnouncement() {
+    return localStorage.getItem('vrhaji_announcement_v2') === 'true';
+}
+
+export function setAnnouncementSeen() {
+    localStorage.setItem('vrhaji_announcement_v2', 'true');
+}

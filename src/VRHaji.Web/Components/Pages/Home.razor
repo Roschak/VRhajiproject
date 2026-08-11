@@ -5,6 +5,28 @@
 
 <PageTitle>VR Education Haji &amp; Umrah</PageTitle>
 
+@if (_showAnnouncement)
+{
+    <div class="announcement-overlay">
+        <div class="announcement-card">
+            <div class="announcement-card__header">
+                <div class="announcement-card__icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                </div>
+                <h2 class="announcement-card__title">Catatan Simulasi Edukasi</h2>
+            </div>
+            <div class="announcement-card__text">
+                Selamat datang di <strong>Simulasi VR Haji &amp; Umrah</strong>.<br/><br/>
+                Aplikasi ini dirancang sebagai sarana edukasi interaktif. Apabila terdapat perbedaan proporsi bangunan, tata letak area, maupun elemen visual lainnya jika dibandingkan dengan kondisi asli di lapangan, kami memohon maklum.<br/><br/>
+                Kami akan terus menyempurnakan pengalaman visual ini agar semakin mendekati kondisi nyata. Selamat belajar dan semoga bermanfaat.
+            </div>
+            <div class="announcement-card__footer">
+                <button class="btn btn--gold btn--big" @onclick="DismissAnnouncement">Mulai Simulasi ➜</button>
+            </div>
+        </div>
+    </div>
+}
+
 <div class="menu-root">
     <div class="menu-hero">
         <div class="menu-hero__emblem">🕋</div>
@@ -61,6 +83,8 @@
     private int _highest;
     private int _totalDone;
     private string _userId = string.Empty;
+    private IJSObjectReference? _userModule;
+    private bool _showAnnouncement = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -70,8 +94,16 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/user.js");
-        _userId = await module.InvokeAsync<string>("getUserId");
+        var cacheBuster = DateTime.Now.Ticks;
+        _userModule = await JS.InvokeAsync<IJSObjectReference>("import", $"./js/user.js?v={cacheBuster}");
+        _userId = await _userModule.InvokeAsync<string>("getUserId");
+        
+        var hasSeen = await _userModule.InvokeAsync<bool>("hasSeenAnnouncement");
+        if (!hasSeen)
+        {
+            _showAnnouncement = true;
+        }
+
         await LoadProgressAsync();
         StateHasChanged();
     }
@@ -91,5 +123,14 @@
         if (string.IsNullOrEmpty(_userId)) return;
         await ProgressService.ResetAsync(_userId);
         await LoadProgressAsync();
+    }
+
+    private async Task DismissAnnouncement()
+    {
+        if (_userModule is not null)
+        {
+            await _userModule.InvokeVoidAsync("setAnnouncementSeen");
+        }
+        _showAnnouncement = false;
     }
 }
