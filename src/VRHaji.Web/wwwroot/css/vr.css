@@ -468,24 +468,23 @@ kbd {
 .announcement-overlay {
     position: fixed; inset: 0; z-index: 9999;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(5,8,12,.88); backdrop-filter: blur(12px);
+    background: rgba(5, 18, 10, 0.88); backdrop-filter: blur(12px);
     padding: 1.5rem;
 }
 .announcement-card {
     max-width: 600px; width: 100%; text-align: left;
-    background: radial-gradient(circle at top right, rgba(201,162,39,0.08), transparent 50%),
-                linear-gradient(165deg, rgba(26,32,44,.95), rgba(10,14,20,.98));
-    border: 1px solid rgba(232, 201, 106, 0.2);
-    border-radius: 24px;
-    padding: 3.5rem 3.5rem;
+    background: linear-gradient(180deg, #0a1c12 0%, #06140b 100%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 3rem 3.5rem;
     box-shadow: 0 40px 100px rgba(0,0,0,1), inset 0 1px 0 rgba(255,255,255,0.05);
     position: relative;
     overflow: hidden;
 }
 .announcement-card::before {
     content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--c-gold), var(--c-gold-light), transparent);
-    opacity: 0.7;
+    background: linear-gradient(90deg, transparent, #2a7751, #4ade80, transparent);
+    opacity: 0.8;
 }
 .announcement-card__header {
     display: flex; align-items: center; gap: 1.2rem; margin-bottom: 1.8rem;
@@ -493,21 +492,26 @@ kbd {
 .announcement-card__icon {
     width: 52px; height: 52px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(201,162,39,0.1); border: 1px solid rgba(201,162,39,0.25);
-    border-radius: 14px; color: var(--c-gold-light);
-    box-shadow: 0 8px 24px rgba(201,162,39,0.15);
+    background: rgba(42, 119, 81, 0.15); border: 1px solid rgba(42, 119, 81, 0.3);
+    border-radius: 14px; color: #4ade80;
+    box-shadow: 0 8px 24px rgba(42, 119, 81, 0.15);
 }
 .announcement-card__icon svg { width: 26px; height: 26px; fill: currentColor; }
 .announcement-card__title {
-    font-size: 1.6rem; color: #fff; margin: 0;
-    font-weight: 600; letter-spacing: 0.03em;
+    font-size: 1.8rem; color: #ffffff; margin: 0;
+    font-family: "Playfair Display", serif;
+    font-weight: 600;
+}
+.announcement-card__title::after {
+    content: ""; display: block; width: 40px; height: 2px;
+    background: #2a7751; margin-top: 0.8rem; opacity: 0.8;
 }
 .announcement-card__text {
-    font-size: 1.05rem; line-height: 1.8; color: var(--c-text-dim);
+    font-size: 1.05rem; line-height: 1.8; color: #8a919d;
     margin-bottom: 2.5rem;
 }
 .announcement-card__text strong {
-    color: var(--c-text); font-weight: 600;
+    color: #e2e4e9; font-weight: 600;
 }
 .announcement-card__footer {
     display: flex; justify-content: flex-end;
