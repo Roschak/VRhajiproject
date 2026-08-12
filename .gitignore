@@ -23,3 +23,5 @@ node_modules/
 *.swp
 Thumbs.db
 .DS_Store
+
+release_output/
