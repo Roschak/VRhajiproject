@@ -1,8 +1,9 @@
-{                                                                                                                                                                                 
-      "rewrites": [                                                                                                                                                                   
-        {                                                                                                                                                                             
-          "source": "/(.*)",                                                                                                                                                          
-          "destination": "/index.html"                                                                                                                                                
-        }                                                                                                                                                                             
-      ]                                                                                                                                                                               
-    } 
+{
+  "outputDirectory": "release_output/wwwroot",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+} 
