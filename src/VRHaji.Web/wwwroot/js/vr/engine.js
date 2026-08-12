@@ -454,7 +454,7 @@ class Narrator {
 
             try {
                 // Memanggil endpoint API lokal yang meneruskan ke Cloud TTS
-                this.audio.src = `/api/tts?text=${encodeURIComponent(text)}`;
+                this.audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodeURIComponent(text)}`;
                 this.audio.playbackRate = rate;
                 this.audio.onended = finish;
                 this.audio.onerror = finish;

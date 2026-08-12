@@ -1,19 +1,18 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using VRHaji.Web.Models;
 
 namespace VRHaji.Web.Data;
 
-/// <summary>Seeder database: 12 scene (termasuk Wukuf Arafah), checkpoint, dan konten edukasi sesuai dokumen proyek.</summary>
+/// <summary>Static data store: 12 scene (termasuk Wukuf Arafah), checkpoint, dan konten edukasi sesuai dokumen proyek.</summary>
 public static class DbSeeder
 {
     private static string J(object o) => JsonSerializer.Serialize(o);
 
-    public static async Task SeedAsync(VRHajiDbContext db)
-    {
-        await db.Database.EnsureCreatedAsync();
-        if (await db.Scenes.AnyAsync()) return;
+    public static List<SceneData> Scenes { get; } = [];
+    public static List<CheckpointData> Checkpoints { get; } = [];
 
+    static DbSeeder()
+    {
         List<SceneData> scenes =
         [
             new()
@@ -268,16 +267,16 @@ public static class DbSeeder
             }
         ];
 
-        db.Scenes.AddRange(scenes);
-        await db.SaveChangesAsync();
+        Scenes.AddRange(scenes);
+        
+        var byUrutan = Scenes.ToDictionary(s => s.Urutan, s => s.Urutan);
+        foreach (var s in Scenes) s.Id = s.Urutan;
 
         static CheckpointData Cp(int sceneId, int urutan, string nama, int minBenar, params CheckpointQuestion[] qs) => new()
         {
             SceneId = sceneId, Urutan = urutan, Nama = nama, MinBenar = minBenar,
             QuestionsJson = JsonSerializer.Serialize(qs)
         };
-
-        var byUrutan = scenes.ToDictionary(s => s.Urutan, s => s.Id);
 
         List<CheckpointData> cps =
         [
@@ -394,7 +393,6 @@ public static class DbSeeder
                 new("Haji mabrur balasannya adalah?", ["Harta", "Surga", "Gelar", "Piagam"], 1))
         ];
 
-        db.Checkpoints.AddRange(cps);
-        await db.SaveChangesAsync();
+        Checkpoints.AddRange(cps);
     }
 }

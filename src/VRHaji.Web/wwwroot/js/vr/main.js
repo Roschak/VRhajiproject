@@ -262,38 +262,42 @@ export async function start() {
             const modal = document.createElement('div');
             modal.id = 'vr-settings-modal';
             modal.innerHTML = `
-                <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1a;color:white;padding:20px;border-radius:10px;z-index:10000;font-family:sans-serif;width:300px;box-shadow:0 10px 30px rgba(0,0,0,0.5);border:1px solid #444;">
-                    <button id="set-close-x" style="position:absolute;top:15px;right:15px;background:transparent;border:none;color:#aaa;font-size:24px;cursor:pointer;line-height:1;padding:0;margin:0;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#aaa'">&times;</button>
-                    <h3 style="margin-top:0;color:#f2c94c;border-bottom:1px solid #333;padding-bottom:10px;padding-right:20px;">⚙️ Pengaturan Grafis</h3>
-                    
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-size:14px;">Kualitas Resolusi</label>
-                        <select id="set-res" style="width:100%;padding:8px;background:#333;color:white;border:1px solid #555;border-radius:5px;cursor:pointer;">
-                            <option value="1.5">Tinggi (High)</option>
-                            <option value="1.0" selected>Normal</option>
-                            <option value="0.75">Rendah (Low) - Ringan</option>
-                            <option value="0.5">Sangat Rendah (Potato)</option>
-                        </select>
+                <div style="position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(5,8,12,0.88);backdrop-filter:blur(12px);">
+                    <div class="cp-dialog" style="max-width:400px;width:100%;padding:2.2rem;position:relative;">
+                        <button id="set-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#8a919d;font-size:1.5rem;cursor:pointer;">&times;</button>
+                        <div class="cp-dialog__header" style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem;margin-bottom:1.5rem;">
+                            <h2 style="margin:0;font-size:1.4rem;">⚙️ Pengaturan Grafis</h2>
+                        </div>
+                        
+                        <div style="margin-bottom:15px;text-align:left;">
+                            <label style="display:block;margin-bottom:8px;font-size:14px;color:#8a919d;">Kualitas Resolusi</label>
+                            <select id="set-res" style="width:100%;padding:10px;background:rgba(255,255,255,0.05);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;font-family:inherit;">
+                                <option value="1.5" style="background:#0d1117;">Tinggi (High)</option>
+                                <option value="1.0" selected style="background:#0d1117;">Normal</option>
+                                <option value="0.75" style="background:#0d1117;">Rendah (Low) - Ringan</option>
+                                <option value="0.5" style="background:#0d1117;">Sangat Rendah (Potato)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom:15px;text-align:left;">
+                            <label style="display:block;margin-bottom:8px;font-size:14px;color:#8a919d;">Bayangan (Shadows)</label>
+                            <select id="set-shadow" style="width:100%;padding:10px;background:rgba(255,255,255,0.05);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;font-family:inherit;">
+                                <option value="true" style="background:#0d1117;">Aktif (Lebih Nyata)</option>
+                                <option value="false" style="background:#0d1117;">Mati (Lebih Ringan)</option>
+                            </select>
+                        </div>
+                        
+                        <div style="margin-bottom:25px;text-align:left;">
+                            <label style="display:block;margin-bottom:8px;font-size:14px;color:#8a919d;">Batas Frame (FPS)</label>
+                            <select id="set-fps" style="width:100%;padding:10px;background:rgba(255,255,255,0.05);color:white;border:1px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;font-family:inherit;">
+                                <option value="0" style="background:#0d1117;">Tidak Dibatasi (Maks)</option>
+                                <option value="60" style="background:#0d1117;">Maks 60 FPS</option>
+                                <option value="30" style="background:#0d1117;">Maks 30 FPS</option>
+                            </select>
+                        </div>
+                        
+                        <button id="set-apply" class="btn btn--gold" style="width:100%;justify-content:center;">Terapkan & Tutup</button>
                     </div>
-                    
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;font-size:14px;">Bayangan (Shadows)</label>
-                        <select id="set-shadow" style="width:100%;padding:8px;background:#333;color:white;border:1px solid #555;border-radius:5px;cursor:pointer;">
-                            <option value="true">Aktif (Lebih Nyata)</option>
-                            <option value="false">Mati (Lebih Ringan)</option>
-                        </select>
-                    </div>
-                    
-                    <div style="margin-bottom:20px;">
-                        <label style="display:block;margin-bottom:5px;font-size:14px;">Batas Frame (FPS)</label>
-                        <select id="set-fps" style="width:100%;padding:8px;background:#333;color:white;border:1px solid #555;border-radius:5px;cursor:pointer;">
-                            <option value="0">Tidak Dibatasi (Maks)</option>
-                            <option value="60">Maks 60 FPS</option>
-                            <option value="30">Maks 30 FPS</option>
-                        </select>
-                    </div>
-                    
-                    <button id="set-apply" style="width:100%;padding:10px;background:#f2c94c;color:black;border:none;border-radius:5px;font-weight:bold;cursor:pointer;transition:transform 0.1s;">Terapkan & Tutup</button>
                 </div>
             `;
             document.body.appendChild(modal);

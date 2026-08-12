@@ -1,37 +1,31 @@
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using VRHaji.Web.Data;
 using VRHaji.Web.Interfaces;
 using VRHaji.Web.Models;
 
 namespace VRHaji.Web.Services;
 
-/// <summary>Implementasi manajemen scene berbasis EF Core.</summary>
-public class SceneService(IDbContextFactory<VRHajiDbContext> factory) : ISceneService
+/// <summary>Implementasi manajemen scene berbasis in-memory static data.</summary>
+public class SceneService : ISceneService
 {
-    private static readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
-
-    public async Task<IReadOnlyList<SceneData>> GetAllScenesAsync()
+    public Task<IReadOnlyList<SceneData>> GetAllScenesAsync()
     {
-        await using var db = await factory.CreateDbContextAsync();
-        return await db.Scenes.AsNoTracking().OrderBy(s => s.Urutan).ToListAsync();
+        return Task.FromResult<IReadOnlyList<SceneData>>(DbSeeder.Scenes.OrderBy(s => s.Urutan).ToList());
     }
 
-    public async Task<SceneData?> GetSceneByUrutanAsync(int urutan)
+    public Task<SceneData?> GetSceneByUrutanAsync(int urutan)
     {
-        await using var db = await factory.CreateDbContextAsync();
-        return await db.Scenes.AsNoTracking()
-            .Include(s => s.Checkpoints)
-            .FirstOrDefaultAsync(s => s.Urutan == urutan);
+        var scene = DbSeeder.Scenes.FirstOrDefault(s => s.Urutan == urutan);
+        if (scene != null)
+        {
+            scene.Checkpoints = DbSeeder.Checkpoints.Where(c => c.SceneId == scene.Id).ToList();
+        }
+        return Task.FromResult(scene);
     }
 
-    public async Task<IReadOnlyList<CheckpointData>> GetCheckpointsAsync(int sceneId)
+    public Task<IReadOnlyList<CheckpointData>> GetCheckpointsAsync(int sceneId)
     {
-        await using var db = await factory.CreateDbContextAsync();
-        return await db.Checkpoints.AsNoTracking()
-            .Where(c => c.SceneId == sceneId)
-            .OrderBy(c => c.Urutan)
-            .ToListAsync();
+        return Task.FromResult<IReadOnlyList<CheckpointData>>(DbSeeder.Checkpoints.Where(c => c.SceneId == sceneId).OrderBy(c => c.Urutan).ToList());
     }
 
     public EdukasiContent? ParseEdukasi(SceneData scene) =>
