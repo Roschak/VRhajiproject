@@ -827,8 +827,9 @@ const scene06 = {
         // Jalan lebih cepat (lintasan Sa'i panjang)
         engine.playerSpeed = 6.0;
         engine.runSpeed = 11;
-        // Spawn di jalur kanan menghadap Marwah (arah +X)
-        engine.spawn(refs.shafaX + 22, 4.5, 270);
+        // Spawn di jalur sebelahnya (kiri jika menghadap Marwah = z: -4.5)
+        // Dan rotasi diubah menjadi 90 agar menghadap bukit Shafa (-X)
+        engine.spawn(refs.shafaX + 22, -4.5, 90);
         return refs;
     },
     async run(engine, ctx) {
@@ -889,7 +890,8 @@ const sceneArafah = {
         ctx.progress(30);
 
         const jp = engine._sceneRefs.jabalPos;
-        await engine.goto(jp.x + 20, jp.z + 20, { radius: 5, label: 'Menuju Jabal Rahmah — memperbanyak doa saat wukuf' });
+        await engine.goto(jp.x, jp.z + 36, { radius: 5, label: 'Menuju pintu masuk tangga Jabal Rahmah' });
+        await engine.goto(jp.x, jp.z + 5, { radius: 5, label: 'Mendaki Jabal Rahmah — memperbanyak doa' });
         engine.setObjective('Wukuf: berdiri/duduk menghadap kiblat, perbanyak doa hingga terbenam matahari');
         engine.setHint('Inilah waktu doa paling mustajab sepanjang tahun — mintalah kebaikan dunia & akhirat');
 

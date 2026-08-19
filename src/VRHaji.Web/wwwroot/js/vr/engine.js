@@ -847,9 +847,9 @@ export class Crowd {
                 let nx = cx + Math.cos(a.angle) * finalR;
                 let nz = cz + Math.sin(a.angle) * finalR;
 
-                // --- 6. HARD COLLISION CHECK: tidak boleh menembus apapun ---
+                // --- 6. HARD COLLISION CHECK: tidak boleh menembus benda, pemain, atau jamaah lain ---
                 if (eng && a.wx !== undefined) {
-                    if (!eng._walkableStatic(nx, nz, 0.35)) {
+                    if (!eng._agentWalkable(a, nx, nz)) {
                         // Coba posisi saat ini (jangan bergerak sama sekali)
                         nx = a.wx;
                         nz = a.wz;
@@ -1083,7 +1083,7 @@ export class Crowd {
             if (camPos) {
                 const dx = x - camPos.x;
                 const dz = z - camPos.z;
-                if (dx * dx + dz * dz > 2025) { // Jarak 45 meter
+                if (dx * dx + dz * dz > 40000) { // Jarak 200 meter agar terlihat dari jauh
                     sc = 0;
                 }
             }
@@ -1129,7 +1129,14 @@ export class Crowd {
                 }
                 const bob = a.walkBlend * (Math.abs(Math.sin(wp)) * 0.05) + (1 - a.walkBlend) * (Math.sin(time * 1.4 + a.phase) * 0.006);
                 const base = 0.94 + bob;
-                const hipY = base * sc, shoY = (base + 0.48) * sc;
+                
+                // Dapatkan ketinggian tanah (agar NPC bisa menaiki bukit)
+                let yOff = 0;
+                if (ACTIVE_ENGINE && ACTIVE_ENGINE.getGroundHeight) {
+                    yOff = ACTIVE_ENGINE.getGroundHeight(x, z);
+                }
+                
+                const hipY = base * sc + yOff, shoY = (base + 0.48) * sc + yOff;
                 // Kaki: ayun pinggul berlawanan + tekuk lutut saat melangkah maju
                 const swL = Math.sin(wp) * 0.42 * a.walkBlend;
                 const swR = Math.sin(wp + Math.PI) * 0.42 * a.walkBlend;
@@ -1137,12 +1144,13 @@ export class Crowd {
                 const kneeR = Math.max(0, -Math.cos(wp + Math.PI)) * 0.85 * a.walkBlend + 0.05;
                 this._limb(this.thighL, this.shinL, this.footL, i, x, hipY, z, -0.1, 0, L.thigh, L.shin, swL, kneeL, true, qYaw, sc);
                 this._limb(this.thighR, this.shinR, this.footR, i, x, hipY, z, 0.1, 0, L.thigh, L.shin, swR, kneeR, true, qYaw, sc);
-                this._compose(this.pelvis, i, x, (base + 0.02) * sc, z, qYaw, sc);
-                this._compose(this.torso, i, x, (base + 0.28) * sc, z, qYaw, sc);
-                this._compose(this.neck, i, x, (base + 0.55) * sc, z, qYaw, sc);
-                this._compose(this.head, i, x, (base + 0.69) * sc, z, qYaw, sc);
-                this._capAt(a, i, x, (base + 0.73) * sc, z, qYaw, sc);
-                this._facial(i, x, (base + 0.69) * sc, z, qYaw, sc);
+                this._compose(this.pelvis, i, x, (base + 0.02) * sc + yOff, z, qYaw, sc);
+                this._compose(this.torso, i, x, (base + 0.28) * sc + yOff, z, qYaw, sc);
+                this._compose(this.neck, i, x, (base + 0.55) * sc + yOff, z, qYaw, sc);
+                this._compose(this.head, i, x, (base + 0.69) * sc + yOff, z, qYaw, sc);
+                this._capAt(a, i, x, (base + 0.73) * sc + yOff, z, qYaw, sc);
+                this._facial(i, x, (base + 0.69) * sc + yOff, z, qYaw, sc);
+                
                 // Lengan: ayun berlawanan kaki + siku sedikit menekuk
                 const armIdle = Math.sin(time * 1.4 + a.phase) * 0.03;
                 const aSw = -Math.sin(wp) * 0.38 * a.walkBlend + armIdle * (1 - a.walkBlend);
@@ -1567,7 +1575,7 @@ export class Engine {
         return this._walkableStatic(x, z, 0.2) && !this._crowdBlocks(x, z);
     }
     
-    /** Bisa ditempati jamaah: geometri statis, hindari pemain, hindari jamaah lain (SOLID). */
+    /** Bisa ditempati jamaah: geometri statis, hindari pemain (SOLID). */
     _agentWalkable(agent, x, z) {
         if (!this._walkableStatic(x, z, 0.45)) return false;
         
@@ -1578,17 +1586,19 @@ export class Engine {
         const rr = this.playerRadius + 0.35; 
         if (dx * dx + dz * dz < rr * rr) return false;
         
-        // Hindari jamaah lain (opsional untuk performa, tapi diminta user agar solid 100%)
-        for (const c of ACTIVE_CROWDS) {
-            const agents = c.agents;
-            for (let i = 0; i < agents.length; i++) {
-                const b = agents[i];
-                if (agent === b) continue;
-                const bdx = x - b.wx, bdz = z - b.wz;
-                if (bdx * bdx + bdz * bdz < 0.25) return false; // 0.5 meter jarak aman minimal
+        return true;
+    }
+
+    getGroundHeight(x, z) {
+        let groundH = 0;
+        for (const hz of this.heightZones) {
+            const dx = x - hz.cx, dz = z - hz.cz;
+            if (dx * dx + dz * dz < hz.radius * hz.radius) {
+                const h = hz.heightFn(x, z);
+                if (h > groundH) groundH = h;
             }
         }
-        return true;
+        return groundH;
     }
 
     _movePlayer(dt) {
@@ -1597,15 +1607,7 @@ export class Engine {
         // Animasi ketinggian (pose Y) — termasuk height zone (terrain)
         if (this._currentY === undefined) this._currentY = 1.7;
         // Hitung ketinggian tanah berdasarkan height zones
-        let groundH = 0;
-        const px = this.camera.position.x, pz = this.camera.position.z;
-        for (const hz of this.heightZones) {
-            const dx = px - hz.cx, dz = pz - hz.cz;
-            if (dx * dx + dz * dz < hz.radius * hz.radius) {
-                const h = hz.heightFn(px, pz);
-                if (h > groundH) groundH = h;
-            }
-        }
+        let groundH = this.getGroundHeight(this.camera.position.x, this.camera.position.z);
         const eyeLevel = this._prayerTargetY ?? 1.7;
         const targetY = groundH + eyeLevel;
         this._currentY += (targetY - this._currentY) * (1 - Math.exp(-8 * dt)); // Smooth lerp
@@ -2252,7 +2254,8 @@ export class Engine {
             }));
         beam.position.y = 3.5;
         grp.add(ring, beam);
-        grp.position.set(x, 0, z);
+        const groundH = this.getGroundHeight(x, z);
+        grp.position.set(x, groundH, z);
         this.scene.add(grp);
         this.waypoint = grp;
         this._waypointRing = ring;
@@ -2295,8 +2298,11 @@ export class Engine {
                 this._guideM.makeScale(0, 0, 0);
             } else {
                 const pulse = 0.75 + 0.45 * Math.sin(t * 5 - u * 14);
+                const gX = p.x + dx * u;
+                const gZ = p.z + dz * u;
+                const gH = this.getGroundHeight(gX, gZ);
                 this._guideM.makeScale(pulse, pulse, pulse);
-                this._guideM.setPosition(p.x + dx * u, 0.18 + Math.sin(u * Math.PI) * 0.1, p.z + dz * u);
+                this._guideM.setPosition(gX, gH + 0.18 + Math.sin(u * Math.PI) * 0.1, gZ);
             }
             this._guide.setMatrixAt(i, this._guideM);
         }

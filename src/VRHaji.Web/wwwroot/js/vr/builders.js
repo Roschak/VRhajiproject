@@ -3696,11 +3696,11 @@ export function arafah(engine) {
     // ── Jabal Rahmah — GUNUNG REALISTIS YANG BISA DINAIKI ─────────────────
     const jabalPos = { x: -58, z: -66 };
     const jabal = new THREE.Group();
-    const graniteA = new THREE.MeshStandardMaterial({ color: 0xbeb5a4, roughness: 0.92 });
-    const graniteB = new THREE.MeshStandardMaterial({ color: 0xa89d89, roughness: 0.95 });
-    const graniteC = new THREE.MeshStandardMaterial({ color: 0xccc4b4, roughness: 0.9 });
-    const graniteD = new THREE.MeshStandardMaterial({ color: 0x9a8e78, roughness: 0.97 });
-    const graniteE = new THREE.MeshStandardMaterial({ color: 0x8c8068, roughness: 0.98 });
+    const graniteA = new THREE.MeshStandardMaterial({ color: 0xbeb5a4, roughness: 0.92, flatShading: true });
+    const graniteB = new THREE.MeshStandardMaterial({ color: 0xa89d89, roughness: 0.95, flatShading: true });
+    const graniteC = new THREE.MeshStandardMaterial({ color: 0xccc4b4, roughness: 0.9, flatShading: true });
+    const graniteD = new THREE.MeshStandardMaterial({ color: 0x9a8e78, roughness: 0.97, flatShading: true });
+    const graniteE = new THREE.MeshStandardMaterial({ color: 0x8c8068, roughness: 0.98, flatShading: true });
     const grn = [graniteA, graniteB, graniteC, graniteD, graniteE];
     const _jv = new THREE.Vector3();
 
@@ -3727,95 +3727,101 @@ export function arafah(engine) {
         const dz = wz - jabalPos.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist > JABAL_RADIUS) return 0;
-        // Profil lereng: lereng landai di bawah, makin curam di atas
-        const t = 1 - dist / JABAL_RADIUS; // 0 di tepi, 1 di puncak
-        const h = JABAL_HEIGHT * Math.pow(t, 1.3); // Kurva sedikit cekung agar landai
-        // Tambah sedikit noise agar tak rata sempurna
-        const noise = Math.sin(dx * 0.3) * Math.cos(dz * 0.4) * 0.5;
-        return Math.max(0, h + noise);
+        
+        // Profil lereng: bentuk dome (kubah) landai, bukan kerucut
+        const t = dist / JABAL_RADIUS; // 0 di tengah, 1 di luar
+        // Kurva cosine agar atasnya cenderung datar lalu menurun
+        let baseH = JABAL_HEIGHT * Math.cos(t * Math.PI * 0.5);
+        
+        // Buat pinggirannya lebih landai (blending dengan tanah)
+        baseH = baseH * (1 - Math.pow(t, 3)); 
+        
+        // Noise berlapis agar bukitnya sangat bergelombang dan berbatu (rugged terrain)
+        const noise1 = Math.sin(dx * 0.4) * Math.cos(dz * 0.4) * 1.5;
+        const noise2 = Math.sin(dx * 1.2 + dz) * Math.cos(dz * 1.2 - dx) * 0.5;
+        
+        // High frequency noise untuk membuat tekstur batu tajam (jagged rocks)
+        // Kita gunakan kombinasi posisi dunia untuk pseudo-random deterministik
+        const jagged = (Math.sin(dx * 3.5) * Math.cos(dz * 3.5) + Math.sin(dx * 5.1 + dz * 2.2)) * 0.4;
+        
+        const noise = (noise1 + noise2 + jagged) * (1 - t); // Noise berkurang di pinggiran
+        
+        return Math.max(0, baseH + noise);
     }
 
     // Daftarkan height zone agar pemain naik saat berjalan ke gunung
     engine.addHeightZone(jabalPos.x, jabalPos.z, JABAL_RADIUS + 5, jabalHeightAt);
 
-    // ── VISUAL: Badan gunung bertingkat (terraced rocky hill) ──
-    // Layer 1: Base/dasar — gundukan besar dan lebar
-    const jbase = makeBoulder(28, graniteA);
-    jbase.scale.set(1.3, 0.35, 1.2);
-    jbase.position.set(0, 1.5, 0);
-    jabal.add(jbase);
-
-    // Layer dasar tambahan dari berbagai sisi agar terlihat lebar alami
-    for (let i = 0; i < 8; i++) {
-        const ang = (i / 8) * Math.PI * 2 + Math.random() * 0.3;
-        const r = 22 + Math.random() * 8;
-        const b = makeBoulder(8 + Math.random() * 5, grn[i % 5]);
-        b.scale.set(1.2, 0.4 + Math.random() * 0.2, 1.1);
-        b.position.set(Math.cos(ang) * r, 0.5, Math.sin(ang) * r);
-        b.rotation.set(Math.random() * 0.3, Math.random() * 6, Math.random() * 0.3);
-        jabal.add(b);
+    // ── VISUAL: Gunung solid tanpa celah menggunakan vertex displacement ──
+    // Kita buat ConeGeometry yang padat, lalu sesuaikan setiap titiknya dengan fungsi jabalHeightAt
+    const jgeo = new THREE.ConeGeometry(JABAL_RADIUS, JABAL_HEIGHT, 64, 32);
+    const jpos = jgeo.attributes.position;
+    for (let i = 0; i < jpos.count; i++) {
+        _jv.fromBufferAttribute(jpos, i);
+        // _jv.x dan _jv.z adalah posisi lokal dari tengah gunung
+        // Ketinggian fungsi dihitung berdasarkan kordinat dunia
+        const worldX = jabalPos.x + _jv.x;
+        const worldZ = jabalPos.z + _jv.z;
+        const h = jabalHeightAt(worldX, worldZ);
+        
+        // Posisikan vertex Y sesuai ketinggian dari jabalHeightAt (dikurangi setengah JABAL_HEIGHT karena pusat Cone ada di tengah tingginya)
+        _jv.y = h - (JABAL_HEIGHT / 2);
+        
+        jpos.setXYZ(i, _jv.x, _jv.y, _jv.z);
     }
+    jgeo.computeVertexNormals();
+    
+    // Gunakan material batuan granit yang solid
+    const solidJabal = mesh(jgeo, graniteB);
+    solidJabal.position.set(0, JABAL_HEIGHT / 2, 0); // Angkat cone agar pangkalnya ada di Y=0
+    solidJabal.castShadow = true;
+    solidJabal.receiveShadow = true;
+    jabal.add(solidJabal);
 
-    // Layer 2-6: Tumpukan batu bertingkat makin ke atas makin kecil
-    const layers = [
-        { y: 2,  r: 22, boulderR: [5, 9],  count: 14 },
-        { y: 5,  r: 18, boulderR: [4, 7],  count: 13 },
-        { y: 8,  r: 14, boulderR: [3.5, 6], count: 11 },
-        { y: 11, r: 10, boulderR: [3, 5.5], count: 10 },
-        { y: 14, r: 7,  boulderR: [2.5, 4.5], count: 8 },
-        { y: 17, r: 4,  boulderR: [2, 3.5], count: 6 },
-        { y: 19, r: 2.5, boulderR: [1.5, 3], count: 4 },
-    ];
-    for (const L of layers) {
-        for (let i = 0; i < L.count; i++) {
-            const ang = (i / L.count) * Math.PI * 2 + Math.random() * 0.4;
-            const rr = L.r * (0.3 + Math.random() * 0.65);
-            const bR = L.boulderR[0] + Math.random() * (L.boulderR[1] - L.boulderR[0]);
-            const b = makeBoulder(bR, grn[Math.floor(Math.random() * 5)]);
-            b.position.set(Math.cos(ang) * rr, L.y + (Math.random() - 0.4) * 1.8, Math.sin(ang) * rr);
-            b.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
-            jabal.add(b);
-        }
-    }
-
-    // Puncak: bongkahan besar rata
-    const jtop = makeBoulder(6, graniteC);
-    jtop.scale.set(1.6, 0.6, 1.6);
-    jtop.position.set(0, 20, 0);
+    // Puncak: area pelataran rata
+    const jtop = mesh(new THREE.CylinderGeometry(6, 6, 1.0, 32), graniteC);
+    jtop.position.set(0, JABAL_HEIGHT - 0.5, 0);
     jabal.add(jtop);
 
-    // Batu-batu kecil tersebar di lereng untuk detail
+    // Batu-batu kecil tersebar di permukaan untuk tekstur visual
     for (let i = 0; i < 40; i++) {
         const ang = Math.random() * Math.PI * 2;
         const dist = 5 + Math.random() * (JABAL_RADIUS - 5);
         const wx = Math.cos(ang) * dist;
         const wz = Math.sin(ang) * dist;
         const h = jabalHeightAt(jabalPos.x + wx, jabalPos.z + wz);
-        const smallR = 0.3 + Math.random() * 1.2;
+        const smallR = 0.4 + Math.random() * 1.5;
         const rock = makeBoulder(smallR, grn[Math.floor(Math.random() * 5)]);
-        rock.position.set(wx, h - 0.1, wz);
+        rock.position.set(wx, h + smallR * 0.3, wz); // agak terkubur ke dalam tanah
         rock.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
         jabal.add(rock);
     }
 
-    // ── JALAN SETAPAK NAIK (visible path) ──
-    // Tangga/ramp yang terlihat dari batu pipih agar player tahu bisa naik
-    const pathMat = new THREE.MeshStandardMaterial({ color: 0xb5a890, roughness: 0.95 });
-    const pathSteps = 30;
-    for (let i = 0; i < pathSteps; i++) {
-        const t = i / pathSteps;
-        // Jalur spiral dari depan (Z+) berputar ke puncak
-        const ang = Math.PI * 0.5 + t * Math.PI * 1.8; // 3/4 putaran
-        const dist = JABAL_RADIUS * (1 - t * 0.85); // dari tepi ke dekat puncak
-        const sx = Math.cos(ang) * dist;
-        const sz = Math.sin(ang) * dist;
+    // ── TANGGA UTAMA NAIK (JALUR LURUS LEBAR SEPERTI ASLINYA) ──
+    const stairMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8 }); // Beton putih kusam
+    const stairGroup = new THREE.Group();
+    
+    // Tangga lurus menanjak dari sisi depan (Z+) menuju puncak
+    const numSteps = 50;
+    const stairWidth = 5.0; // Tangga lebar
+    
+    for (let i = 0; i < numSteps; i++) {
+        // Posisi z dari luar (bawah) menuju tengah (atas)
+        const t = i / numSteps;
+        const sz = JABAL_RADIUS * (1 - t * 0.95);
+        const sx = 0;
         const h = jabalHeightAt(jabalPos.x + sx, jabalPos.z + sz);
-        // Pijakan batu pipih
-        const stepW = 3.5 - t * 1.5; // Makin ke atas makin sempit
-        const step = mesh(new THREE.BoxGeometry(stepW, 0.3, 2), pathMat, sx, h - 0.1, sz, { cast: false });
-        step.rotation.y = ang + Math.PI / 2;
-        jabal.add(step);
+        
+        // Pijakan tangga (persegi panjang putih)
+        const step = mesh(new THREE.BoxGeometry(stairWidth, 0.4, 1.2), stairMat, sx, h - 0.1, sz, { cast: false });
+        
+        // Tembok pegangan kecil di sisi kiri dan kanan tangga
+        const railL = mesh(new THREE.BoxGeometry(0.3, 1.2, 1.2), stairMat, sx - stairWidth/2, h + 0.3, sz, { cast: false });
+        const railR = mesh(new THREE.BoxGeometry(0.3, 1.2, 1.2), stairMat, sx + stairWidth/2, h + 0.3, sz, { cast: false });
+        
+        stairGroup.add(step, railL, railR);
     }
+    jabal.add(stairGroup);
 
     jabal.position.set(jabalPos.x, 0, jabalPos.z);
     scene.add(jabal);
