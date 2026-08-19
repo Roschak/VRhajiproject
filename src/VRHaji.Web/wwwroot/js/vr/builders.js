@@ -1496,6 +1496,11 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     for (let i = 0; i < 5; i++) { // Dibuat sampai 5 booth
         const cx = -24 + i * 8.5;
         
+        // Hitbox interaksi yang besar agar mudah dipencet
+        const hitbox = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 4), new THREE.MeshBasicMaterial({ visible: false }));
+        hitbox.position.set(cx, 1, -24);
+        counters.add(hitbox);
+
         loadGltf('/assets/checkin_booth.glb').then(model => {
             // PENTING: Gunakan .clone() agar aset bisa diduplikat untuk ke-4 posisi
             const booth = model.clone();
@@ -1872,7 +1877,7 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
 export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
     const { scene, mats } = engine;
     const g = new THREE.Group();
-    const L = 34, W = 1.9; // Lebar setengah kabin (3.8m, standar Boeing 737 / A320)
+    const L = 34, W = 2.1; // Lebar kabin sedikit diperlebar agar lorong pas untuk satu orang lebih dikit
     
     // 1. KABIN UTAMA (Bentuk Custom persis seperti referensi foto - Extruded Shape)
     const s = new THREE.Shape();
@@ -1905,7 +1910,7 @@ export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
     floor.position.y = 0.05;
     g.add(floor);
     // Karpet Lorong (Dark Blue / Navy seperti di foto) - Lebarkan untuk jalan
-    const aisle = new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, 1.0), new THREE.MeshStandardMaterial({ color: 0x121a2f, roughness: 0.95 }));
+    const aisle = new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, 1.4), new THREE.MeshStandardMaterial({ color: 0x121a2f, roughness: 0.95 }));
     aisle.position.y = 0.05;
     g.add(aisle);
 
@@ -1938,8 +1943,8 @@ export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
     const seatSpots = [];
     
     for (let row = 0; row < nRows; row++) {
-        // Z positions dilebarkan: lorong tengah kini lebih luas
-        for (const sz of [-1.6, -1.1, -0.6, 0.6, 1.1, 1.6]) {
+        // Z positions dilebarkan sedikit: lorong pas untuk 1 orang lebih dikit
+        for (const sz of [-1.8, -1.3, -0.8, 0.8, 1.3, 1.8]) {
             const sx = -L / 2 + 4.5 + row * 1.2; // Jarak pitch 1.2m
             engine.addBlocker(origin.x + sx - 0.3, origin.z + sz - 0.25, origin.x + sx + 0.3, origin.z + sz + 0.25);
             
@@ -1955,7 +1960,7 @@ export function airplaneCabin(engine, origin = { x: 0, z: 400 }) {
             
             // Sandaran tangan (Armrests)
             m4.makeTranslation(sx + 0.05, 0.6, sz - 0.24); arm.setMatrixAt(j++, m4);
-            if(sz === -0.6 || sz === 1.6) { m4.makeTranslation(sx + 0.05, 0.6, sz + 0.24); arm.setMatrixAt(j++, m4); }
+            if(sz === -0.8 || sz === 1.8) { m4.makeTranslation(sx + 0.05, 0.6, sz + 0.24); arm.setMatrixAt(j++, m4); }
             
             seatSpots.push({ x: sx + origin.x, z: sz + origin.z, ry: Math.PI / 2 });
             i++;

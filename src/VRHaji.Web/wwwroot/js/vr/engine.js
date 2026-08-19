@@ -2236,16 +2236,16 @@ export class Engine {
 
     /* ------------ Waypoint / beacon tujuan ------------ */
 
-    showWaypoint(x, z, color = 0x37c978) {
+    showWaypoint(x, z, color = 0x37c978, scale = 1) {
         this.hideWaypoint();
         const grp = new THREE.Group();
         const ring = new THREE.Mesh(
-            new THREE.TorusGeometry(0.9, 0.07, 10, 40),
+            new THREE.TorusGeometry(0.9 * scale, 0.07 * Math.sqrt(scale), 10, 40),
             new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 }));
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.08;
         const beam = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.28, 0.42, 7, 14, 1, true),
+            new THREE.CylinderGeometry(0.28 * scale, 0.42 * scale, 7, 14, 1, true),
             new THREE.MeshBasicMaterial({
                 color, transparent: true, opacity: 0.22,
                 side: THREE.DoubleSide, depthWrite: false
@@ -2330,11 +2330,11 @@ export class Engine {
     }
 
     /** Menunggu klik pada objek interaktif tertentu. */
-    interact(object3d, { label, radius = 10, highlightBeacon = true } = {}) {
+    interact(object3d, { label, radius = 10, highlightBeacon = true, waypointScale = 1 } = {}) {
         const clicked = new Promise(resolve => {
             if (highlightBeacon) {
                 const p = object3d.getWorldPosition(new THREE.Vector3());
-                this.showWaypoint(p.x, p.z, 0xc9a227);
+                this.showWaypoint(p.x, p.z, 0xc9a227, waypointScale);
             }
             this.addInteractable(object3d, {
                 label, radius,

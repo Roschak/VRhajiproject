@@ -289,8 +289,7 @@ const scene01 = {
         // penumpang duduk di bangku ruang tunggu
         new Crowd(engine.scene, { count: 52, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
         // antrian di depan check-in
-        new Crowd(engine.scene, { count: 5, mode: 'post', spots: [
-            { x: -24, z: -20.2, ry: Math.PI },
+        new Crowd(engine.scene, { count: 4, mode: 'post', spots: [
             { x: -15.5, z: -20.2, ry: Math.PI },
             { x: -7, z: -20.2, ry: Math.PI },
             { x: 1.5, z: -20.2, ry: Math.PI },
@@ -319,7 +318,7 @@ const scene01 = {
 
         await engine.goto(-24, -20, { label: 'Menuju counter check-in' });
         await engine.interact(engine._sceneRefs.counters.children[0], {
-            label: 'Check-in & serahkan bagasi', radius: 8
+            label: 'Check-in & serahkan bagasi', radius: 8, waypointScale: 3
         });
         engine.audio.sfx('stamp');
         engine.notifyDotnet('Boarding pass diterima! Bagasi 25 kg diterima.', 'success');
@@ -488,6 +487,10 @@ const scene03 = {
             { sub: 'Lima miqat makani ditetapkan Rasulullah ﷺ. Melewatinya tanpa ihram = dam.' });
 
         ctx.progress(8);
+
+        await engine.narrate(
+            'Sekarang, mari kita turun menuju pelataran miqat. Silakan arahkan pandangan Anda dan klik pada indikator lingkaran berwarna oren di arah pintu untuk keluar dari bus.',
+            { sub: '👆 Klik indikator oren di arah pintu untuk keluar.' });
 
         await engine.interact(engine._sceneRefs.busDoor, { label: '🚌 Keluar dari bus menuju pelataran miqat', radius: 12 });
 
