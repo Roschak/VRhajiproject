@@ -592,7 +592,13 @@ const scene03 = {
             // Bacaan arab (jika ada) — tampilkan di subtitle engine
             engine.subtitle(arabic || bacaan);
 
+            // Cooldown 500ms agar double-click tidak langsung men-skip langkah berikutnya
+            let canClick = false;
+            setTimeout(() => { canClick = true; }, 500);
+
             btn.onclick = () => {
+                if (!canClick) return;
+                canClick = false;
                 engine.subtitle('');
                 panel.remove();
                 engine.audio.sfx('chime');
@@ -642,22 +648,33 @@ const scene03 = {
             'Allahu Akbar — sujud kembali.\nBaca 3×: "Subhaana Rabbiyal A\'laa"\nSempurnakan dengan khusyu\'.',
             '🕌 SUJUD 2 — "Subhaana Rabbiyal A\'laa" (3×)', 'sujud');
 
-        await prayerStep('🧍','BERDIRI · RAKAAT 2',
-            'Allahu Akbar — bangkit berdiri.\nBaca Al-Fatihah kembali.',
-            '🧍 Rakaat 2 — Al-Fatihah', 'stand');
+    await prayerStep('🧍','BERDIRI · RAKAAT 2',
+        'Allahu Akbar — bangkit berdiri.\nBaca Al-Fatihah kembali.',
+        '🧍 Rakaat 2 — Al-Fatihah', 'stand');
 
-        await prayerStep('📖','SURAT AL-IKHLAS',
-            'Qul huwallahu ahad, Allaahush shamad,\nlam yalid wa lam yuulad,\nwa lam yakul lahuu kufuwan ahad.',
-            '📖 Al-Ikhlas: "Qul huwallahu ahad..."', 'stand');
+    await prayerStep('📖','SURAT AL-IKHLAS',
+        'Qul huwallahu ahad, Allaahush shamad,\nlam yalid wa lam yuulad,\nwa lam yakul lahuu kufuwan ahad.',
+        '📖 Al-Ikhlas: "Qul huwallahu ahad..."', 'stand');
 
-        await prayerStep('🙇','RUKU · RAKAAT 2',
-            'Allahu Akbar — ruku kembali.\nBaca 3×: "Subhaana Rabbiyal \'Adziim"\nBangkit i\'tidal.',
-            '🙇 RUKU Rakaat 2 — I\'tidal', 'ruku');
+    await prayerStep('🙇','RUKU · RAKAAT 2',
+        'Allahu Akbar — bungkukkan badan, punggung lurus sejajar lantai.\nBaca 3×: "Subhaana Rabbiyal \'Adziim"',
+        '🙇 RUKU Rakaat 2 — "Subhaana Rabbiyal Adziim" (3×)', 'ruku');
 
-        await prayerStep('🕌','SUJUD · RAKAAT 2',
-            'Dua sujud pada rakaat kedua.\nBaca 3×: "Subhaana Rabbiyal A\'laa" (masing-masing).',
-            '🕌 SUJUD Rakaat 2 (1 & 2)', 'sujud');
+    await prayerStep('🧍','I\'TIDAL · RAKAAT 2',
+        'Bangkit tegak sambil angkat tangan.\nBaca: "Sami\'allaahu liman hamidah"\nLalu: "Rabbanaa lakal hamdu..."',
+        '🧍 I\'TIDAL Rakaat 2 — "Sami\'allaahu liman hamidah..."', 'stand');
 
+    await prayerStep('🕌','SUJUD PERTAMA · RAKAAT 2',
+        'Allahu Akbar — turunkan badan.\nBaca 3×: "Subhaana Rabbiyal A\'laa"',
+        '🕌 SUJUD 1 (Rakaat 2) — "Subhaana Rabbiyal A\'laa" (3×)', 'sujud');
+
+    await prayerStep('🪑','DUDUK DI ANTARA DUA SUJUD · RAKAAT 2',
+        'Allahu Akbar — duduk tegak dengan tumit kiri (Iftirasy).\nBaca: "Rabbighfirlii warhamnii wajburnii warfa\'nii warzuqnii..."',
+        '🪑 Duduk Iftirasy — "Rabbighfirlii warhamnii..."', 'sit');
+
+    await prayerStep('🕌','SUJUD KEDUA · RAKAAT 2',
+        'Allahu Akbar — sujud kembali.\nBaca 3×: "Subhaana Rabbiyal A\'laa"\nSempurnakan dengan khusyu\'.',
+        '🕌 SUJUD 2 (Rakaat 2) — "Subhaana Rabbiyal A\'laa" (3×)', 'sujud');
         await prayerStep('🤲','TASYAHUD AKHIR',
             'Duduk tawaruk (kaki kiri ke bawah kaki kanan). Isyarat telunjuk kanan.\n"At-tahiyyaatu lillaahi wash-shalawaatu wath-thayyibaatu...\nAssalaamu \'alaika ayyuhan-nabiyyu..."',
             '🤲 At-tahiyyaat + Shalawat Ibrahim', 'sit');
