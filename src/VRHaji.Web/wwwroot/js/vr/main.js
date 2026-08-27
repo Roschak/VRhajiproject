@@ -222,7 +222,7 @@ export async function start() {
         const skipSceneBtn = document.createElement('button');
         skipSceneBtn.id = 'vr-skip-scene-btn';
         skipSceneBtn.className = 'btn btn--gold btn--small';
-        skipSceneBtn.innerHTML = `⏭ Skip Scene`;
+        skipSceneBtn.innerHTML = `<svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;vertical-align:-2px;margin-right:5px;"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>Skip Scene`;
         skipSceneBtn.style.position = 'absolute';
         skipSceneBtn.style.top = '70px';
         skipSceneBtn.style.right = '20px';
@@ -241,7 +241,7 @@ export async function start() {
         const skipStepBtn = document.createElement('button');
         skipStepBtn.id = 'vr-skip-step-btn';
         skipStepBtn.className = 'btn btn--ghost btn--small vr-skip-btn';
-        skipStepBtn.innerHTML = `⏩ Lewati Langkah`;
+        skipStepBtn.innerHTML = `<svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;vertical-align:-2px;margin-right:5px;"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>Lewati Langkah`;
         skipStepBtn.title = 'Selesaikan langkah yang sedang berjalan dan lanjut ke langkah berikutnya';
         skipStepBtn.style.position = 'absolute';
         skipStepBtn.style.top = '110px';
@@ -266,7 +266,10 @@ export async function start() {
                     <div class="cp-dialog" style="max-width:400px;width:100%;padding:2.2rem;position:relative;">
                         <button id="set-close-x" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#8a919d;font-size:1.5rem;cursor:pointer;">&times;</button>
                         <div class="cp-dialog__header" style="text-align:left;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem;margin-bottom:1.5rem;">
-                            <h2 style="margin:0;font-size:1.4rem;">⚙️ Pengaturan Grafis</h2>
+                            <h2 style="margin:0;font-size:1.35rem;display:flex;align-items:center;gap:8px;">
+                                <svg style="width:20px;height:20px;fill:currentColor;color:var(--c-gold-light);" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                                Pengaturan Grafis
+                            </h2>
                         </div>
                         
                         <div style="margin-bottom:15px;text-align:left;">
@@ -334,7 +337,7 @@ export async function start() {
         const settingsBtn = document.createElement('button');
         settingsBtn.id = 'vr-settings-btn';
         settingsBtn.className = 'btn btn--ghost btn--small';
-        settingsBtn.innerHTML = '⚙️ Pengaturan Grafis';
+        settingsBtn.innerHTML = `<svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;vertical-align:-2px;margin-right:5px;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Pengaturan Grafis`;
         settingsBtn.style.position = 'absolute';
         settingsBtn.style.top = '150px'; // Posisi di bawah tombol Lewati Langkah
         settingsBtn.style.right = '20px';

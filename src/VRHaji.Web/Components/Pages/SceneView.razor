@@ -23,10 +23,18 @@
                 <div id="vr-compass" class="hud__compass"><div id="vr-compass-dial">U</div></div>
                 @* Tombol WebXR: engine JS yang memasang handler-nya (requestSession
                    wajib di sisi client). Disembunyikan sampai isSessionSupported true. *@
-                <button id="btn-enter-vr" class="btn btn--gold btn--small vr-enter-btn" hidden disabled>🥽 Masuk VR</button>
-                <button class="btn btn--ghost btn--small" @onclick="ToggleFullMap">🗺️ Peta (M)</button>
-                <button class="btn btn--ghost btn--small" @onclick="ToggleEdukasi">📖 Materi</button>
-                <a class="btn btn--ghost btn--small" href="/">✕ Menu</a>
+                <button id="btn-enter-vr" class="btn btn--gold btn--small vr-enter-btn" hidden disabled>
+                    <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M21 7H3c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h4.5l2.5-3h4l2.5 3H21c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-14 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm10 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                    Masuk VR
+                </button>
+                <button class="btn btn--ghost btn--small" @onclick="ToggleFullMap">
+                    <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                    Peta (M)
+                </button>
+                <a class="btn btn--ghost btn--small" href="/">
+                    <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    Menu
+                </a>
             </div>
         </div>
         <div id="vr-fallback-message" class="hud__vr-fallback" hidden></div>
@@ -39,7 +47,10 @@
         <div id="vr-counter" class="hud__counter"></div>
         @if (_vrActive)
         {
-            <div class="hud__vr-badge">🥽 Mode VR aktif — layar ini hanya cermin dari headset</div>
+            <div class="hud__vr-badge">
+                <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24" style="margin-right:4px;"><path d="M21 7H3c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h4.5l2.5-3h4l2.5 3H21c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-14 7c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm10 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                Mode VR aktif — layar ini hanya cermin dari headset
+            </div>
         }
     </div>
 
@@ -51,7 +62,14 @@
                 <h1 class="intro-card__title">@_scene?.Nama</h1>
                 <p class="intro-card__desc">@_scene?.Deskripsi</p>
                 <div class="intro-card__meta">
-                    <span>📍 @_scene?.Lokasi</span><span>🕐 @_scene?.Waktu</span>
+                    <span class="intro-card__meta-item">
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        @_scene?.Lokasi
+                    </span>
+                    <span class="intro-card__meta-item">
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        @_scene?.Waktu
+                    </span>
                 </div>
                 <div class="intro-card__controls">
                     <div class="intro-card__controls-title">Kontrol</div>
@@ -74,36 +92,11 @@
                 }
                 else
                 {
-                    <button class="btn btn--gold btn--big" @onclick="StartScene">▶ Mulai Simulasi</button>
+                    <button class="btn btn--gold btn--big" @onclick="StartScene">
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        Mulai Simulasi
+                    </button>
                 }
-            </div>
-        </div>
-    }
-
-    @if (_showEdukasi && _edukasi is not null)
-    {
-        <div class="overlay overlay--panel">
-            <div class="edu-panel">
-                <div class="edu-panel__header">
-                    <h2>📖 @_edukasi.Judul</h2>
-                    <button class="edu-panel__close" @onclick="CloseEdukasi">✕</button>
-                </div>
-                <div class="edu-panel__tabs">
-                    @foreach (var tab in _eduTabs)
-                    {
-                        <button class="edu-panel__tab @(tab == _activeTab ? "edu-panel__tab--active" : "")"
-                                @onclick="() => _activeTab = tab">@tab</button>
-                    }
-                </div>
-                <div class="edu-panel__body">
-                    @foreach (var line in TabContent(_activeTab))
-                    {
-                        <div class="edu-panel__item @(_activeTab == "Dalil" ? "edu-panel__item--dalil" : "")">@line</div>
-                    }
-                </div>
-                <div class="edu-panel__footer">
-                    <button class="btn btn--gold" @onclick="CloseEdukasi">Saya Mengerti ✔</button>
-                </div>
             </div>
         </div>
     }
@@ -113,8 +106,13 @@
         <div class="overlay overlay--panel" style="z-index: 1000;">
             <div class="edu-panel map-panel" style="max-width: 95vw; height: 90vh;">
                 <div class="edu-panel__header">
-                    <h2>🗺️ Peta Dunia Haji</h2>
-                    <button class="edu-panel__close" @onclick="ToggleFullMap">✕</button>
+                    <h2>
+                        <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24" style="margin-right:0.5rem;color:var(--c-gold-light);"><path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.25-.36.48V20.5c0 .28.22.5.5.5l.16-.03L9 18.9l6 2.1 5.64-1.9c.21-.07.36-.25.36-.48V3.5c0-.28-.22-.5-.5-.5zM15 19l-6-2.11V5l6 2.11V19z"/></svg>
+                        Peta Wilayah Haji
+                    </h2>
+                    <button class="edu-panel__close" @onclick="ToggleFullMap">
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
                 </div>
                 <div class="edu-panel__body map-body" style="height: calc(100% - 60px); padding: 0;">
                     <div class="game-map">
@@ -125,29 +123,39 @@
                         </svg>
                         
                         <div class="game-map-loc" style="top: 25%; left: 15%;">
-                            <div class="loc-marker">✈️</div>
+                            <div class="loc-marker">
+                                <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+                            </div>
                             <div class="loc-name">Bandara Jeddah</div>
-                            @if(Urutan == 1) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                            @if(Urutan == 1) { <div class="loc-player-pin"><svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" style="margin-right:2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Anda di sini</div> }
                         </div>
                         <div class="game-map-loc" style="top: 58%; left: 45%;">
-                            <div class="loc-marker" style="animation: pulseMarker 2s infinite;">🕋</div>
+                            <div class="loc-marker" style="animation: pulseMarker 2s infinite;">
+                                <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 8.5L4.5 7 12 3.25 19.5 7 12 10.5zM3 10.5v6.27l9 4.5 9-4.5V10.5l-9 4.5-9-4.5z"/></svg>
+                            </div>
                             <div class="loc-name">Makkah (Masjidil Haram)</div>
-                            @if(Urutan >= 4 && Urutan <= 6 || Urutan == 10 || Urutan == 12) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                            @if(Urutan >= 4 && Urutan <= 6 || Urutan == 10 || Urutan == 12) { <div class="loc-player-pin"><svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" style="margin-right:2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Anda di sini</div> }
                         </div>
                         <div class="game-map-loc" style="top: 50%; left: 60%;">
-                            <div class="loc-marker">⛺</div>
+                            <div class="loc-marker">
+                                <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24"><path d="M12 3L2 19h20L12 3zm0 4.8L17.5 17h-11L12 7.8z"/></svg>
+                            </div>
                             <div class="loc-name">Mina</div>
-                            @if(Urutan == 9 || Urutan == 11) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                            @if(Urutan == 9 || Urutan == 11) { <div class="loc-player-pin"><svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" style="margin-right:2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Anda di sini</div> }
                         </div>
                         <div class="game-map-loc" style="top: 75%; left: 70%;">
-                            <div class="loc-marker">🌌</div>
+                            <div class="loc-marker">
+                                <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                            </div>
                             <div class="loc-name">Muzdalifah</div>
-                            @if(Urutan == 8) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                            @if(Urutan == 8) { <div class="loc-player-pin"><svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" style="margin-right:2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Anda di sini</div> }
                         </div>
                         <div class="game-map-loc" style="top: 41%; left: 85%;">
-                            <div class="loc-marker">⛰️</div>
+                            <div class="loc-marker">
+                                <svg class="ui-icon ui-icon--md" viewBox="0 0 24 24"><path d="M14 6l-3.75 5 2.85 3.8-1.6 1.2L9 12.8 5 18h14l-5-12z"/></svg>
+                            </div>
                             <div class="loc-name">Arafah</div>
-                            @if(Urutan == 7) { <div class="loc-player-pin">📍 Anda di sini</div> }
+                            @if(Urutan == 7) { <div class="loc-player-pin"><svg class="ui-icon ui-icon--xs" viewBox="0 0 24 24" style="margin-right:2px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Anda di sini</div> }
                         </div>
                     </div>
                 </div>
@@ -160,7 +168,16 @@
         <div class="overlay overlay--intro">
             <div class="intro-card intro-card--complete">
                 <div class="intro-card__no">@(_isLast ? "SIMULASI SELESAI" : $"SCENE {Urutan:00} SELESAI")</div>
-                <div class="complete-icon">@(_isLast ? "🕋" : "✅")</div>
+                <div class="complete-icon">
+                    @if (_isLast)
+                    {
+                        <svg class="ui-icon" style="color:var(--c-gold-light);width:3.6rem;height:3.6rem;" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 8.5L4.5 7 12 3.25 19.5 7 12 10.5zM3 10.5v6.27l9 4.5 9-4.5V10.5l-9 4.5-9-4.5z"/></svg>
+                    }
+                    else
+                    {
+                        <svg class="ui-icon" style="color:#4ade80;width:3.6rem;height:3.6rem;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    }
+                </div>
                 <h1 class="intro-card__title">
                     @(_isLast ? "Selamat, Anda telah menyelesaikan simulasi ibadah haji." : $"{_scene?.Nama} — Selesai!")
                 </h1>
@@ -173,7 +190,10 @@
                 <div class="intro-card__actions">
                     @if (!_isLast)
                     {
-                        <button class="btn btn--gold btn--big" @onclick="GoNext">Scene @((Urutan + 1).ToString("00")) ➜</button>
+                        <button class="btn btn--gold btn--big" @onclick="GoNext">
+                            Scene @((Urutan + 1).ToString("00"))
+                            <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42L16.86 11H5v2z"/></svg>
+                        </button>
                     }
                     <a class="btn btn--ghost" href="/">Kembali ke Menu</a>
                 </div>
@@ -191,20 +211,16 @@
     [Parameter] public int Urutan { get; set; }
 
     private SceneData? _scene;
-    private EdukasiContent? _edukasi;
     private int _sceneScore;
     private int _totalScenes = 12;
 
     private bool _showIntro = true;
     private bool _loading = true;
-    private bool _showEdukasi;
     private bool _showComplete;
     private bool _showFullMap;
     private bool _vrActive;
     private string? _notification;
     private string _notificationType = "info";
-    private string _activeTab = "Penjelasan";
-    private readonly string[] _eduTabs = ["Penjelasan", "Dalil", "Hikmah", "Larangan", "Tips"];
 
     private string _userId = string.Empty;
     private IJSObjectReference? _module;
@@ -216,7 +232,6 @@
     {
         _scene = await SceneService.GetSceneByUrutanAsync(Urutan);
         if (_scene is null) { Nav.NavigateTo("/"); return; }
-        _edukasi = SceneService.ParseEdukasi(_scene);
         _totalScenes = (await SceneService.GetAllScenesAsync()).Count;
     }
 
@@ -240,32 +255,10 @@
         if (_module is not null) await _module.InvokeVoidAsync("start");
     }
 
-    private IEnumerable<string> TabContent(string tab) => _edukasi is null ? [] : tab switch
-    {
-        "Penjelasan" => _edukasi.Penjelasan,
-        "Dalil" => _edukasi.Dalil,
-        "Hikmah" => _edukasi.Hikmah,
-        "Larangan" => _edukasi.Larangan,
-        "Tips" => _edukasi.Tips,
-        _ => []
-    };
-
-    private async Task ToggleEdukasi()
-    {
-        _showEdukasi = !_showEdukasi;
-        await SetUiOpen(_showEdukasi || _showFullMap);
-    }
-
     private async Task ToggleFullMap()
     {
         _showFullMap = !_showFullMap;
-        await SetUiOpen(_showEdukasi || _showFullMap);
-    }
-
-    private async Task CloseEdukasi()
-    {
-        _showEdukasi = false;
-        await SetUiOpen(false);
+        await SetUiOpen(_showFullMap);
     }
 
     /// <summary>Notifikasi singkat dari engine JS.</summary>
@@ -316,10 +309,6 @@
         await SetUiOpen(false); // Unlock VR input!
         // Sync data Blazor
         _scene = await SceneService.GetSceneByUrutanAsync(newSceneIndex);
-        if (_scene is not null) 
-        {
-            _edukasi = SceneService.ParseEdukasi(_scene);
-        }
         StateHasChanged();
     }
 

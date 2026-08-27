@@ -281,21 +281,22 @@ const scene01 = {
         const usedSeats = refs.cabin.seatSpots.filter((_, idx) => idx !== 25 && Math.random() > 0.35);
         new Crowd(engine.scene, { count: usedSeats.length, mode: 'sit', spots: usedSeats, sitY: 0.45, colors: CASUAL });
         refs.playerSeat = refs.cabin.seatSpots[25];
-        // penumpang berjalan-jalan di concourse tengah & sisi utara
-        new Crowd(engine.scene, { count: 52, mode: 'wander', area: { x: -2, z: -1, w: 62, d: 12 }, colors: CASUAL });
-        new Crowd(engine.scene, { count: 24, mode: 'wander', area: { x: 0, z: 22, w: 56, d: 8 }, colors: CASUAL });
-        // arus penumpang melintasi hall
-        new Crowd(engine.scene, { count: 20, mode: 'line', from: { x: -34, z: -4 }, to: { x: 34, z: 4 }, width: 5, colors: CASUAL });
-        // penumpang duduk di bangku ruang tunggu
+        // Penumpang berjalan-jalan di concourse sayap barat & timur (memberi koridor bebas di tengah hall)
+        new Crowd(engine.scene, { count: 20, mode: 'wander', area: { x: -22, z: -4, w: 20, d: 10 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 20, mode: 'wander', area: { x: 22, z: -4, w: 20, d: 10 }, colors: CASUAL });
+        new Crowd(engine.scene, { count: 16, mode: 'wander', area: { x: 0, z: 23, w: 44, d: 5 }, colors: CASUAL });
+        // Arus penumpang melintasi hall di area belakang
+        new Crowd(engine.scene, { count: 14, mode: 'line', from: { x: -34, z: 3 }, to: { x: 34, z: 3 }, width: 3, colors: CASUAL });
+        // Penumpang duduk di bangku ruang tunggu
         new Crowd(engine.scene, { count: 52, mode: 'sit', spots: refs.seatSpots, sitY: 0.5, colors: CASUAL });
-        // antrian di depan check-in
+        // Antrian di depan check-in
         new Crowd(engine.scene, { count: 4, mode: 'post', spots: [
             { x: -15.5, z: -20.2, ry: Math.PI },
             { x: -7, z: -20.2, ry: Math.PI },
             { x: 1.5, z: -20.2, ry: Math.PI },
             { x: 10, z: -20.2, ry: Math.PI }
         ], colors: CASUAL });
-        // petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
+        // Petugas berjaga di tiap booth: check-in, imigrasi, kafe, gate
         new Crowd(engine.scene, { count: refs.staffSpots.length, mode: 'post', spots: refs.staffSpots, capChance: 0.75 });
         
         // Memuat koper di samping konter check-in (sebagai koper player)
@@ -307,7 +308,8 @@ const scene01 = {
             }).catch(e => console.warn('Gagal memuat Koper.glb', e));
         }
 
-        engine.spawn(0, 20, 0);
+        // Spawn lebih maju di tengah koridor utama (0, -9) menghadap lurus ke check-in (-Z / 180 deg)
+        engine.spawn(0, -9, 180);
         return refs;
     },
     async run(engine, ctx) {

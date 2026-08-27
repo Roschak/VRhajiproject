@@ -29,7 +29,9 @@
     }
 
     <div class="menu-hero">
-        <div class="menu-hero__emblem">🕋</div>
+        <div class="menu-hero__emblem">
+            <svg class="ui-icon" style="width:4.2rem;height:4.2rem;color:var(--c-gold-light);filter:drop-shadow(0 4px 16px rgba(74,222,128,0.25));" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 8.5L4.5 7 12 3.25 19.5 7 12 10.5zM3 10.5v6.27l9 4.5 9-4.5V10.5l-9 4.5-9-4.5z"/></svg>
+        </div>
         <h1 class="menu-hero__title">VR Education Haji &amp; Umrah</h1>
         <p class="menu-hero__subtitle">
             Simulasi interaktif rangkaian ibadah Haji dan Umrah — dari keberangkatan di Indonesia
@@ -51,17 +53,36 @@
             var unlocked = scene.Urutan <= _highest + 1;
             var done = _completedScenes.Contains(scene.Id);
             <div class="scene-card @(unlocked ? "" : "scene-card--locked") @(done ? "scene-card--done" : "")">
-                <div class="scene-card__badge">@(done ? "✔" : unlocked ? scene.Urutan.ToString("00") : "🔒")</div>
+                <div class="scene-card__badge">
+                    @if (done)
+                    {
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                    }
+                    else if (unlocked)
+                    {
+                        @scene.Urutan.ToString("00")
+                    }
+                    else
+                    {
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                    }
+                </div>
                 <div class="scene-card__body">
                     <div class="scene-card__eyebrow">Scene @scene.Urutan.ToString("00") · @scene.Lokasi</div>
                     <h3 class="scene-card__title">@scene.Nama</h3>
                     <p class="scene-card__desc">@scene.Deskripsi</p>
                 </div>
                 <div class="scene-card__footer">
-                    <span class="scene-card__time">🕐 @scene.Waktu</span>
+                    <span class="scene-card__time">
+                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        @scene.Waktu
+                    </span>
                     @if (unlocked)
                     {
-                        <a class="btn btn--gold" href="/scene/@scene.Urutan">@(done ? "Ulangi" : "Mulai") ➜</a>
+                        <a class="btn btn--gold" href="/scene/@scene.Urutan">
+                            @(done ? "Ulangi" : "Mulai")
+                            <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42L16.86 11H5v2z"/></svg>
+                        </a>
                     }
                     else
                     {
