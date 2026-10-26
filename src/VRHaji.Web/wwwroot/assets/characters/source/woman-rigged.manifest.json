@@ -1,0 +1,37 @@
+{
+ "slug": "woman-rigged",
+ "triangles": 242433,
+ "texture_px": 2048,
+ "triangles_light": null,
+ "texture_px_light": null,
+ "files": {
+  "glb": {
+   "name": "woman-rigged.glb",
+   "bytes": 13013836
+  },
+  "fbx": {
+   "name": "woman-rigged.fbx",
+   "bytes": 19726700
+  },
+  "blend": {
+   "name": "woman-rigged.blend",
+   "bytes": 13138040
+  }
+ },
+ "extras": {
+  "license": "CC0-1.0",
+  "source": "grab3d.com",
+  "generator": "Created by grab3d",
+  "created": "2026-09-28",
+  "variant": "download",
+  "dimensions_m": "0.905 x 0.368 x 1.700",
+  "triangles": 242433,
+  "notes": "rigged woman (Meshy auto-rig with 24 humanoid bones, plus 30 finger bones added in Blender, 54 bones in total, relaxed hand pose) with two animation clips: walk, run",
+  "animations": "walk, run"
+ },
+ "origin": {
+  "method": "ai-assisted",
+  "detail": "Base mesh and textures generated with an AI image-to-3D tool (Meshy), then cleaned up, scaled, textured and checked in Blender. Skeleton, skinning and the walk and run clips were added automatically with Meshy Auto-Rig. Finger bones and a relaxed hand pose were added in Blender.",
+  "ai_content": true
+ }
+}

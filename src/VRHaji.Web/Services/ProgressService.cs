@@ -39,7 +39,9 @@ public class ProgressService(IJSRuntime js) : IProgressService
         var all = await LoadAllAsync();
         var completed = all.Where(p => p.UserId == userId && p.Completed && p.CheckpointId == 0)
                            .Select(p => p.SceneId).ToList();
-        return completed.Count == 0 ? 0 : completed.Max();
+        var highest = 0;
+        while (completed.Contains(highest + 1)) highest++;
+        return highest;
     }
 
     public async Task SaveCheckpointAsync(string userId, int sceneId, int checkpointId, int skor)

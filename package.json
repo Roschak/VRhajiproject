@@ -4,7 +4,10 @@
   "description": "",
   "main": "temp_engine.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/journey-mechanics.cjs && node tests/journey-map.cjs && node tests/journey-browser.cjs && node tests/umrah-browser.cjs",
+    "test:menu": "node tests/menu-browser.cjs",
+    "test:characters": "node tests/character-browser.cjs",
+    "test:wardrobe": "node tests/wardrobe-assets.cjs"
   },
   "repository": {
     "type": "git",

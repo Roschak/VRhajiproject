@@ -1,0 +1,100 @@
+const {chromium}=require('playwright-core');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+(async()=>{
+ const browser=await chromium.launch({executablePath:process.env.BROWSER_PATH||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,args:['--enable-unsafe-swiftshader','--disable-gpu-sandbox']});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try{
+  await page.goto((process.env.BASE_URL || 'http://localhost:5101')+'/');
+  await page.locator('.hub-layout[data-ready="true"]').waitFor({timeout:120000});
+  assert.equal(await page.getByRole('button',{name:'Masuk ke menu'}).count(),0);
+  await page.getByRole('heading',{name:/Melangkah/}).waitFor();
+  const nav=page.getByRole('navigation',{name:'Menu utama'});
+  const initialNav=await nav.boundingBox(),welcome=await page.locator('.hub-welcome').boundingBox(),content=await page.locator('.hub-content').boundingBox();
+  assert.ok(welcome.x+welcome.width<=initialNav.x&&initialNav.x+initialNav.width<=content.x,'Welcome, menu and journey occupy separate columns');
+  assert.ok(Math.abs(initialNav.x+initialNav.width/2-720)<30,'Initial navigation is centred');
+  fs.mkdirSync('artifacts',{recursive:true});await page.screenshot({path:'artifacts/menu-home.png'});
+  for(const label of ['Perjalanan','Pengaturan','Profil','Panduan']){
+   await nav.getByRole('button',{name:new RegExp(label)}).click();
+   await page.waitForFunction(()=>document.querySelector('.hub-nav').getBoundingClientRect().x<innerWidth*.15);
+   assert.equal(await nav.locator('[aria-current="page"]').count(),1);
+   await page.getByRole('button',{name:'Kembali ke menu utama',exact:true}).click();
+   await page.waitForFunction(()=>Math.abs(document.querySelector('.hub-nav').getBoundingClientRect().x+document.querySelector('.hub-nav').offsetWidth/2-innerWidth/2)<2);
+  }
+  await page.evaluate(()=>{window.menuMotion=[];const until=performance.now()+1200;function sample(){window.menuMotion.push(document.querySelector('.hub-nav').getBoundingClientRect().x);if(performance.now()<until)requestAnimationFrame(sample);}sample();});
+  await page.locator('nav').getByRole('button',{name:/Karakter/}).click();
+  console.log('Opened character editor');
+  await page.locator('#character-preview[data-loaded="man"]').waitFor({timeout:60000});
+  await page.waitForFunction(()=>document.querySelector('.hub-nav').getBoundingClientRect().x<innerWidth*.15);
+  const samples=await page.evaluate(()=>window.menuMotion);
+  assert.ok(samples.some(x=>x>initialNav.x*.35&&x<initialNav.x*.85),'Menu moves through intermediate positions rather than jumping');
+  assert.equal(await page.getByLabel('Jenggot',{exact:true}).count(),0);
+  assert.deepEqual(await page.getByLabel('Pakaian',{exact:true}).locator('option').evaluateAll(options=>options.map(o=>o.value)),['robe','ihram']);
+  await page.screenshot({path:'artifacts/menu-man.png'});
+  await page.getByRole('button',{name:'Berjalan',exact:true}).click();
+  await page.waitForTimeout(800);
+  await page.screenshot({path:'artifacts/menu-walk.png'});
+  // A superseded model request must not replace the latest selection.
+  await page.getByLabel('Karakter',{exact:true}).selectOption('woman');
+  await page.getByLabel('Karakter',{exact:true}).selectOption('man');
+  await page.waitForTimeout(1500);
+  assert.equal(await page.locator('#character-preview').getAttribute('data-loaded'),'man');
+  await page.getByLabel('Karakter',{exact:true}).selectOption('woman');
+  await page.locator('#character-preview[data-loaded="woman"]').waitFor({timeout:60000});
+  assert.deepEqual(await page.getByLabel('Pakaian',{exact:true}).locator('option').evaluateAll(options=>options.map(o=>o.value)),['robe','abaya']);
+  await page.getByRole('button',{name:'Diam',exact:true}).click();
+  await page.screenshot({path:'artifacts/menu-woman.png'});
+  await page.getByRole('button',{name:'Pilihan kulit 4',exact:true}).click();
+  await page.getByLabel('Pakaian',{exact:true}).selectOption('abaya');
+  assert.equal(await page.locator('input[type="color"]').count(),0);
+  await page.getByRole('button',{name:'Simpan karakter'}).click();
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'artifacts/menu-mobile.png',fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile horizontal overflow');
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('nav').getByRole('button',{name:/Pengaturan/}).click();
+  await page.getByLabel('Kualitas render').selectOption('0.5');
+  await page.getByLabel('Panduan suara').uncheck();
+  await page.getByRole('button',{name:'Simpan pengaturan'}).click();
+  await page.locator('nav').getByRole('button',{name:/Profil/}).click();
+  await page.getByLabel('Nama panggilan').fill('Jemaah Uji');
+  await page.getByRole('button',{name:'Simpan profil'}).click();
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('vrhaji_preferences_v1')));
+  assert.equal(saved.beardStyle,undefined);
+  assert.equal(saved.gender,'woman');assert.equal(saved.skinTone,'#956443');assert.equal(saved.outfit,'abaya');assert.equal(saved.clothingColor,undefined);assert.equal(saved.resolution,.5);assert.equal(saved.narration,false);assert.equal(saved.name,'Jemaah Uji');
+  await page.reload();await page.locator('.hub-layout[data-ready="true"]').waitFor({timeout:120000});
+  await page.getByText('Jemaah Uji',{exact:true}).waitFor();
+  await page.locator('nav').getByRole('button',{name:/Karakter/}).click();
+  await page.locator('#character-preview[data-loaded="woman"]').waitFor({timeout:60000});
+  await page.locator('nav').getByRole('button',{name:/Perjalanan/}).click();
+  assert.equal(await page.locator('#character-preview canvas').count(),0);
+  // Rapid navigation must not leave a stale character canvas or stale tab.
+  await page.evaluate(()=>{const buttons=[...document.querySelectorAll('.hub-nav button')];for(const name of ['Karakter','Pengaturan','Profil','Panduan'])buttons.find(b=>b.textContent.includes(name)).click();});
+  await page.getByRole('heading',{name:'Panduan bermain'}).waitFor();
+  assert.equal(await page.locator('#character-preview canvas').count(),0);
+  await page.getByRole('button',{name:'Kembali ke menu utama',exact:true}).click();
+  for(const width of [320,390,768]){
+   await page.setViewportSize({width,height:900});
+   await page.waitForTimeout(700);
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Landing overflows at ${width}px`);
+  }
+  await page.screenshot({path:'artifacts/menu-home-tablet.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'artifacts/menu-home-mobile.png',fullPage:true});
+  await nav.getByRole('button',{name:/Pengaturan/}).click();
+  await page.getByRole('heading',{name:'Pengaturan',exact:true}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile page overflow');
+  await page.setViewportSize({width:1440,height:1000});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.getByRole('button',{name:'Kembali ke menu utama',exact:true}).click();
+  assert.equal(await nav.evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
+  await nav.getByRole('button',{name:/Perjalanan/}).click();
+  await page.getByRole('link',{name:'Mulai perjalanan haji'}).click();
+  await page.getByRole('button',{name:'Mulai Simulasi',exact:true}).waitFor({timeout:120000});
+  await page.waitForFunction(()=>window.__vrEngine?.scene.getObjectByName('JemaahAvatar'),{timeout:60000});
+  const settings=await page.evaluate(()=>({resolution:window.__vrEngine._pr,volume:window.__vrEngine.audio.volume,narration:window.__vrEngine.narrator.enabled}));
+  assert.equal(settings.resolution,.5);assert.equal(settings.volume,.7);assert.equal(settings.narration,false);
+  assert.deepEqual(errors,[]);console.log('PASS: menu, avatars, animation controls, preferences, profile persistence and simulation integration');
+ } finally {await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

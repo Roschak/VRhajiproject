@@ -1,157 +1,149 @@
 @page "/"
+@implements IAsyncDisposable
 @inject ISceneService SceneService
 @inject IProgressService ProgressService
 @inject IJSRuntime JS
 
-<PageTitle>VR Education Haji &amp; Umrah</PageTitle>
-
-<div class="menu-root">
-    @if (_showAnnouncement)
-    {
-        <div class="announcement-overlay">
-            <div class="announcement-card">
-                <div class="announcement-card__header">
-                    <div class="announcement-card__icon">
-                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+<PageTitle>Labbaik — Simulasi Haji</PageTitle>
+<main class="game-hub">
+    <div class="hub-atmosphere" aria-hidden="true"><div class="hub-orbit"></div><div class="hub-monument"><span></span></div></div>
+        <header class="hub-header"><button class="hub-brand" @onclick="GoHome" disabled="@(!_ready)" aria-label="Kembali ke menu utama">LABBAIK<span>PERJALANAN HAJI</span></button><span class="hub-greeting">Assalamu’alaikum, <strong>@_prefs.Name</strong></span></header>
+        <div class="hub-layout @(_menuOpen ? "hub-layout--page" : "hub-layout--landing")" data-ready="@(_ready ? "true" : "false")">
+            <section class="hub-welcome" aria-hidden="@(_menuOpen ? "true" : "false")">
+                <div class="hub-welcome-inner">
+                    <span class="hub-eyebrow">PERJALANAN ANDA DIMULAI DI SINI</span>
+                    <h1>Melangkah dengan<br /><em>niat yang baik.</em></h1>
+                </div>
+            </section>
+            <nav class="hub-nav" aria-label="Menu utama">
+                @foreach (var item in _navigation)
+                {
+                    <button class="@(_menuOpen && _tab == item.Key ? "active" : "")" aria-current="@(_menuOpen && _tab == item.Key ? "page" : null)" disabled="@(!_ready)" @onclick="() => SetTab(item.Key)"><span>@item.Number</span>@item.Label</button>
+                }
+                <div class="hub-nav-note">Satu perjalanan.<br />Langkah demi langkah.</div>
+            </nav>
+            <section class="hub-content" aria-label="@_tab" @key="_tab">
+                @if (_tab == "home")
+                {
+                    @if (_menuOpen) { <span class="hub-eyebrow">PERJALANAN IBADAH</span><h1>Pilih perjalanan Anda.</h1> }
+                    <p class="hub-lead">Pilih perjalanan ibadah. Setiap rangkaian berlangsung dalam satu dunia dan satu sesi VR yang berkelanjutan.</p>
+                    <div class="hub-route-cards">
+                        <article class="hub-route-card"><span>12 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Haji</h2><p>Jeddah, Makkah, Arafah, Muzdalifah, dan Mina.</p><progress max="12" value="@_totalDone"></progress><a class="hub-primary" href="@(_highest > 0 && _highest < 12 ? $"/simulasi/haji?tahap={_highest + 1}" : "/simulasi/haji")">@(_highest > 0 && _highest < 12 ? "Lanjutkan Haji" : "Mulai perjalanan Haji") <span>↗</span></a></article>
+                        <article class="hub-route-card"><span>6 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Umrah</h2><p>Miqat, thawaf, shalat sunnah, sa’i, dan tahallul.</p><progress max="6" value="@_umrahDone"></progress><a class="hub-primary" href="@(_umrahDone > 0 && _umrahDone < 6 ? $"/simulasi/umrah?tahap={_umrahDone + 1}" : "/simulasi/umrah")">@(_umrahDone > 0 && _umrahDone < 6 ? "Lanjutkan Umrah" : "Mulai perjalanan Umrah") <span>↗</span></a></article>
                     </div>
-                    <h2 class="announcement-card__title">Catatan Simulasi Edukasi</h2>
-                </div>
-                <div class="announcement-card__text">
-                    Selamat datang di <strong>Simulasi VR Haji &amp; Umrah</strong>.<br/><br/>
-                    Aplikasi ini dirancang sebagai sarana edukasi interaktif. Apabila terdapat perbedaan proporsi bangunan, tata letak area, maupun elemen visual lainnya jika dibandingkan dengan kondisi asli di lapangan, kami memohon maklum.<br/><br/>
-                    Kami akan terus menyempurnakan pengalaman visual ini agar semakin mendekati kondisi nyata. Selamat belajar dan semoga bermanfaat.
-                </div>
-                <div class="announcement-card__footer">
-                    <button class="btn btn--gold btn--big" @onclick="DismissAnnouncement">Mulai Simulasi ➜</button>
-                </div>
-            </div>
+                    <div class="hub-tiles"><button @onclick='() => SetTab("character")' disabled="@(!_ready)"><span>01 / KARAKTER</span><strong>Persiapkan diri</strong><small>Pilih karakter dan pakaian →</small></button><div><span>02 / ZIARAH</span><strong>Jelajahi sejarah</strong><small>Segera hadir</small></div></div>
+                }
+                else if (_tab == "character")
+                {
+                    <span class="hub-eyebrow">RUANG PERSIAPAN</span><h1>Karakter Anda</h1><p class="hub-lead">Putar model dengan menyeret. Gulir untuk mendekat.</p>
+                    <div class="hub-editor">
+                        <div class="hub-preview-wrap"><div id="character-preview" class="hub-preview"></div><div class="hub-animation"><button @onclick='() => Animate("idle")'>Diam</button><button @onclick='() => Animate("walk")'>Berjalan</button><button @onclick='() => Animate("run")'>Berlari</button></div></div>
+                        <div class="hub-fields">
+                            <label>Karakter<select aria-label="Karakter" @bind="_prefs.Gender" @bind:after="GenderChanged"><option value="man">Pria</option><option value="woman">Wanita</option></select></label>
+                            <label>Pakaian<select aria-label="Pakaian" @bind="_prefs.Outfit" @bind:after="PreviewChanged">
+                                <option value="robe">Gamis putih</option>
+                                @if (_prefs.Gender == "man") { <option value="ihram">Kain ihram putih</option> }
+                                else { <option value="abaya">Abaya &amp; khimar putih</option> }
+                            </select></label>
+                            <fieldset class="hub-skin"><legend>Warna kulit</legend><div class="hub-swatches">
+                                @for (var i = 0; i < _skinTones.Length; i++) {
+                                    var tone = _skinTones[i]; var label = $"Pilihan kulit {i + 1}";
+                                    <button type="button" class="hub-swatch" style="--skin-tone: @tone" aria-label="@label" aria-pressed="@(_prefs.SkinTone == tone ? "true" : "false")" @onclick="() => SelectSkin(tone)"></button>
+                                }
+                            </div></fieldset>
+                            <p class="hub-wardrobe-note">@(_prefs.Gender == "man" ? "Pratinjau ihram dapat dipilih di sini. Saat simulasi, pakaian mengikuti tahap ibadah dan rambut dicukur setelah tahallul." : "Seluruh pilihan dilengkapi hijab putih yang menutup rambut dan leher.")</p>
+                            <button class="hub-primary" @onclick="Save">Simpan karakter <span>✓</span></button>
+                            <small>Simpan untuk memakai karakter ini di simulasi.</small>
+                        </div>
+                    </div>
+                }
+                else if (_tab == "settings")
+                {
+                    <span class="hub-eyebrow">KENYAMANAN BERMAIN</span><h1>Pengaturan</h1><p class="hub-lead">Sesuaikan tampilan, suara, dan kontrol dengan perangkat Anda.</p>
+                    <div class="hub-settings hub-fields">
+                        <fieldset><legend>Tampilan</legend><label>Kualitas render<select @bind="_prefs.Resolution"><option value="0.5">Ringan · 50%</option><option value="0.75">Seimbang · 75%</option><option value="1">Tinggi · 100%</option></select></label><label class="hub-check"><input type="checkbox" @bind="_prefs.Shadows" />Bayangan dinamis</label><label>Batas FPS desktop<select @bind="_prefs.Fps"><option value="0">Mengikuti layar</option><option value="30">30 FPS</option><option value="60">60 FPS</option></select></label><small>VR mengikuti kecepatan refresh headset.</small></fieldset>
+                        <fieldset><legend>Audio &amp; kontrol</legend><label>Volume efek · @((int)(_prefs.Volume * 100))%<input type="range" min="0" max="1" step="0.05" @bind="_prefs.Volume" /></label><label class="hub-check"><input type="checkbox" @bind="_prefs.Narration" />Panduan suara</label><label>Sensitivitas mouse · @_prefs.Sensitivity.ToString("0.00")<input type="range" min="0.25" max="2" step="0.05" @bind="_prefs.Sensitivity" /></label><label>Sudut putar VR<select @bind="_prefs.SnapAngle"><option value="15">15°</option><option value="30">30°</option><option value="45">45°</option></select></label></fieldset>
+                    </div><button class="hub-primary" @onclick="Save">Simpan pengaturan <span>✓</span></button>
+                }
+                else if (_tab == "profile")
+                {
+                    <span class="hub-eyebrow">CATATAN PERJALANAN</span><h1>Profil jemaah</h1><div class="hub-profile hub-fields"><label>Nama panggilan<input maxlength="40" @bind="_prefs.Name" placeholder="Nama Anda" /></label><button class="hub-primary" @onclick="Save">Simpan profil <span>✓</span></button><small>Profil dan pilihan karakter tersimpan di browser perangkat ini.</small><div class="hub-trip"><span>PROGRES HAJI</span><strong>@_totalDone <small>/ 12 tahap selesai</small></strong><progress max="12" value="@_totalDone"></progress></div>
+                    @if (_confirmReset) { <p>Hapus progres perjalanan pada perangkat ini?</p><button class="hub-secondary" @onclick="ResetProgress">Ya, ulangi perjalanan</button><button class="hub-secondary" @onclick="() => _confirmReset = false">Batal</button> }
+                    else { <button class="hub-secondary" @onclick="() => _confirmReset = true">Ulangi progres perjalanan</button> }</div>
+                }
+                else if (_tab == "guide")
+                {
+                    <span class="hub-eyebrow">SEBELUM BERANGKAT</span><h1>Panduan bermain</h1><div class="hub-guide"><article><h2>Desktop</h2><p>WASD untuk berjalan. Seret mouse untuk melihat sekitar. Klik objek atau pilihan untuk berinteraksi. Ikuti penunjuk misi dan tekan Lanjutkan setelah tahap selesai.</p></article><article><h2>Headset VR</h2><p>Mulai simulasi lalu pilih Masuk VR. Thumbstick kiri untuk berjalan, kanan untuk berputar. Trigger untuk memilih dan grip untuk teleport dekat. Pergantian tahap tetap dalam sesi VR yang sama.</p></article><article><h2>Perjalanan haji</h2><p>Ikuti 12 tahap dari persiapan, perjalanan ke Arab Saudi, rangkaian ibadah, hingga pulang. Simulasi ini merupakan sarana latihan; panduan pembimbing tetap menjadi acuan ibadah Anda.</p></article></div>
+                }
+                @if (!string.IsNullOrEmpty(_message)) { <p class="hub-status" role="status">@_message</p> }
+            </section>
         </div>
-    }
-
-    <div class="menu-hero">
-        <div class="menu-hero__emblem">
-            <svg class="ui-icon" style="width:4.2rem;height:4.2rem;color:var(--c-gold-light);filter:drop-shadow(0 4px 16px rgba(74,222,128,0.25));" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 8.5L4.5 7 12 3.25 19.5 7 12 10.5zM3 10.5v6.27l9 4.5 9-4.5V10.5l-9 4.5-9-4.5z"/></svg>
-        </div>
-        <h1 class="menu-hero__title">VR Education Haji &amp; Umrah</h1>
-        <p class="menu-hero__subtitle">
-            Simulasi interaktif rangkaian ibadah Haji dan Umrah — dari keberangkatan di Indonesia
-            hingga Tawaf Wada' — dengan visual 3D imersif, narasi, dan validasi pemahaman.
-        </p>
-        @if (_totalDone > 0)
-        {
-            <div class="menu-hero__progress">
-                <div class="menu-hero__progress-bar"><span style="width:@(_scenes.Count == 0 ? 0 : _totalDone * 100 / _scenes.Count)%"></span></div>
-                <span class="menu-hero__progress-text">@_totalDone / @_scenes.Count scene selesai</span>
-                <button class="btn btn--ghost btn--small" @onclick="ResetProgress">Ulangi dari awal</button>
-            </div>
-        }
-    </div>
-
-    <div class="menu-grid">
-        @foreach (var scene in _scenes)
-        {
-            var unlocked = scene.Urutan <= _highest + 1;
-            var done = _completedScenes.Contains(scene.Id);
-            <div class="scene-card @(unlocked ? "" : "scene-card--locked") @(done ? "scene-card--done" : "")">
-                <div class="scene-card__badge">
-                    @if (done)
-                    {
-                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                    }
-                    else if (unlocked)
-                    {
-                        @scene.Urutan.ToString("00")
-                    }
-                    else
-                    {
-                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
-                    }
-                </div>
-                <div class="scene-card__body">
-                    <div class="scene-card__eyebrow">Scene @scene.Urutan.ToString("00") · @scene.Lokasi</div>
-                    <h3 class="scene-card__title">@scene.Nama</h3>
-                    <p class="scene-card__desc">@scene.Deskripsi</p>
-                </div>
-                <div class="scene-card__footer">
-                    <span class="scene-card__time">
-                        <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
-                        @scene.Waktu
-                    </span>
-                    @if (unlocked)
-                    {
-                        <a class="btn btn--gold" href="/scene/@scene.Urutan">
-                            @(done ? "Ulangi" : "Mulai")
-                            <svg class="ui-icon ui-icon--sm" viewBox="0 0 24 24"><path d="M5 13h11.86l-5.43 5.43 1.42 1.42L21.14 12l-8.29-7.85-1.42 1.42L16.86 11H5v2z"/></svg>
-                        </a>
-                    }
-                    else
-                    {
-                        <span class="scene-card__lockmsg">Selesaikan scene sebelumnya</span>
-                    }
-                </div>
-            </div>
-        }
-    </div>
-
-    <footer class="menu-footer">
-        Blazor Server (.NET 9) · Three.js WebGL 2.0 · Konten mengikuti dokumen protokol VR Education Haji &amp; Umrah v1.0
-    </footer>
-</div>
+        <footer class="hub-footer"><span>LABBAIK / SIMULASI EDUKASI HAJI</span><span>Desktop &amp; WebXR</span></footer>
+</main>
 
 @code {
-    private IReadOnlyList<SceneData> _scenes = [];
-    private HashSet<int> _completedScenes = [];
-    private int _highest;
-    private int _totalDone;
-    private string _userId = string.Empty;
-    private IJSObjectReference? _userModule;
-    private bool _showAnnouncement = false;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _scenes = await SceneService.GetAllScenesAsync();
-    }
-
+    private GamePreferences _prefs = new();
+    private readonly string[] _skinTones = ["#f1cfb4", "#dca780", "#b9825b", "#956443", "#70462f", "#4b2f24"];
+    private bool _menuOpen, _ready, _previewPending, _disposed, _confirmReset;
+    private int _navigationVersion;
+    private string _tab = "home", _message = "", _userId = "";
+    private int _highest, _totalDone;
+    private int _umrahDone;
+    private IJSObjectReference? _userModule, _preferences, _preview;
+    private readonly (string Key, string Number, string Label)[] _navigation = [("home", "01", "Perjalanan"), ("character", "02", "Karakter"), ("settings", "03", "Pengaturan"), ("profile", "04", "Profil"), ("guide", "05", "Panduan")];
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
-        var cacheBuster = DateTime.Now.Ticks;
-        _userModule = await JS.InvokeAsync<IJSObjectReference>("import", $"./js/user.js?v={cacheBuster}");
-        _userId = await _userModule.InvokeAsync<string>("getUserId");
-        
-        var hasSeen = await _userModule.InvokeAsync<bool>("hasSeenAnnouncement");
-        if (!hasSeen)
-        {
-            _showAnnouncement = true;
+        if (firstRender) {
+            _userModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/user.js");
+            _preferences = await JS.InvokeAsync<IJSObjectReference>("import", "./js/game-preferences.js");
+            var journeyProgress = await JS.InvokeAsync<IJSObjectReference>("import", "./js/journey-progress.js");
+            _umrahDone = await journeyProgress.InvokeAsync<int>("getCompleted", "umrah");
+            await journeyProgress.DisposeAsync();
+            _prefs = await _preferences.InvokeAsync<GamePreferences>("loadPreferences");
+            _userId = await _userModule.InvokeAsync<string>("getUserId");
+            await LoadProgress(); _ready = true;
+            if (!_disposed) StateHasChanged();
         }
-
-        await LoadProgressAsync();
-        StateHasChanged();
+        if (_previewPending && !_disposed) {
+            _previewPending = false;
+            try {
+                _preview ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/character-preview.js");
+                if (_tab == "character" && !_disposed) await _preview.InvokeVoidAsync("mount", "character-preview", _prefs);
+            } catch (JSException) { _message = "Pratinjau belum dapat dimuat. Buka kembali menu Karakter untuk mencoba lagi."; if (!_disposed) StateHasChanged(); }
+        }
     }
-
-    private async Task LoadProgressAsync()
-    {
+    private Task GoHome() => SetTab("home", false);
+    private async Task SetTab(string tab, bool openMenu = true) {
+        if (!_ready || _disposed || (_tab == tab && _menuOpen == openMenu)) return;
+        var version = ++_navigationVersion;
+        if (_preview is not null) await _preview.InvokeVoidAsync("dispose");
+        if (_disposed || version != _navigationVersion) return;
+        _tab = tab; _menuOpen = openMenu; _message = ""; _previewPending = tab == "character";
+    }
+    private async Task GenderChanged() { _prefs.Outfit = "robe"; await PreviewChanged(); }
+    private async Task SelectSkin(string tone) { _prefs.SkinTone = tone; await PreviewChanged(); }
+    private async Task PreviewChanged() { if (_preview is not null) await _preview.InvokeVoidAsync("update", _prefs); }
+    private async Task Animate(string name) { if (_preview is not null) await _preview.InvokeVoidAsync("animate", name); }
+    private async Task Save() {
+        if (_preferences is null) return;
+        try { _prefs = await _preferences.InvokeAsync<GamePreferences>("savePreferences", _prefs); _message = "Pilihan Anda sudah disimpan."; }
+        catch (JSException) { _message = "Penyimpanan browser tidak tersedia. Izinkan penyimpanan situs lalu coba lagi."; }
+    }
+    private async Task LoadProgress() {
+        var scenes = await SceneService.GetAllScenesAsync();
         var progress = await ProgressService.GetProgressAsync(_userId);
-        _completedScenes = progress.Where(p => p.Completed && p.CheckpointId == 0)
-            .Select(p => p.SceneId).ToHashSet();
-        var doneUrutan = _scenes.Where(s => _completedScenes.Contains(s.Id)).Select(s => s.Urutan).ToList();
-        _highest = doneUrutan.Count == 0 ? 0 : doneUrutan.Max();
-        _totalDone = doneUrutan.Count;
+        var ids = progress.Where(p => p.Completed && p.CheckpointId == 0).Select(p => p.SceneId).ToHashSet();
+        var orders = scenes.Where(s => ids.Contains(s.Id)).Select(s => s.Urutan).ToHashSet();
+        _highest = 0; while (orders.Contains(_highest + 1)) _highest++;
+        _totalDone = orders.Count;
     }
-
-    private async Task ResetProgress()
-    {
-        if (string.IsNullOrEmpty(_userId)) return;
-        await ProgressService.ResetAsync(_userId);
-        await LoadProgressAsync();
-    }
-
-    private async Task DismissAnnouncement()
-    {
-        if (_userModule is not null)
-        {
-            await _userModule.InvokeVoidAsync("setAnnouncementSeen");
-        }
-        _showAnnouncement = false;
+    private async Task ResetProgress() { await ProgressService.ResetAsync(_userId); await LoadProgress(); _confirmReset = false; _message = "Progres perjalanan sudah diulang."; }
+    public async ValueTask DisposeAsync() {
+        _disposed = true;
+        try {
+            if (_preview is not null) { await _preview.InvokeVoidAsync("dispose"); await _preview.DisposeAsync(); }
+            if (_preferences is not null) await _preferences.DisposeAsync();
+            if (_userModule is not null) await _userModule.DisposeAsync();
+        } catch (JSDisconnectedException) { }
     }
 }

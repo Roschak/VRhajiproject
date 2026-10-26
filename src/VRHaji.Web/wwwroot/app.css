@@ -36,3 +36,54 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+.journey-selector {
+    display: grid;
+    grid-template-columns: minmax(220px, .8fr) minmax(420px, 1.5fr);
+    gap: 1.5rem;
+    align-items: center;
+    max-width: 1180px;
+    margin: 2rem auto 2.5rem;
+    padding: 1.5rem;
+    background: rgba(13, 17, 23, .8);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 16px;
+}
+.journey-selector__heading h2, .scene-list-heading h2 {
+    margin: .35rem 0;
+    color: #f5f0e8;
+}
+.journey-selector__heading p, .scene-list-heading > span { color: #9aa3ad; margin: 0; }
+.journey-selector__eyebrow { color: #d4af37; font-size: .72rem; font-weight: 800; letter-spacing: .13em; }
+.journey-selector__options { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.journey-option {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    min-height: 82px;
+    padding: .9rem 1rem;
+    color: #f5f0e8;
+    text-decoration: none;
+    background: rgba(255,255,255,.035);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+}
+.journey-option--active { border-color: rgba(212,175,55,.65); background: rgba(212,175,55,.08); }
+.journey-option--soon { opacity: .58; }
+.journey-option__icon { color: #e1c15a; font-size: 1.15rem; font-weight: 800; }
+.journey-option__copy { display: grid; gap: .25rem; flex: 1; }
+.journey-option__copy small { color: #9aa3ad; line-height: 1.35; }
+.journey-option__action { color: #e1c15a; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.scene-list-heading { max-width: 1180px; margin: 0 auto 1rem; display: flex; align-items: end; justify-content: space-between; }
+.scene-list-heading h2 { margin-bottom: 0; }
+@media (max-width: 760px) {
+    .journey-selector { grid-template-columns: 1fr; margin: 1.25rem auto; padding: 1rem; }
+    .journey-selector__options { grid-template-columns: 1fr; }
+    .scene-list-heading { align-items: start; gap: .5rem; flex-direction: column; }
+}
+/* One shared HTML/3D mission dialog. The HTML mirror is for desktop and touch. */
+.journey-dialog { position: absolute; z-index: 2000; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(560px, 90vw); max-height: 85vh; overflow: auto; padding: 1.6rem; border-radius: 16px; background: #102d29f5; border: 1px solid #a5b37a; color: white; text-align: center; pointer-events: auto; }
+.journey-dialog h2 { margin-top: 0; }
+.journey-dialog p { line-height: 1.6; }
+.journey-dialog button { margin: .4rem; }
+.journey-skip { position: absolute; right: 20px; top: 80px; z-index: 100; pointer-events: auto; }
+.xr-presenting .journey-dialog, .xr-presenting .journey-skip { display: none; }

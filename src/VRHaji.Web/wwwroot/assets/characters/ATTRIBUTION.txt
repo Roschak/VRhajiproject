@@ -1,0 +1,14 @@
+Runtime human meshes and idle/walk/run motion: Microsoft Rocketbox.
+Copyright (c) 2020 Microsoft. MIT License; full terms in ROCKETBOX-LICENSE.txt.
+Original: https://github.com/microsoft/Microsoft-Rocketbox
+GLB distribution: https://models.codelove.in/
+Models: sports-male-01, sports-female-01.
+Clips: m_idle_neutral_01, m_walk_neutral_01, m_run_neutral_01;
+       f_idle_neutral_01, f_walk_neutral_01, f_run_neutral_01.
+
+Project adaptations: white gamis, tunic/skirt, abaya, hijab/khimar,
+two-piece ihram, sandals, beard/scalp channels, body masks and skin tint.
+Built using tools/build_pilgrim_wardrobe.py in Blender.
+
+Older Grab3D CC0 source files and manifests are retained in source/ as
+historical inputs; they are no longer the source of runtime man.glb/woman.glb.

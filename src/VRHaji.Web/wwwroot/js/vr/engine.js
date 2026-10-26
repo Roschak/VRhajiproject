@@ -347,7 +347,7 @@ class AudioBed {
         if (!AC) return;
         this.ctx = new AC();
         this.master = this.ctx.createGain();
-        this.master.gain.value = 0.9;
+        this.master.gain.value = this.volume ?? 0.9;
         this.master.connect(this.ctx.destination);
         this.bedGain = this.ctx.createGain();
         this.bedGain.gain.value = 0;
@@ -442,6 +442,10 @@ class Narrator {
         
         // Perkiraan waktu selesai sebagai fallback
         const minMs = Math.max(2200, subtitle.length * 62);
+        if (this.enabled === false) return new Promise(resolve => setTimeout(() => {
+            if (this.el && this.el.textContent === subtitle) this.el.textContent = '';
+            resolve();
+        }, minMs));
         
         return new Promise(resolve => {
             let done = false;
@@ -1133,7 +1137,7 @@ export class Crowd {
                 // Dapatkan ketinggian tanah (agar NPC bisa menaiki bukit)
                 let yOff = 0;
                 if (ACTIVE_ENGINE && ACTIVE_ENGINE.getGroundHeight) {
-                    yOff = ACTIVE_ENGINE.getGroundHeight(x, z);
+                    yOff = ACTIVE_ENGINE.getGroundHeight(x, z, 0);
                 }
                 
                 const hipY = base * sc + yOff, shoY = (base + 0.48) * sc + yOff;
@@ -1366,8 +1370,8 @@ export class Engine {
                 this._camCurrentYaw = initEul.y;
                 this._camCurrentPitch = initEul.x;
             }
-            this._camTargetYaw -= mx * LOOK_SENS;
-            this._camTargetPitch = Math.max(-1.45, Math.min(1.45, this._camTargetPitch - my * LOOK_SENS));
+            this._camTargetYaw -= mx * LOOK_SENS * (this.lookSensitivity ?? 1);
+            this._camTargetPitch = Math.max(-1.45, Math.min(1.45, this._camTargetPitch - my * LOOK_SENS * (this.lookSensitivity ?? 1)));
         };
         this._onMouseUp = e => {
             if (e.button !== 0 || !this._dragging) return;
@@ -1394,6 +1398,12 @@ export class Engine {
 
     /** preset waktu: 'day' | 'goldenHour' | 'night' | 'dawn' */
     setEnvironment(preset, { fog = true } = {}) {
+        for (const object of this._environmentObjects || []) {
+            object.removeFromParent();
+            object.geometry?.dispose(); object.material?.dispose(); object.shadow?.map?.dispose();
+        }
+        const existing = new Set(this.scene.children);
+        this.scene.background = null;
         const cfg = {
             day: { elev: 55, azim: 140, turb: 6, rayl: 1.2, expo: 0.35, sun: 0.9, sunColor: 0xfff3df, hemi: 0.18, fogC: 0xcfd9e4, envI: 0.18, bloom: 0.03 },
             goldenHour: { elev: 8, azim: 250, turb: 7, rayl: 2.6, expo: 0.35, sun: 0.8, sunColor: 0xffc37a, hemi: 0.15, fogC: 0xe8c9a0, envI: 0.18, bloom: 0.06 },
@@ -1448,6 +1458,7 @@ export class Engine {
             const density = preset === 'night' ? 0.006 : 0.0012;
             this.scene.fog = new THREE.FogExp2(cfg.fogC, density);
         }
+        this._environmentObjects = this.scene.children.filter(object => !existing.has(object));
     }
 
     _addStars(count = 1600, opacity = 0.9) {
@@ -1497,6 +1508,9 @@ export class Engine {
     /* ------------ Player, navigasi, collision ------------ */
 
     spawn(x, z, yawDeg = 0, y = 1.7) {
+        this.navigationLevel = y > 8 && this.haramUpperWalkable?.(x, z) ? 1 : 0;
+        this.teleportSerial = (this.teleportSerial || 0) + 1;
+        this._lastValidHeadPos = null;
         if (this.renderer && this.renderer.xr.isPresenting && this.dolly) {
             // Di VR, camera.position di-override oleh headset. Kita harus menggeser dolly.
             // 1. Putar dolly agar arah pandang sesuai target
@@ -1510,6 +1524,7 @@ export class Engine {
             const headPosWorld = this.camera.getWorldPosition(new THREE.Vector3());
             this.dolly.position.x += (x - headPosWorld.x);
             this.dolly.position.z += (z - headPosWorld.z);
+            this.dolly.position.y = y - 1.7 + (this._vrSittingOffset || 0);
             this.dolly.updateMatrixWorld(true);
         } else {
             // Di Desktop biasa
@@ -1542,8 +1557,10 @@ export class Engine {
         this.heightZones.push({ cx, cz, radius, heightFn });
     }
     /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan. */
-    _walkableStatic(x, z, pad = 0) {
+    _walkableStatic(x, z, pad = 0, level = this.navigationLevel || 0) {
+        if (level === 1 && this.haramUpperWalkable && !this.haramUpperWalkable(x, z)) return false;
         for (const b of this.blockers) {
+            if (b.disabled) continue;
             if (x > b.x1 - pad && x < b.x2 + pad && z > b.z1 - pad && z < b.z2 + pad) return false;
         }
         if (this.walkRects.length === 0 && this.walkCircles.length === 0) return true;
@@ -1577,7 +1594,7 @@ export class Engine {
     
     /** Bisa ditempati jamaah: geometri statis, hindari pemain (SOLID). */
     _agentWalkable(agent, x, z) {
-        if (!this._walkableStatic(x, z, 0.45)) return false;
+        if (!this._walkableStatic(x, z, 0.45, 0)) return false;
         
         // Hindari pemain (posisi dunia — di VR kamera berada di dalam dolly)
         const pp = this.playerPos(_playerW);
@@ -1589,12 +1606,12 @@ export class Engine {
         return true;
     }
 
-    getGroundHeight(x, z) {
+    getGroundHeight(x, z, level = this.navigationLevel || 0) {
         let groundH = 0;
         for (const hz of this.heightZones) {
             const dx = x - hz.cx, dz = z - hz.cz;
             if (dx * dx + dz * dz < hz.radius * hz.radius) {
-                const h = hz.heightFn(x, z);
+                const h = hz.heightFn(x, z, level);
                 if (h > groundH) groundH = h;
             }
         }
@@ -1602,7 +1619,7 @@ export class Engine {
     }
 
     _movePlayer(dt) {
-        if (this.uiOpen) return;
+        if (this.uiOpen || this.locomotionLocked) return;
         
         // Animasi ketinggian (pose Y) — termasuk height zone (terrain)
         if (this._currentY === undefined) this._currentY = 1.7;
@@ -1764,6 +1781,7 @@ export class Engine {
             controller.userData.ray = controller.children[0];
             controller.userData.ray.scale.z = 6;
             controller.addEventListener('selectstart', () => this._onVRSelect(controller));
+            controller.addEventListener('squeezestart', () => this._teleportFromController(controller));
             this.dolly.add(controller);
             
             // Universal VR Controller Model (mirip Oculus Touch/Valve Index)
@@ -1836,23 +1854,24 @@ export class Engine {
             this._preVRSettings = {
                 shadows: this.renderer.shadowMap.enabled,
                 resolution: this._pr,
+                lockResolution: this._lockResolution,
                 bloomStrength: this.bloom?.strength
             };
             // Matikan bayangan (hemat ~30% GPU)
-            this.renderer.shadowMap.enabled = false;
+            this.renderer.shadowMap.enabled = this._preVRSettings.shadows;
             this.scene.traverse(child => {
-                if (child.isLight && child.castShadow) child.castShadow = false;
+                if (child.isDirectionalLight) child.castShadow = this._preVRSettings.shadows;
                 if (child.material) child.material.needsUpdate = true;
             });
             // Turunkan resolusi render (Quest 2 butuh ringan)
             this._lockResolution = true;
-            this._prMax = 0.6;
-            this._pr = 0.6;
-            this.renderer.setPixelRatio(0.6);
+            this._prMax = this._preVRSettings.resolution;
+            this._pr = this._preVRSettings.resolution;
+            this.renderer.xr.setFramebufferScaleFactor(this._pr);
             // Matikan bloom effect (hemat GPU)
             if (this.bloom) this.bloom.strength = 0;
             
-            console.log('[VR] Auto-optimasi aktif: shadows OFF, resolution 0.6, bloom OFF');
+            console.log('[VR] Pengaturan pemain aktif; bloom dinonaktifkan untuk VR.');
             
             session.addEventListener('end', () => {
                 this._vrSession = null;
@@ -1871,7 +1890,7 @@ export class Engine {
                     if (this.bloom && this._preVRSettings.bloomStrength !== undefined) {
                         this.bloom.strength = this._preVRSettings.bloomStrength;
                     }
-                    this._lockResolution = false;
+                    this._lockResolution = this._preVRSettings.lockResolution;
                     this.resize();
                 }
             });
@@ -1896,9 +1915,10 @@ export class Engine {
 
     /** Saat sesi VR mulai: pindahkan posisi pemain (dunia) ke dolly, kamera lokal di-nol. */
     _onXRStart() {
+        document.getElementById('vr-root')?.classList.add('xr-presenting');
         const p = this.camera.position;
         const e = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
-        this.dolly.position.set(p.x, 0, p.z); // kaki di lantai; tinggi dari headset (local-floor)
+        this.dolly.position.set(p.x, this.getGroundHeight(p.x, p.z), p.z);
         this.dolly.rotation.set(0, e.y, 0);
         this.camera.position.set(0, 0, 0);    // pose diambil alih headset
         this.camera.rotation.set(0, 0, 0);
@@ -1910,7 +1930,8 @@ export class Engine {
             // Posisi Y kamera XR adalah tinggi kepala fisik dari lantai ruangannya
             if (camXR.position.y > 0 && camXR.position.y < 1.45) {
                 this._vrSittingOffset = 1.7 - camXR.position.y;
-                this.dolly.position.y = this._vrSittingOffset;
+                const head = this.playerPos(new THREE.Vector3());
+                this.dolly.position.y = this.getGroundHeight(head.x, head.z) + this._vrSittingOffset;
             }
         }, 500); // Beri jeda 0.5s sampai sensor ketinggian headset stabil
         this.camera.position.set(0, 0, 0);    // pose diambil alih headset
@@ -1923,9 +1944,12 @@ export class Engine {
 
     /** Saat keluar VR: kembalikan posisi ke kamera desktop (kontinu dari lokasi terakhir). */
     _onXREnd() {
-        const p = this.dolly.position;
-        this.camera.position.set(p.x, 1.7, p.z);
-        this.camera.quaternion.setFromEuler(new THREE.Euler(0, this.dolly.rotation.y, 0, 'YXZ'));
+        document.getElementById('vr-root')?.classList.remove('xr-presenting');
+        const p = this.camera.getWorldPosition(new THREE.Vector3());
+        const yaw = this.playerYaw();
+        this._currentY = this.getGroundHeight(p.x, p.z) + 1.7;
+        this.camera.position.set(p.x, this._currentY, p.z);
+        this.camera.quaternion.setFromEuler(new THREE.Euler(0, yaw, 0, 'YXZ'));
         this.dolly.position.set(0, 0, 0);
         this.dolly.rotation.set(0, 0, 0);
         this._camTargetYaw = undefined;     // kontrol mouse ambil ulang yaw dari kamera
@@ -1943,7 +1967,10 @@ export class Engine {
      */
     _moveVR(dt) {
         const session = this.renderer.xr.getSession && this.renderer.xr.getSession();
-        if (!session || this.uiOpen) return;
+        if (!session || this.uiOpen || this.locomotionLocked) return;
+        const floorPosition = this.playerPos(new THREE.Vector3());
+        const floorTarget = this.getGroundHeight(floorPosition.x, floorPosition.z) + (this._vrSittingOffset || 0);
+        this.dolly.position.y += (floorTarget - this.dolly.position.y) * (1 - Math.exp(-8 * dt));
         let mx = 0, my = 0, tx = 0;
         let rightControllerSource = null;
         for (const src of session.inputSources) {
@@ -1965,12 +1992,14 @@ export class Engine {
             else { mx += x; my += y; }
         }
         // Smooth-turn (putaran mulus) sesuai request user
-        if (Math.abs(tx) > 0.15) {
+        if (Math.abs(tx) < .3) this._snapLatched = false;
+        if (this.snapAngle ? Math.abs(tx) > .65 && !this._snapLatched : Math.abs(tx) > .15) {
             const head = this.playerPos(_vec);
             // OPTIMASI: Kurva eksponensial (tx^3) membuat sentuhan pelan = putaran sangat lambat.
             // Max speed diturunkan dari 1.5 jadi 0.9 rad/s (~50 derajat/detik) agar tidak mual.
             const smoothTx = tx * tx * tx; 
-            const ang = -smoothTx * 0.9 * dt; 
+            const ang = this.snapAngle ? -Math.sign(tx) * THREE.MathUtils.degToRad(this.snapAngle) : -smoothTx * 0.9 * dt;
+            if (this.snapAngle) this._snapLatched = true;
             const d = this.dolly.position;
             const dx = d.x - head.x, dz = d.z - head.z;
             const c = Math.cos(ang), s = Math.sin(ang);
@@ -2069,6 +2098,29 @@ export class Engine {
         if (!hit) return;
         this._setHover(hit.root);
         this._handleClick();
+    }
+
+    /** Grip teleports only to nearby, connected, unobstructed ground. */
+    async _teleportFromController(controller) {
+        if (this.uiOpen || this.locomotionLocked || this._teleportBusy) return;
+        controller.updateMatrixWorld(true);
+        const origin = controller.getWorldPosition(new THREE.Vector3());
+        const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(controller.getWorldQuaternion(new THREE.Quaternion()));
+        if (direction.y >= -.08) return;
+        const head = this.playerPos(new THREE.Vector3());
+        const floor = this.getGroundHeight(head.x, head.z);
+        const distance = (floor - origin.y) / direction.y;
+        if (distance <= 0 || distance > 12) return;
+        const target = origin.clone().addScaledVector(direction, distance);
+        // Check the whole path, so teleport cannot bypass walls or disconnected areas.
+        const steps = Math.ceil(head.distanceTo(target) / .25);
+        for (let i = 1; i <= steps; i++) {
+            const p = head.clone().lerp(target, i / steps);
+            if (!this._walkableStatic(p.x, p.z, .3)) return;
+        }
+        this._teleportBusy = true;
+        try { await this.teleport(target.x, target.z, THREE.MathUtils.radToDeg(this.playerYaw()), 150); }
+        finally { this._teleportBusy = false; }
     }
 
     /* ------------ HUD 3D untuk mode VR ------------ */
@@ -2456,17 +2508,40 @@ export class Engine {
     async fadeIn(ms = 1200) {
         this.fadeEl.style.transitionDuration = ms + 'ms';
         this.fadeEl.style.opacity = '0';
+        this._fadeImmersive(0, ms);
         await new Promise(r => setTimeout(r, ms));
     }
     async fadeOut(ms = 800) {
         this.fadeEl.style.transitionDuration = ms + 'ms';
         this.fadeEl.style.opacity = '1';
+        this._fadeImmersive(1, ms);
         await new Promise(r => setTimeout(r, ms));
     }
     async teleport(x, z, yawDeg, ms = 900) {
         await this.fadeOut(ms);
-        this.spawn(x, z, yawDeg);
+        const level = this.navigationLevel || 0;
+        this.spawn(x, z, yawDeg, this.getGroundHeight(x, z) + 1.7);
+        this.navigationLevel = level;
         await this.fadeIn(ms);
+    }
+
+    _fadeImmersive(opacity, ms) {
+        if (!this._fadeSphere) {
+            this._fadeSphere = new THREE.Mesh(new THREE.SphereGeometry(.3, 16, 12),
+                new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide,
+                    transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false }));
+            this._fadeSphere.renderOrder = 30000; this._fadeSphere.frustumCulled = false;
+            this.camera.add(this._fadeSphere);
+        }
+        if (this._fadeUpdater) this._fadeUpdater.done = true;
+        const material = this._fadeSphere.material, from = material.opacity, begin = performance.now();
+        this._fadeSphere.visible = true;
+        this._fadeUpdater = this.onUpdate((_dt, _t, self) => {
+            if (self.done) return;
+            const fraction = Math.min(1, (performance.now() - begin) / Math.max(1, ms));
+            material.opacity = from + (opacity - from) * fraction;
+            if (fraction === 1) { self.done = true; this._fadeSphere.visible = opacity > 0; }
+        });
     }
 
     wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -2504,6 +2579,8 @@ export class Engine {
 
     /** Pindahkan pemain ke (x,z) tanpa mengubah arah pandang & ketinggian mata. */
     movePlayerTo(x, z) {
+        this.teleportSerial = (this.teleportSerial || 0) + 1;
+        this._lastValidHeadPos = null;
         if (this.renderer.xr.isPresenting) {
             // Di VR kamera adalah anak dolly — geser dolly sebesar selisih posisi kepala.
             const p = this.playerPos(_playerW);
@@ -2654,6 +2731,7 @@ export class Engine {
     }
 
     dispose() {
+        document.getElementById('vr-root')?.classList.remove('xr-presenting');
         this.renderer.setAnimationLoop(null);
         this._skipHandlers.clear();
         this.clearCrowds();

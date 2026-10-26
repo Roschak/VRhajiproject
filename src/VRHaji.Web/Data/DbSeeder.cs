@@ -17,9 +17,9 @@ public static class DbSeeder
         [
             new()
             {
-                Urutan = 1, Nama = "Berangkat dari Indonesia",
-                Lokasi = "Bandara Internasional, Indonesia", Waktu = "Siang hari (10:00 WIB)",
-                Deskripsi = "Simulasi proses keberangkatan jamaah dari bandara Indonesia: lobby, check-in, pemeriksaan dokumen, boarding, hingga di dalam pesawat.",
+                Urutan = 1, Nama = "Persiapan dari Rumah & Keberangkatan",
+                Lokasi = "Rumah - Bandara Indonesia", Waktu = "Hari keberangkatan",
+                Deskripsi = "Persiapan terakhir dari rumah, lalu proses check-in, pemeriksaan dokumen, boarding, dan penerbangan menuju Arab Saudi.",
                 ConfigJson = J(new { durasi = "15-20 menit", objective = "Selesaikan proses check-in, imigrasi, dan boarding" }),
                 EdukasiJson = J(new EdukasiContent(
                     "Persiapan Keberangkatan",
@@ -39,35 +39,31 @@ public static class DbSeeder
             },
             new()
             {
-                Urutan = 2, Nama = "Tiba di Madinah",
-                Lokasi = "Bandara Madinah, Hotel, Masjid Nabawi", Waktu = "Sore hari (Golden Hour)",
-                Deskripsi = "Kedatangan jamaah di Bandara Madinah, proses imigrasi, perjalanan ke hotel, dan kunjungan pertama ke Masjid Nabawi.",
-                ConfigJson = J(new { durasi = "20-25 menit", objective = "Selesaikan imigrasi dan kunjungi Masjid Nabawi" }),
+                Urutan = 2, Nama = "Tiba di Bandara Madinah",
+                Lokasi = "Bandara Madinah", Waktu = "Hari kedatangan",
+                Deskripsi = "Tiba di Arab Saudi, menyelesaikan imigrasi, bertemu rombongan, lalu melanjutkan perjalanan menuju Makkah.",
+                ConfigJson = J(new { durasi = "15-20 menit", objective = "Selesaikan imigrasi dan bersiap menuju Makkah" }),
                 EdukasiJson = J(new EdukasiContent(
-                    "Madinah Al-Munawwarah",
-                    ["Madinah adalah kota Nabi — tempat hijrah Rasulullah SAW dan lokasi Masjid Nabawi.",
-                     "Sholat di Masjid Nabawi bernilai 1000 kali lipat dibanding masjid lain (kecuali Masjidil Haram).",
-                     "Raudhah adalah taman surga, tempat mustajab untuk berdoa.",
-                     "Adab masuk masjid: dahulukan kaki kanan dan membaca doa masuk masjid."],
-                    ["HR Bukhari-Muslim — \"Satu sholat di masjidku ini lebih baik dari 1000 sholat di masjid lain, kecuali Masjidil Haram.\"",
-                     "HR Bukhari — \"Antara rumahku dan mimbarku adalah taman (raudhah) dari taman-taman surga.\""],
-                    ["Meneladani perjuangan hijrah Rasulullah.", "Menumbuhkan kecintaan kepada Nabi Muhammad SAW.",
-                     "Merasakan ketenangan beribadah di kota suci."],
-                    ["Tidak berdesak-desakan hingga menyakiti jamaah lain.", "Tidak berbicara keras di dalam masjid.",
-                     "Tidak mengambil foto berlebihan hingga mengganggu ibadah."],
-                    ["Simpan kartu hotel dan hafalkan nomor kamar.", "Gunakan alas kaki yang mudah dilepas.",
-                     "Catat nomor telepon pembimbing.", "Perbanyak sholawat selama di Madinah."]))
+                    "Tiba di Arab Saudi",
+                    ["Ikuti arahan petugas dan pembimbing rombongan saat turun dari pesawat.",
+                     "Siapkan paspor, visa, dan dokumen perjalanan untuk pemeriksaan imigrasi.",
+                     "Tetap bersama rombongan dan kenali titik kumpul.",
+                     "Setelah proses bandara, jamaah melanjutkan perjalanan menuju Makkah."],
+                    ["QS Al-Baqarah: 197 — \"(Musim) haji itu pada bulan-bulan yang telah dimaklumi.\""],
+                    ["Menjaga ketertiban dan kebersamaan rombongan.", "Perjalanan adalah bagian dari kesabaran dan ikhtiar dalam ibadah."],
+                    ["Jangan meninggalkan rombongan.", "Jangan menyerahkan dokumen kepada orang yang tidak dikenal."],
+                    ["Simpan kartu identitas dan kontak pembimbing.", "Pastikan barang bawaan lengkap sebelum naik kendaraan ke Makkah."]))
             },
             new()
             {
-                Urutan = 3, Nama = "Miqat dan Niat Umrah",
-                Lokasi = "Miqat Dzul Hulaifah (Bir Ali)", Waktu = "Pagi hari",
-                Deskripsi = "Scene inti pembelajaran: mandi sunnah, memakai kain ihram, sholat sunnah, niat Umrah di Miqat, dan membaca Talbiyah.",
+                Urutan = 3, Nama = "Miqat & Ihram Haji Tamattu’",
+                Lokasi = "Miqat Bir Ali — jalur dari Madinah", Waktu = "Sebelum memasuki Makkah",
+                Deskripsi = "Mengenal miqat, bersiap mengenakan ihram, berniat Umrah untuk Haji Tamattu’, dan membaca Talbiyah sebelum menuju Makkah.",
                 ConfigJson = J(new { durasi = "20-25 menit", objective = "Pakai ihram, niat Umrah, dan lantunkan Talbiyah" }),
                 EdukasiJson = J(new EdukasiContent(
                     "Miqat, Ihram, dan Talbiyah",
                     ["Miqat adalah batas tempat/waktu dimulainya ibadah Haji atau Umrah.",
-                     "Miqat Makani berjumlah 5 tempat; jamaah dari Madinah berihram di Dzul Hulaifah (Bir Ali).",
+                     "Miqat Makani berjumlah 5 tempat. Jamaah dari Indonesia mengambil miqat sesuai jalur perjalanan dan berniat sebelum melewatinya.",
                      "Ihram laki-laki: 2 helai kain putih tanpa jahitan. Perempuan: pakaian menutup aurat tanpa penutup wajah dan sarung tangan.",
                      "Sebelum ihram disunnahkan mandi, memotong kuku, dan memakai wangi-wangian di badan (sebelum niat).",
                      "Niat Umrah: \"Labbaika 'umratan\" — aku penuhi panggilan-Mu untuk berumrah.",
@@ -146,17 +142,18 @@ public static class DbSeeder
             },
             new()
             {
-                Urutan = 7, Nama = "Wukuf di Arafah",
-                Lokasi = "Padang Arafah, Jabal Rahmah", Waktu = "Siang–senja (9 Dzulhijjah)",
-                Deskripsi = "Puncak dan rukun terbesar haji: wukuf di Padang Arafah pada 9 Dzulhijjah — memperbanyak doa, dzikir, dan istighfar hingga terbenam matahari.",
+                Urutan = 7, Nama = "Ihram Haji & Wukuf di Arafah",
+                Lokasi = "Makkah → Mina → Arafah", Waktu = "8-9 Dzulhijjah",
+                Deskripsi = "Mengulang ihram dan niat Haji Tamattu di Makkah pada 8 Dzulhijjah, lalu mempelajari rukun wukuf yang dilaksanakan di Arafah pada 9 Dzulhijjah.",
                 ConfigJson = J(new { durasi = "15-20 menit", objective = "Laksanakan wukuf: perbanyak doa hingga matahari terbenam" }),
                 EdukasiJson = J(new EdukasiContent(
-                    "Wukuf di Arafah — Rukun Terbesar Haji",
-                    ["Wukuf di Arafah adalah rukun haji yang paling utama — tanpanya haji tidak sah.",
+                    "Ihram Haji dan Wukuf di Arafah",
+                    ["Jamaah Haji Tamattu yang telah tahallul dari umrah kembali berihram dan berniat haji pada 8 Dzulhijjah.",
+                     "Wukuf di Arafah adalah rukun haji yang paling utama — tanpanya haji tidak sah.",
                      "Rasulullah SAW bersabda: \"Al-hajju Arafah\" — haji itu (wukufnya di) Arafah (HR Tirmidzi, Abu Dawud, dll).",
                      "Waktu wukuf: sejak tergelincir matahari (zawal) 9 Dzulhijjah hingga terbit fajar 10 Dzulhijjah.",
                      "Di Masjid Namirah dilaksanakan khutbah Arafah dan sholat Dzuhur–Ashar dijama' taqdim serta diqashar.",
-                     "Jabal Rahmah adalah bukit tempat pertemuan Nabi Adam dan Hawa; jamaah memperbanyak doa di sekitarnya.",
+                     "Wukuf dilaksanakan di wilayah Arafah; tidak disyaratkan mendaki Jabal Rahmah.",
                      "Hari Arafah adalah waktu doa paling mustajab; disunnahkan memperbanyak istighfar dan tahlil menghadap kiblat."],
                     ["HR Tirmidzi — \"Al-hajju Arafah, barangsiapa mendapati (wukuf) malam Arafah sebelum terbit fajar maka ia telah mendapati haji.\"",
                      "HR Muslim — \"Tidak ada hari yang lebih banyak Allah membebaskan hamba dari neraka selain hari Arafah.\"",
@@ -171,7 +168,7 @@ public static class DbSeeder
             new()
             {
                 Urutan = 8, Nama = "Mabit di Muzdalifah",
-                Lokasi = "Muzdalifah", Waktu = "Malam hari (9 Dzulhijjah malam)",
+                Lokasi = "Muzdalifah", Waktu = "Malam setelah wukuf 9 Dzulhijjah",
                 Deskripsi = "Bermalam (mabit) di Muzdalifah setelah wukuf, mengumpulkan batu kerikil untuk melontar jumrah di Mina.",
                 ConfigJson = J(new { durasi = "15 menit", objective = "Kumpulkan 7 batu kerikil (dianjurkan 70)" }),
                 EdukasiJson = J(new EdukasiContent(
@@ -247,8 +244,8 @@ public static class DbSeeder
             },
             new()
             {
-                Urutan = 12, Nama = "Tawaf Wada'",
-                Lokasi = "Mataf, Masjidil Haram", Waktu = "Menjelang subuh (biru fajar)",
+                Urutan = 12, Nama = "Tawaf Wada’ & Pulang ke Indonesia",
+                Lokasi = "Masjidil Haram → Bandara → Indonesia", Waktu = "Menjelang kepulangan",
                 Deskripsi = "Tawaf perpisahan 7 putaran sebelum meninggalkan Makkah — penutup seluruh rangkaian ibadah haji.",
                 ConfigJson = J(new { durasi = "15 menit", objective = "Selesaikan 7 putaran Tawaf Wada'" }),
                 EdukasiJson = J(new EdukasiContent(
@@ -293,15 +290,15 @@ public static class DbSeeder
                 new("Yang termasuk persiapan fisik adalah?", ["Begadang", "Istirahat cukup dan olahraga", "Diet ketat", "Minum kopi banyak"], 1)),
             // Scene 02
             Cp(byUrutan[2], 1, "Kedatangan dan Imigrasi", 3,
-                new("Madinah juga dikenal dengan sebutan?", ["Madinah Al-Munawwarah", "Kota Seribu Menara", "Darussalam", "Al-Quds"], 0),
+                new("Apa yang sebaiknya dilakukan setelah turun dari pesawat?", ["Tetap bersama rombongan", "Langsung pergi sendiri", "Meninggalkan bagasi", "Menukar dokumen dengan orang lain"], 0),
                 new("Dokumen apa yang diperlukan saat imigrasi?", ["Paspor dan visa", "SIM", "Kartu pelajar", "Akta kelahiran"], 0),
-                new("Transportasi dari bandara ke hotel biasanya?", ["Jalan kaki", "Bus antar jemput", "Kereta cepat", "Perahu"], 1),
-                new("Bahasa yang digunakan petugas imigrasi umumnya?", ["Arab dan Inggris", "Jawa", "Mandarin", "Belanda"], 0)),
-            Cp(byUrutan[2], 2, "Masjid Nabawi dan Adab", 3,
-                new("Masjid Nabawi didirikan oleh?", ["Nabi Muhammad SAW", "Khalifah Umar", "Sultan Utsmani", "Raja Saudi"], 0),
-                new("Sholat di Masjid Nabawi pahalanya?", ["10 kali lipat", "100 kali lipat", "1000 kali lipat", "Sama saja"], 2),
-                new("Tempat mustajab berdoa di Masjid Nabawi disebut?", ["Multazam", "Raudhah", "Hijr Ismail", "Mas'a"], 1),
-                new("Adab masuk masjid adalah?", ["Kaki kiri dulu", "Mendahulukan kaki kanan dan membaca doa", "Berlari masuk", "Langsung duduk"], 1)),
+                new("Transportasi dari bandara menuju Makkah biasanya?", ["Bus rombongan", "Jalan kaki", "Perahu", "Sepeda"], 0),
+                new("Apa yang harus dijaga selama di bandara?", ["Tetap bersama rombongan", "Berpisah dari pembimbing", "Menitipkan paspor ke orang asing", "Meninggalkan barang"], 0)),
+            Cp(byUrutan[2], 2, "Persiapan Menuju Makkah", 3,
+                new("Apa yang dilakukan setelah proses imigrasi?", ["Berkumpul dengan rombongan", "Meninggalkan bandara sendiri", "Membuang kartu identitas", "Membuka bagasi orang lain"], 0),
+                new("Siapa yang diikuti saat melanjutkan perjalanan?", ["Pembimbing dan rombongan", "Orang yang tidak dikenal", "Rombongan lain", "Tidak perlu mengikuti siapa pun"], 0),
+                new("Kapan jamaah mengambil miqat?", ["Sebelum melewati batas miqat", "Setelah Tawaf Wada", "Saat tiba di rumah", "Setelah pulang ke Indonesia"], 0),
+                new("Apa tujuan perjalanan dari bandara?", ["Menuju Makkah bersama rombongan", "Menuju tempat wisata", "Kembali ke Indonesia", "Pergi sendiri ke hotel"], 0)),
             // Scene 03
             Cp(byUrutan[3], 1, "Ihram", 4,
                 new("Apa yang dimaksud dengan Miqat?", ["Batas memulai ibadah Haji/Umrah", "Nama masjid", "Jenis pakaian", "Bukit di Makkah"], 0),

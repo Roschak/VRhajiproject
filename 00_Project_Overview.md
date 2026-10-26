@@ -66,8 +66,8 @@ Tujuan utama dari proyek ini adalah sebagai berikut:
 
 2. **Tujuan Khusus**
    - Mensimulasikan lingkungan 3D Bandara Indonesia untuk proses keberangkatan.
-   - Mensimulasikan lingkungan 3D Madinah termasuk Masjid Nabawi dan sekitarnya.
-   - Mensimulasikan lokasi Miqat dan proses niat Umrah.
+   - Menyediakan jalur Haji terlebih dahulu dan menyiapkan jalur Ziarah sebagai pengembangan berikutnya.
+   - Mensimulasikan miqat dan rangkaian Haji Tamattu dari keberangkatan hingga pulang.
    - Menyediakan edukasi interaktif tentang dalil, hikmah, dan adab ibadah.
    - Membangun sistem checkpoint dan validasi untuk memastikan pemahaman pengguna.
    - Mengintegrasikan audio narator, subtitle, dan petunjuk visual.
@@ -97,7 +97,7 @@ Pengguna belajar melalui pengalaman langsung dalam lingkungan VR. Setiap scene d
 Pengguna dipandu oleh NPC pembimbing dan narator audio untuk menemukan dan memahami setiap tahapan ibadah. Petunjuk visual dan subtitle mendukung proses pembelajaran.
 
 ### 3. Scaffolded Learning
-Materi disajikan secara bertahap dari yang paling dasar hingga kompleks. Scene 1 fokus pada persiapan, Scene 2 pada lingkungan Madinah, dan Scene 3 pada inti ibadah Umrah.
+Materi disajikan secara bertahap dari yang paling dasar hingga kompleks. Jalur Haji dimulai dari persiapan rumah dan keberangkatan, berlanjut melalui miqat, rangkaian ibadah di Makkah, Mina untuk jumrah, lalu kepulangan. Jalur Ziarah direncanakan setelah alur Haji.
 
 ### 4. Assessment-Based Learning
 Setiap scene memiliki checkpoint dan validasi yang mengukur pemahaman pengguna sebelum melanjutkan ke tahap berikutnya.
@@ -109,43 +109,54 @@ Pengguna dapat mengulang scene atau tahapan tertentu hingga memahami materi deng
 
 ## Simulation Flow
 
-Berikut adalah alur simulasi utama aplikasi:
+Aplikasi menyediakan dua jalur perjalanan: Haji dan Ziarah. Jalur Haji dikerjakan terlebih dahulu; jalur Ziarah ditampilkan sebagai rencana pengembangan berikutnya.
+
+### Alur Haji
 
 ```mermaid
 flowchart TD
-    A[Main Menu] --> B[Scene 01: Berangkat dari Indonesia]
-    B --> C[Checkpoint 01]
-    C --> D{Validasi}
-    D -->|Berhasil| E[Scene 02: Tiba di Madinah]
-    D -->|Gagal| B
-    E --> F[Checkpoint 02]
-    F --> G{Validasi}
-    G -->|Berhasil| H[Scene 03: Miqat dan Niat Umrah]
-    G -->|Gagal| E
-    H --> I[Checkpoint 03]
-    I --> J{Validasi}
-    J -->|Berhasil| K[Completion Screen]
-    J -->|Gagal| H
+    A[Persiapan rumah dan bandara Indonesia] --> B[Tiba di Bandara Madinah]
+    B --> C[Miqat dan ihram Haji Tamattu]
+    C --> D[Makkah: Masjidil Haram, Tawaf dan Sai Umrah]
+    D --> E[Ihram haji di Makkah, Mina, lalu wukuf di Arafah]
+    E --> F[Mabit di Muzdalifah dan persiapan kerikil]
+    F --> G[Mina: Jumrah Aqabah]
+    G --> H[Makkah: Tawaf Ifadah dan Sai Haji]
+    H --> I[Mina: Hari Tasyrik dan tiga jumrah]
+    I --> J[Tawaf Wada, bandara, penerbangan, kembali ke rumah]
 ```
 
-### Alur Scene Detail
+### Tahap Scene
 
-| Scene | Lokasi | Aktivitas Utama | Durasi Estimasi |
-|-------|--------|-----------------|-----------------|
-| Scene 01 | Indonesia | Check-in, boarding, edukasi persiapan | 15-20 menit |
-| Scene 02 | Madinah | Imigrasi, hotel, Masjid Nabawi | 20-25 menit |
-| Scene 03 | Miqat | Ihram, niat, talbiyah | 20-25 menit |
+| Scene | Tahap | Lingkungan simulasi |
+|-------|-------|--------------------|
+| 01 | Persiapan rumah, check-in, boarding, dan penerbangan | Rumah lalu bandara Indonesia dalam satu scene |
+| 02 | Kedatangan dan imigrasi | Bandara Madinah |
+| 03 | Miqat dan ihram umrah untuk Haji Tamattu | Bir Ali pada jalur Madinah menuju Makkah |
+| 04-06 | Kedatangan, tawaf umrah, sai dan tahallul | Masjidil Haram dan galeri sai yang tersambung |
+| 07 | Ihram haji, Tarwiyah, dan wukuf | Makkah, Mina, lalu Arafah |
+| 08 | Mabit dan persiapan kerikil | Muzdalifah |
+| 09 | Jumrah Aqabah, hadyu, dan tahallul awal | Mina / Jamarat |
+| 10 | Tawaf Ifadah dan Sai Haji | Lingkungan Makkah |
+| 11 | Hari Tasyrik dan tiga jumrah | Mina / Jamarat |
+| 12 | Tawaf Wada dan pulang ke Indonesia | Haram, bandara Madinah, kabin, bandara Indonesia, rumah |
 
----
+Seluruh tahap berjalan di `/simulasi/haji`, memakai satu renderer dan sesi WebXR. Tombol Lanjutkan tersedia dalam panel 3D dan HTML. Tidak ada pemuatan halaman otomatis ketika misi selesai, termasuk miqat, jumrah, dan akhir perjalanan. Tautan lama `/scene/{nomor}` tetap dapat membuka titik mulai, tetapi tidak dipakai untuk berpindah misi.
+
+`JourneyWorld` mempertahankan lingkungan dan koordinat lokasi; Masjidil Haram dan galeri sai tersambung jalan kaki. Mina, Muzdalifah, dan Arafah berada pada area masing-masing dengan jalan penghubung. Jarak dipadatkan untuk pembelajaran, bukan rekonstruksi geografis berskala nyata. Area jauh disembunyikan untuk mengurangi beban render. Perjalanan jauh dapat memakai transisi kendaraan; perjalanan antarlokasi ibadah juga menawarkan berjalan kaki. Grip controller memungkinkan teleport dekat pada jalur yang tidak terhalang.
+
+Alur memakai haji tamattu dan nafar awal (11–12 Dzulhijjah). Rujukan urutan: [Nusuk — The Journey](https://hajj.nusuk.sa/Journey) dan [panduan ihram Kementerian Haji Saudi](https://haj.gov.sa/-/media/Project/HAJJ/Awareness-Guides/Ihram-Guide/English/EN-Ihram-Guide.pdf). Jalur Ziarah masih ditandai sebagai pengembangan berikutnya.
+
+Detail arsitektur dan pengujian: [Perjalanan satu sesi](docs/journey.md).
 
 ## Scope
 
 ### In Scope
 
 1. **Scene Development**
-   - Scene 01: Berangkat dari Indonesia (Bandara, check-in, boarding, pesawat)
-   - Scene 02: Tiba di Madinah (Bandara, imigrasi, hotel, Masjid Nabawi)
-   - Scene 03: Miqat dan Niat Umrah (Lokasi Miqat, ihram, niat, talbiyah)
+   - Tahap 01-02: Persiapan dari rumah, keberangkatan, dan kedatangan di Madinah sebelum menuju miqat Bir Ali.
+   - Scene 03: Miqat dan ihram untuk Haji Tamattu.
+   - Scene 04-12: Ibadah di Makkah, tahap khusus Mina untuk jumrah, dan perjalanan pulang.
 
 2. **Edukasi**
    - Penjelasan dalil dan hikmah setiap tahapan
@@ -169,7 +180,7 @@ flowchart TD
 
 ### Out of Scope
 
-1. Simulasi ibadah Haji lengkap (Arafah, Muzdalifah, Mina, Tawaf, Sa'i)
+1. Jalur Ziarah lengkap (disusun setelah alur Haji)
 2. Mode multiplayer atau multi-user
 3. Integrasi dengan perangkat haptic feedback
 4. Mobile platform (iOS/Android)
