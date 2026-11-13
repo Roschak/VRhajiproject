@@ -1,4 +1,11 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+
+let securityOfficerGltfPromise = null;
+function loadSecurityOfficerGltf() {
+    return securityOfficerGltfPromise ||= new GLTFLoader().loadAsync('/assets/characters/outfits/man-security-makkah.glb?v=makkah-security-20261113');
+}
 
 const ivory = () => new THREE.MeshStandardMaterial({ color: 0xdad6cc, roughness: .78 });
 function box(parent, material, size, position) {
@@ -151,6 +158,81 @@ export function addHaramFacilities(engine, root) {
         }
     });
     addConnector(engine,root);
+    addMakkahSecurityOfficers(engine,root);
+}
+
+export function addMakkahSecurityOfficers(engine, root) {
+    const group = new THREE.Group();
+    group.name = 'haram-security-officers';
+    root.add(group);
+    // Security posts at main Masjidil Haram entrance gates, Safa connector gate, and Mataf perimeter.
+    const posts = [
+        // South Main Arrival Gate (outer facade & inner colonnade)
+        { x: -4.5, z: 104.2, ry: 0, role: 'gate-south-outer-l' },
+        { x: 4.5, z: 104.2, ry: 0, role: 'gate-south-outer-r' },
+        { x: -4.2, z: 76.5, ry: 0.2, role: 'gate-south-inner-l' },
+        { x: 4.2, z: 76.5, ry: -0.2, role: 'gate-south-inner-r' },
+        // North Gate & Escalator Lobby
+        { x: -5.2, z: -104.2, ry: Math.PI, role: 'gate-north-outer-l' },
+        { x: 5.2, z: -104.2, ry: Math.PI, role: 'gate-north-outer-r' },
+        { x: -5.5, z: -76.5, ry: 0, role: 'gate-north-inner-l' },
+        { x: 5.5, z: -76.5, ry: 0, role: 'gate-north-inner-r' },
+        // East Gate / Safa-Marwah Connector Entrance
+        { x: 101.2, z: -26.4, ry: -Math.PI / 2, role: 'gate-safa-l' },
+        { x: 101.2, z: -33.6, ry: -Math.PI / 2, role: 'gate-safa-r' },
+        // West Gate (King Abdulaziz Gate)
+        { x: -104.2, z: -4.5, ry: -Math.PI / 2, role: 'gate-west-l' },
+        { x: -104.2, z: 4.5, ry: -Math.PI / 2, role: 'gate-west-r' },
+        // Mataf / Kaaba Security Posts (as seen in reference photo)
+        { x: 16.5, z: 11.5, ry: 0.55, role: 'mataf-kaaba-1' },
+        { x: 18.2, z: 10.2, ry: -0.85, role: 'mataf-kaaba-2' },
+        { x: -16.5, z: 12.0, ry: -0.35, role: 'mataf-kaaba-3' }
+    ];
+    const mixers = [];
+    let disposed = false;
+    engine.disposeCallbacks ||= [];
+    engine.disposeCallbacks.push(() => {
+        disposed = true;
+        for (const m of mixers) m.stopAllAction();
+    });
+    engine.onUpdate(dt => {
+        for (const m of mixers) m.update(dt);
+    });
+    loadSecurityOfficerGltf().then(gltf => {
+        if (disposed) return;
+        const idleClip = gltf.animations.find(a => a.name.toLowerCase().includes('idle')) || gltf.animations[0];
+        posts.forEach((post, i) => {
+            const model = SkeletonUtils.clone(gltf.scene);
+            model.updateMatrixWorld(true);
+            const bounds = new THREE.Box3().setFromObject(model);
+            const size = bounds.getSize(new THREE.Vector3());
+            const factor = 1.78 / Math.max(size.y, .01);
+            model.scale.multiplyScalar(factor);
+            model.position.set(
+                -((bounds.min.x + bounds.max.x) / 2) * factor,
+                -bounds.min.y * factor,
+                -((bounds.min.z + bounds.max.z) / 2) * factor
+            );
+            model.traverse(o => {
+                if (o.isMesh) o.frustumCulled = false;
+            });
+            const officer = new THREE.Group();
+            officer.name = `makkah-security-${post.role}`;
+            officer.userData.role = post.role;
+            officer.position.set(post.x, post.y || 0, post.z);
+            officer.rotation.y = post.ry || 0;
+            officer.add(model);
+            group.add(officer);
+            if (idleClip) {
+                const mixer = new THREE.AnimationMixer(model);
+                const action = mixer.clipAction(idleClip);
+                action.play();
+                mixer.setTime((i * 0.43) % Math.max(idleClip.duration, .01));
+                mixers.push(mixer);
+            }
+        });
+    }).catch(err => console.warn('Model petugas keamanan Makkah belum tersedia:', err));
+    return group;
 }
 
 function addConnector(engine,root) {
