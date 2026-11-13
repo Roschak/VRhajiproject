@@ -4,7 +4,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 let securityOfficerGltfPromise = null;
 export function loadSecurityOfficerGltf() {
-    return securityOfficerGltfPromise ||= new GLTFLoader().loadAsync('/assets/characters/outfits/man-security-makkah.glb?v=makkah-security-20261113');
+    return securityOfficerGltfPromise ||= new GLTFLoader().loadAsync('/assets/characters/outfits/man-security-makkah.glb?v=makkah-security-opt-v2');
 }
 
 export function buildSecurityOfficerInstance(gltf, phase = 0) {
@@ -23,7 +23,9 @@ export function buildSecurityOfficerInstance(gltf, phase = 0) {
     );
     model.traverse(o => {
         if (o.isMesh) {
-            o.frustumCulled = false;
+            o.frustumCulled = true;
+            if (o.geometry && !o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+            if (o.geometry?.boundingSphere) o.geometry.boundingSphere.radius = Math.max(o.geometry.boundingSphere.radius, 2.5);
             for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
                 if (m) m.side = THREE.DoubleSide;
             }
@@ -233,15 +235,26 @@ export function addMakkahSecurityOfficers(engine, root) {
         { x: 16.5, z: 11.5, placement: 'inside', role: 'mataf-kaaba-3' },
         { x: 18.2, z: 10.2, placement: 'inside', role: 'mataf-kaaba-4' }
     ];
-    const mixers = [];
+    const entries = [];
     let disposed = false;
     engine.disposeCallbacks ||= [];
     engine.disposeCallbacks.push(() => {
         disposed = true;
-        for (const m of mixers) m.stopAllAction();
+        for (const e of entries) e.mixer?.stopAllAction();
     });
     engine.onUpdate(dt => {
-        for (const m of mixers) m.update(dt);
+        const cam = engine.camera;
+        const cx = cam ? cam.position.x : 0, cz = cam ? cam.position.z : 0;
+        for (const e of entries) {
+            const dist = Math.hypot(e.officer.position.x - cx, e.officer.position.z - cz);
+            e.officer.visible = dist < 110;
+            if (!e.officer.visible || !e.mixer) continue;
+            e.elapsed = (e.elapsed || 0) + Math.min(dt, .1);
+            if (dist < 32 || (dist < 65 && e.elapsed > .16)) {
+                e.mixer.update(e.elapsed);
+                e.elapsed = 0;
+            }
+        }
     });
     loadSecurityOfficerGltf().then(gltf => {
         if (disposed) return;
@@ -260,7 +273,7 @@ export function addMakkahSecurityOfficers(engine, root) {
             officer.rotation.y = ry;
             officer.add(model);
             group.add(officer);
-            if (mixer) mixers.push(mixer);
+            entries.push({ officer, mixer, elapsed: 0 });
         });
     }).catch(err => console.warn('Model petugas keamanan Makkah belum tersedia:', err));
     return group;

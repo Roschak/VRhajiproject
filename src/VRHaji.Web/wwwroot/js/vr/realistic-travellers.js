@@ -59,6 +59,7 @@ export function realisticTravellers(local,spots,{animation=null,frozen=false,sea
    const px=camera.position.x-(global?local.scene.position.x:0),pz=camera.position.z-(global?local.scene.position.z:0);
    const distance=Math.hypot(a.root.position.x-px,a.root.position.z-pz);
    a.root.visible=distance<110;
+   if(!a.root.visible)continue;
    a.elapsed=(a.elapsed||0)+Math.min(dt,.1);
    if(!frozen&&a.root.visible&&(distance<25||a.elapsed>.12)){a.mixer.update(a.elapsed);a.elapsed=0;}
    for(const bone of a.legs)bone.rotation.x=/upleg|thigh/i.test(bone.name)?-1.35:1.45;

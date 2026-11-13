@@ -89,7 +89,9 @@ export function createMakkahCrowd(local,{kind='makkah'}={}){
  }
  const routeData=new Float32Array(SAMPLES*paths.length*4);paths.forEach((p,i)=>routeData.set(p.data,i*SAMPLES*4));
  const routeTexture=new THREE.DataTexture(routeData,SAMPLES,paths.length,THREE.RGBAFormat,THREE.FloatType);routeTexture.needsUpdate=true;
+ people.forEach((p,id)=>{p.invLength=p.speed/paths[p.path].length;p.phase=id*.6180339%1;});
  const time={value:0},batches=[],assets=[];let disposed=false,last=-Infinity;
+ const nearByGender=[null,null],farByGender=[null,null],farIds=new Int32Array(people.length);
  function sample(person,t,out){const path=paths[person.path],f=THREE.MathUtils.euclideanModulo(person.offset+t*person.speed/path.length,1)*SAMPLES,i=Math.floor(f),j=(i+1)%SAMPLES,u=f-i;
   return out.set(THREE.MathUtils.lerp(path.data[i*4],path.data[j*4],u),0,THREE.MathUtils.lerp(path.data[i*4+1],path.data[j*4+1],u));}
  group.userData={population:kind==='mina'?{jumrah:300}:{tawaf:4200,plaza:5600},ready:false,sample:(id,t)=>sample(people[id],t,new THREE.Vector3()).toArray(),visibleCount:0};
@@ -100,6 +102,7 @@ export function createMakkahCrowd(local,{kind='makkah'}={}){
   const routes=new THREE.InstancedBufferAttribute(new Float32Array(capacity*4),4),motion=new THREE.InstancedBufferAttribute(new Float32Array(capacity*2),2);
   routes.setUsage(THREE.DynamicDrawUsage);motion.setUsage(THREE.DynamicDrawUsage);geometry.setAttribute('crowdRoute',routes);geometry.setAttribute('crowdMotion',motion);
   const material=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+  const isFar=lod==='far';
   material.onBeforeCompile=shader=>{
    Object.assign(shader.uniforms,{crowdTime:time,crowdPose:{value:asset.texture},crowdPoseSize:{value:asset.size},crowdVertexCount:{value:asset.count},crowdPaths:{value:routeTexture},crowdPathCount:{value:paths.length}});
    shader.vertexShader=shader.vertexShader.replace('void main() {',`
@@ -115,9 +118,15 @@ vec3 poseAt(float frame,float normalOffset){
 }
 void main() {
  float phase=fract(crowdTime*crowdMotion.x+crowdMotion.y)*24.0;
- float f0=floor(phase),f1=mod(f0+1.0,24.0),blend=fract(phase);
+ float f0=floor(phase);
+ ${isFar ? `
+ vec3 gait=poseAt(f0,0.0);
+ vec3 gaitNormal=poseAt(f0,crowdVertexCount);
+ ` : `
+ float f1=mod(f0+1.0,24.0),blend=fract(phase);
  vec3 gait=mix(poseAt(f0,0.0),poseAt(f1,0.0),blend);
  vec3 gaitNormal=normalize(mix(poseAt(f0,crowdVertexCount),poseAt(f1,crowdVertexCount),blend));
+ `}
  float travel=fract(crowdRoute.y+crowdTime*crowdRoute.z)*256.0;
  float row=(crowdRoute.x+.5)/crowdPathCount;
  vec4 a=texture2D(crowdPaths,vec2((floor(travel)+.5)/256.0,row));
@@ -126,22 +135,37 @@ void main() {
  mat3 turn=mat3(heading.y,0.0,-heading.x,0.0,1.0,0.0,heading.x,0.0,heading.y);
  `).replace('#include <beginnormal_vertex>','vec3 objectNormal = turn * gaitNormal;').replace('#include <begin_vertex>','vec3 transformed = turn * gait * crowdRoute.w + vec3(route.x, .08, route.y);');
   };
-  material.customProgramCacheKey=()=> 'makkah-vat-v1';
+  material.customProgramCacheKey=()=> isFar ? 'makkah-vat-far-v2' : 'makkah-vat-near-v2';
   const mesh=new THREE.InstancedMesh(geometry,material,capacity);mesh.name=`crowd-${gender}-${lod}`;mesh.frustumCulled=false;mesh.count=0;mesh.castShadow=false;mesh.receiveShadow=false;
   const identity=new THREE.Matrix4();for(let i=0;i<capacity;i++)mesh.setMatrixAt(i,identity);
-  group.add(mesh);batches.push({gender:g,lod,mesh,routes,motion,asset});
+  const entry={gender:g,lod,mesh,routes,motion,asset,invDuration:1/asset.duration};
+  if(lod==='near')nearByGender[g]=entry;else farByGender[g]=entry;
+  group.add(mesh);batches.push(entry);
  })) ).then(()=>{if(!disposed){group.userData.ready=true;last=-Infinity;group.userData.geometry=assets.map(a=>({vertices:a.count,triangles:a.triangles}));}}).catch(error=>{group.userData.error=error.message;console.error('Kerumunan Makkah gagal dimuat:',error);});
- const point=new THREE.Vector3();
+ const point=new THREE.Vector3(),nearCandidates=[];
  local.onUpdate((_dt,t)=>{
-  time.value=t;if(!group.userData.ready||t-last<.2)return;last=t;
-  const camera=local.camera,visible=[];
-  for(let id=0;id<people.length;id++){sample(people[id],t,point);const distance=Math.hypot(point.x-camera.position.x,point.z-camera.position.z);if(distance<180)visible.push({id,distance});}
-  visible.sort((a,b)=>a.distance-b.distance);for(const b of batches)b.mesh.count=0;
-  for(const {id,distance}of visible){const p=people[id],near=batches.find(b=>b.gender===p.gender&&b.lod==='near');const batch=distance<16&&near.mesh.count<48?near:batches.find(b=>b.gender===p.gender&&b.lod==='far'),i=batch.mesh.count++;
-   batch.routes.setXYZW(i,p.path,p.offset,p.speed/paths[p.path].length,p.scale);batch.motion.setXY(i,p.speed/batch.asset.duration,id*.6180339%1);
+  time.value=t;if(!group.userData.ready||t-last<.35)return;last=t;
+  const camera=local.camera,cx=camera.position.x,cz=camera.position.z;
+  nearCandidates.length=0;let farCount=0;
+  for(let id=0;id<people.length;id++){
+   sample(people[id],t,point);
+   const dx=point.x-cx,dz=point.z-cz,d2=dx*dx+dz*dz;
+   if(d2<256)nearCandidates.push({id,d2});
+   else if(d2<32400)farIds[farCount++]=id;
+  }
+  if(nearCandidates.length>1)nearCandidates.sort((a,b)=>a.d2-b.d2);
+  for(const b of batches)b.mesh.count=0;
+  for(let k=0;k<nearCandidates.length;k++){
+   const id=nearCandidates[k].id,p=people[id],near=nearByGender[p.gender];
+   const batch=near.mesh.count<48?near:farByGender[p.gender],i=batch.mesh.count++;
+   batch.routes.setXYZW(i,p.path,p.offset,p.invLength,p.scale);batch.motion.setXY(i,p.speed*batch.invDuration,p.phase);
+  }
+  for(let k=0;k<farCount;k++){
+   const id=farIds[k],p=people[id],batch=farByGender[p.gender],i=batch.mesh.count++;
+   batch.routes.setXYZW(i,p.path,p.offset,p.invLength,p.scale);batch.motion.setXY(i,p.speed*batch.invDuration,p.phase);
   }
   for(const b of batches){b.routes.needsUpdate=true;b.motion.needsUpdate=true;}
-  group.userData.visibleCount=visible.length;group.userData.nearCount=batches.filter(b=>b.lod==='near').reduce((n,b)=>n+b.mesh.count,0);
+  group.userData.visibleCount=nearCandidates.length+farCount;group.userData.nearCount=nearByGender[0].mesh.count+nearByGender[1].mesh.count;
  });
  local.disposeCallbacks||=[];local.disposeCallbacks.push(()=>{disposed=true;routeTexture.dispose();for(const a of assets)a.texture.dispose();});
  return {group,ready,people,paths,sample};
