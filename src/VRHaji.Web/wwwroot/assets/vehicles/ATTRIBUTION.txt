@@ -1,0 +1,26 @@
+# Vehicle attribution
+
+Lamborghini Aventador LP 700-4 2012 by WastingMyCars
+https://sketchfab.com/zxargon
+Source: https://sketchfab.com/3d-models/lamborghini-aventador-lp-700-4-2012-3e97c6728adb46d581b4f2c51636ef57
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Attribution and license recovered from supplied GLB metadata; source page returned HTTP 403 during verification.
+Changes: scaled to 4.78m length, centered and grounded, rotated to project forward axis, static meshes merged by material, body paint adjusted to silver-white. Original mesh topology and embedded textures retained.
+User explicitly approved this sports car in place of the initially requested SUV.
+
+{
+  "author": "ROH3D (https://sketchfab.com/roh3d)",
+  "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+  "source": "https://sketchfab.com/3d-models/dirty-car-cadillac-75-sedan-1953-e08f2486cc0c49a7a2102561fb9b3377",
+  "title": "Dirty Car - Cadillac 75 Sedan 1953"
+}
+Changes: normalized scale, grounded, forward -Z; meshes combined by material. Cadillac body alpha corrected.
+
+{
+  "author": "denniswoo1993 (https://sketchfab.com/denniswoo1993)",
+  "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+  "source": "https://sketchfab.com/3d-models/shc-mc-free-promotion-car-cfaabdec76a74b68a48ba5657b6d9aee",
+  "title": "SHC MC Free Promotion Car"
+}
+Changes: normalized scale, grounded, forward -Z; meshes combined by material. Cadillac body alpha corrected.

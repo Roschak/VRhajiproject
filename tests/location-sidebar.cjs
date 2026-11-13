@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {JSDOM}=require('jsdom');
+(async()=>{
+ const dom=new JSDOM('<div id="vr-root"></div>');global.window=dom.window;global.document=dom.window.document;window.matchMedia=()=>({matches:false});
+ const source=fs.readFileSync('src/VRHaji.Web/wwwroot/js/vr/location-sidebar.js','utf8');
+ const {LocationSidebar,locationItinerary}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+ let tick;const state={route:'umrah',index:1,status:'ready',engine:{departureState:{miqatChoice:'land'},onUpdate(fn){tick=fn;return {done:false};}}};
+ const sidebar=new LocationSidebar(state);
+ sidebar.arrive('home');assert.match(sidebar.summary.textContent,/BERIKUTNYABandara Indonesia/);
+ sidebar.travel('indonesia','Mobil');assert.match(sidebar.summary.textContent,/Mobil menuju Bandara Indonesia/);
+ assert.equal(sidebar.current,'home','Do not mark arrival before reaching the destination');
+ sidebar.arrive('indonesia');assert.equal(sidebar.list.querySelector('[data-location=home]').dataset.status,'visited');
+ sidebar.arrive('cabin');state.engine.departureState.miqatChoice='air';tick();
+ assert.match(sidebar.summary.textContent,/BERIKUTNYABandara Jeddah/);assert.ok(!sidebar.plan.some(p=>p.key==='miqat'));
+ sidebar.arrive('jeddah');state.index=2;sidebar.arrive('haram');state.index=4;tick();assert.match(sidebar.summary.textContent,/BERIKUTNYASafa dan Marwah/);
+ sidebar.arrive('masaa');state.index=5;sidebar.arrive('haram');state.index=6;tick();assert.match(sidebar.summary.textContent,/BERIKUTNYABandara Madinah/);
+ for(const key of ['madinah','cabin','indonesia','home'])sidebar.arrive(key);
+ assert.equal(sidebar.cursor,sidebar.plan.length-1,'Return home must select the final stop');
+ state.status='complete';tick();assert.match(sidebar.summary.textContent,/Perjalanan selesai/);
+ sidebar.toggle.click();assert.equal(sidebar.body.hidden,true);sidebar.toggle.click();assert.equal(sidebar.body.hidden,false);
+ const saved=[...sidebar.visited];sidebar.dispose();assert.equal(document.querySelectorAll('.location-sidebar').length,0);
+ state.index=5;state.status='ready';const resumed=new LocationSidebar(state,saved);resumed.arrive('masaa');assert.ok(resumed.visited.has('1-home'));resumed.dispose();
+ const haji=locationItinerary('haji','land');assert.ok(haji.some(p=>p.key==='arafah'));assert.ok(haji.some(p=>p.key==='muzdalifah'));assert.equal(haji.filter(p=>p.key==='mina').length,2);
+ console.log('PASS: current/next stops, actual visit history, transit, miqat branches, return visits, resume, collapse and disposal.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

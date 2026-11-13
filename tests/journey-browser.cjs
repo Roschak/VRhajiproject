@@ -18,6 +18,8 @@ const fs = require('node:fs');
         await page.getByRole('button', { name: 'Mulai Simulasi', exact: true }).waitFor({ timeout: 120000 });
         await page.evaluate(() => {
             const e = window.__vrEngine;
+            // This test covers the journey state machine; external TTS is not deterministic.
+            e.narrator.enabled = false;
             window.testEngine = e; window.testCanvas = e.renderer.domElement;
             const originalGoto = e.goto.bind(e);
             e.goto = (x, z, opts) => {
@@ -28,7 +30,7 @@ const fs = require('node:fs');
         await page.getByRole('button', { name: 'Mulai Simulasi', exact: true }).click();
         const url = page.url();
         const seen = new Set();
-        const deadline = Date.now() + 240000;
+        const deadline = Date.now() + Number(process.env.JOURNEY_TIMEOUT_MS || 240000);
         while (Date.now() < deadline) {
             const state = await page.evaluate(async () => {
                 const main = await import('/js/vr/main.js');
@@ -43,17 +45,18 @@ const fs = require('node:fs');
             const dialog = page.locator('.journey-dialog');
             if (await dialog.count()) {
                 // Exercise the same ray-pick and trigger handler used by WebXR controllers.
-                await page.evaluate(async () => {
+                await page.evaluate(async (chooseAir) => {
                     const THREE = await import('three');
                     const e = window.__vrEngine;
                     const root = e.scene.getObjectByName('journey-dialog');
-                    const button = root.children.find(child => child.userData.interact?.enabled);
+                    const buttons = root.children.filter(child => child.userData.interact?.enabled);
+                    const button = (chooseAir && buttons.find(child => child.userData.interact?.label?.startsWith('Ke Makkah'))) || buttons[0];
                     const controller = new THREE.PerspectiveCamera();
                     controller.position.copy(e.playerPos(new THREE.Vector3()));
                     controller.lookAt(button.getWorldPosition(new THREE.Vector3()));
                     controller.updateMatrixWorld(true);
                     e._onVRSelect(controller);
-                });
+                }, process.env.MIQAT_CHOICE === 'air');
             } else {
                 await page.evaluate(() => window.__vrEngine.skipStep());
             }
@@ -61,6 +64,9 @@ const fs = require('node:fs');
         }
         const final = await page.evaluate(async () => (await import('/js/vr/main.js')).getJourneyState());
         assert.equal(final.status, 'complete', JSON.stringify(final));
+        assert.equal(await page.evaluate(route=>localStorage.getItem(`vrhaji-session-v1-${route}`),route),null,'Completed journey must clear the unfinished-session prompt');
+        assert.deepEqual([...final.departure.inventory].sort(), ['ihram','passport','pouch','suitcase','ticket']);
+        assert.equal(final.departure.miqatChoice, process.env.MIQAT_CHOICE === 'air' ? 'air' : 'land');
         assert.equal(seen.size, expectedStages);
         if (route === 'umrah') assert.equal(await page.evaluate(() => localStorage.getItem('labbaik-progress-v1-umrah')), '6');
         else {

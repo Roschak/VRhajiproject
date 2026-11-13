@@ -1,3 +1,4 @@
+import { createAirportAircraft } from './airport-aircraft.js';
 /**
  * VR Education Haji & Umrah — Environment Builders
  * Semua lingkungan dibangun prosedural (PBR material + instancing)
@@ -6,6 +7,8 @@
 import { THREE, Tex } from './engine.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { referenceAirport } from './airport-reference.js';
+import { buildMakkahSkyline, buildWhitePlaza } from './makkah-landmarks.js';
+import { buildMinaReference } from './mina-reference.js';
 import { buildHaramArchitecture } from './haram-architecture.js';
 import { tileMaterial, addMasaaDetails } from './haram-facilities.js';
 
@@ -635,232 +638,8 @@ export function masjidilHaram(engine, { crowdInMataf = false } = {}) {
 
     buildHaramArchitecture(engine);
 
-    // Abraj Al-Bait and the surrounding city remain beyond the prayer galleries.
-    const TX = 40, TZ = 190, TW = 34;
-    const towerMat = new THREE.MeshStandardMaterial({ color: 0x8a7f6d, roughness: 0.8 });
-    const darkTowerMat = new THREE.MeshStandardMaterial({ color: 0x3a362f, roughness: 0.9 });
-    const greenMat = new THREE.MeshStandardMaterial({ color: 0x0a2a1a, emissive: 0x0a4a2a, emissiveIntensity: 0.3 });
-    const goldEmit = new THREE.MeshStandardMaterial({ color: 0xffdf80, emissive: 0xffdf80, emissiveIntensity: 2.8 });
-
-    // Efek menyala malam hari untuk gedung-gedung tinggi
-    const isNight = engine.envPreset === 'night' || engine.envPreset === 'dawn';
-    const hotelWinMat = new THREE.MeshStandardMaterial({ 
-        color: 0x112233, 
-        emissive: 0xffd080, 
-        emissiveIntensity: isNight ? 1.0 : 0.0,
-        roughness: 0.2
-    });
-
-    engine.onUpdate(() => {
-        hotelWinMat.emissiveIntensity = ['night', 'dawn'].includes(engine.envPreset) ? 1.0 : 0.0;
-    });
-
-    // Main shaft (Bawah jam) - Dengan Jendela Menyala
-    const clockTowerMain = new THREE.Group();
-    const towerShaft = mesh(new THREE.BoxGeometry(TW, 140, TW), towerMat, 0, 70, 0);
-    clockTowerMain.add(towerShaft);
-    if (engine.chunkManager) engine.chunkManager.addOccluder(towerShaft);
-    
-    // --- OPTIMASI: InstancedMesh untuk ribuan jendela Clock Tower ---
-    let clockWinCount = 0;
-    for(let wy = 15; wy < 130; wy += 4.5) {
-        for(let wx = -TW/2 + 3; wx <= TW/2 - 3; wx += 4) clockWinCount += 2;
-        for(let wz = -TW/2 + 3; wz <= TW/2 - 3; wz += 4) clockWinCount += 2;
-    }
-    
-    const clockBaseWinGeo = new THREE.BoxGeometry(1, 1, 1);
-    const clockWinInst = new THREE.InstancedMesh(clockBaseWinGeo, hotelWinMat, clockWinCount);
-    clockWinInst.castShadow = false;
-    clockWinInst.receiveShadow = false;
-    
-    const dummyC = new THREE.Object3D();
-    let idx = 0;
-    
-    for(let wy = 15; wy < 130; wy += 4.5) {
-        for(let wx = -TW/2 + 3; wx <= TW/2 - 3; wx += 4) {
-            dummyC.scale.set(1.5, 2.5, 0.2);
-            dummyC.position.set(wx, wy, TW/2 + 0.05);
-            dummyC.updateMatrix();
-            clockWinInst.setMatrixAt(idx++, dummyC.matrix);
-            
-            dummyC.position.set(wx, wy, -TW/2 - 0.05);
-            dummyC.updateMatrix();
-            clockWinInst.setMatrixAt(idx++, dummyC.matrix);
-        }
-        for(let wz = -TW/2 + 3; wz <= TW/2 - 3; wz += 4) {
-            dummyC.scale.set(0.2, 2.5, 1.5);
-            dummyC.position.set(TW/2 + 0.05, wy, wz);
-            dummyC.updateMatrix();
-            clockWinInst.setMatrixAt(idx++, dummyC.matrix);
-            
-            dummyC.position.set(-TW/2 - 0.05, wy, wz);
-            dummyC.updateMatrix();
-            clockWinInst.setMatrixAt(idx++, dummyC.matrix);
-        }
-    }
-    clockTowerMain.add(clockWinInst);
-    clockTowerMain.position.set(TX, 0, TZ);
-    scene.add(clockTowerMain);
-    
-    // Clock section (Kubus tempat jam berada)
-    const CLOCK_W = TW * 0.8;
-    const CLOCK_H = 32;
-    const CLOCK_Y = 140 + CLOCK_H / 2;
-    scene.add(mesh(new THREE.BoxGeometry(CLOCK_W, CLOCK_H, CLOCK_W), darkTowerMat, TX, CLOCK_Y, TZ));
-
-    // 4 Sisi Jam (menempel flush di permukaan kubus)
-    for (let side = 0; side < 4; side++) {
-        const ang = side * Math.PI / 2;
-        // Normal face direction
-        const nx = Math.sin(ang);
-        const nz = Math.cos(ang);
-        
-        // Posisikan face sedikit keluar dari kubus clock section
-        const faceR = (CLOCK_W / 2) + 0.1; 
-        const fx = TX + nx * faceR;
-        const fz = TZ + nz * faceR;
-
-        const cg = new THREE.Group();
-        cg.position.set(fx, CLOCK_Y, fz);
-        
-        // Karena CircleGeometry defaultnya menghadap +Z, 
-        // kita tinggal rotate Y sesuai ang
-        cg.rotation.y = ang;
-        
-        // Lingkaran dasar hijau
-        const dial = mesh(new THREE.CircleGeometry(11, 32), greenMat, 0, 0, 0, { cast: false });
-        cg.add(dial);
-        
-        // Frame melingkar jam emas
-        const frame = mesh(new THREE.TorusGeometry(11, 0.4, 6, 32), goldEmit, 0, 0, 0.2, { cast: false });
-        cg.add(frame);
-        
-        // Marker angka emas (12 titik)
-        for (let i = 0; i < 12; i++) {
-            const hAng = i * Math.PI / 6;
-            const hx = Math.sin(hAng) * 9.5;
-            const hy = Math.cos(hAng) * 9.5;
-            const mk = mesh(new THREE.BoxGeometry(0.8, 1.8, 0.4), goldEmit, hx, hy, 0.2, { cast: false });
-            mk.rotation.z = -hAng; 
-            cg.add(mk);
-        }
-        // Jarum menit & jam
-        const mHand = mesh(new THREE.BoxGeometry(0.6, 9, 0.5), goldEmit, 0, 4.5, 0.3, { cast: false });
-        const hHand = mesh(new THREE.BoxGeometry(0.8, 6, 0.6), goldEmit, 0, 3, 0.4, { cast: false });
-        mHand.rotation.z = -Math.PI / 6; 
-        hHand.rotation.z = -Math.PI / 2;
-        cg.add(mHand, hHand);
-        
-        scene.add(cg);
-    }
-
-    // Spire (Puncak runcing) + Bulan Sabit
-    const SPIRE_Y = CLOCK_Y + CLOCK_H/2 + 20;
-    scene.add(mesh(new THREE.ConeGeometry(8, 40, 8), towerMat, TX, SPIRE_Y, TZ));
-    
-    // Tiang akhir dan bulan sabit besar
-    const FINIAL_Y = SPIRE_Y + 20;
-    scene.add(mesh(new THREE.CylinderGeometry(0.6, 0.6, 20, 8), goldEmit, TX, FINIAL_Y + 10, TZ));
-    const cres = mesh(new THREE.TorusGeometry(2.5, 0.5, 8, 20, Math.PI * 1.4), goldEmit, TX, FINIAL_Y + 22, TZ);
-    cres.rotation.z = -Math.PI * 0.1;
-    scene.add(cres);
-
-    // ── GEDUNG-GEDUNG PENCAKAR LANGIT PENGELILING MAKKAH ──
-    const whiteTowerMat = new THREE.MeshStandardMaterial({ color: 0xe5e5e5, roughness: 0.6 });
-    const whiteDarkTowerMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 });
-
-    function addHotelTower(x, z, w, h, d, mat = towerMat, roofMat = darkTowerMat) {
-        // The east-side skyline must not intersect the connected Masaa gallery.
-        if (x > 130 && z < 175 && z > -100) z -= 160;
-        // Keep the sanctuary and minarets dominant at pedestrian eye level.
-        // The clock-tower cluster retains its hierarchy on the south skyline.
-        if (z < 175) h *= .38;
-        const bld = new THREE.Group();
-        bld.add(mesh(new THREE.BoxGeometry(w, h, d), mat, 0, h/2, 0));
-        
-        // --- OPTIMASI: Menggunakan InstancedMesh untuk ribuan jendela ---
-        // Menghitung total jendela untuk gedung ini
-        let winCount = 0;
-        for(let wy = 15; wy < h - 10; wy += 4.5) {
-            for(let wx = -w/2 + 2; wx <= w/2 - 2; wx += 3.5) winCount += 2;
-            for(let wz = -d/2 + 2; wz <= d/2 - 2; wz += 3.5) winCount += 2;
-        }
-        
-        // Buat 1 geometri dasar (ukuran 1x1x1) yang akan kita scale
-        const baseWinGeo = new THREE.BoxGeometry(1, 1, 1);
-        const winInst = new THREE.InstancedMesh(baseWinGeo, hotelWinMat, winCount);
-        winInst.castShadow = false;
-        winInst.receiveShadow = false;
-        
-        const dummy = new THREE.Object3D();
-        let i = 0;
-        
-        for(let wy = 15; wy < h - 10; wy += 4.5) {
-            // Sisi Depan & Belakang (Z)
-            for(let wx = -w/2 + 2; wx <= w/2 - 2; wx += 3.5) {
-                dummy.scale.set(1.2, 2.5, 0.2);
-                dummy.position.set(wx, wy, d/2 + 0.05);
-                dummy.updateMatrix();
-                winInst.setMatrixAt(i++, dummy.matrix);
-                
-                dummy.position.set(wx, wy, -d/2 - 0.05);
-                dummy.updateMatrix();
-                winInst.setMatrixAt(i++, dummy.matrix);
-            }
-            // Sisi Kiri & Kanan (X)
-            for(let wz = -d/2 + 2; wz <= d/2 - 2; wz += 3.5) {
-                dummy.scale.set(0.2, 2.5, 1.2);
-                dummy.position.set(w/2 + 0.05, wy, wz);
-                dummy.updateMatrix();
-                winInst.setMatrixAt(i++, dummy.matrix);
-                
-                dummy.position.set(-w/2 - 0.05, wy, wz);
-                dummy.updateMatrix();
-                winInst.setMatrixAt(i++, dummy.matrix);
-            }
-        }
-        bld.add(winInst);
-        
-        // Atap / mahkota hotel
-        bld.add(mesh(new THREE.BoxGeometry(w * 0.8, 8, d * 0.8), roofMat, 0, h + 4, 0));
-        bld.position.set(x, 0, z);
-        scene.add(bld);
-    }
-
-    // Tower pengapit Clock Tower (Kompleks Abraj Al-Bait) sejajar di Z=190
-    addHotelTower(TX - 45, TZ, 32, 120, 32); // Hajar Tower
-    addHotelTower(TX + 45, TZ, 32, 120, 32); // ZamZam Tower
-    addHotelTower(TX - 85, TZ, 28, 100, 28); // Safa
-    addHotelTower(TX + 85, TZ, 28, 100, 28); // Marwa
-
-    // Hotel-hotel raksasa yang mengelilingi radius Makkah
-    // Area Utara
-    addHotelTower(0, -170, 50, 110, 35);
-    addHotelTower(-60, -160, 40, 95, 30);
-    addHotelTower(60, -160, 40, 130, 30);
-    // Area Timur
-    addHotelTower(160, 20, 35, 140, 45);
-    addHotelTower(150, -40, 30, 100, 40);
-    // Area Barat
-    addHotelTower(-160, 10, 35, 125, 50);
-    addHotelTower(-150, 70, 30, 90, 35);
-
-    // Gedung-gedung tambahan (warna putih bersih, lebih pendek dari Clock Tower)
-    // Area Utara (belakang)
-    addHotelTower(110, -150, 35, 115, 30, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(-110, -150, 35, 120, 30, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(30, -190, 45, 140, 35, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(-30, -190, 45, 140, 35, whiteTowerMat, whiteDarkTowerMat);
-    // Area Timur
-    addHotelTower(160, 80, 40, 130, 40, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(180, -20, 35, 110, 35, whiteTowerMat, whiteDarkTowerMat);
-    // Area Barat
-    addHotelTower(-180, -30, 35, 115, 35, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(-170, 40, 30, 105, 35, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(-140, -90, 35, 135, 35, whiteTowerMat, whiteDarkTowerMat);
-    // Area Selatan (pengapit terluar Abraj Al-Bait)
-    addHotelTower(TX - 120, TZ - 10, 30, 95, 30, whiteTowerMat, whiteDarkTowerMat);
-    addHotelTower(TX + 120, TZ - 10, 30, 95, 30, whiteTowerMat, whiteDarkTowerMat);
+    buildWhitePlaza(engine);
+    buildMakkahSkyline(engine);
 
     // Lampu sorot mataf (malam)
     if (engine.envPreset === 'night' || engine.envPreset === 'dawn') {
@@ -1020,9 +799,9 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
     masaaGroup.add(mesh(new THREE.BoxGeometry(2 * GAL, 0.12, 0.4), mats.darkGrey, 0, 0.05, 2, { cast: false }));
     masaaGroup.add(mesh(new THREE.BoxGeometry(2 * GAL, 0.12, 0.4), mats.darkGrey, 0, 0.05, -2, { cast: false }));
 
-    const wallH = 12;
-    // Atap utama dengan dekorasi (hanya menutupi galeri tengah; ujung terbuka ke langit)
-    masaaGroup.add(mesh(new THREE.BoxGeometry(2 * GAL, 0.8, W + 8), mats.cream, 0, wallH + 0.4, 0));
+    const wallH = 34;
+    // Roof spans the entire gallery, including both enclosed hills.
+    masaaGroup.add(mesh(new THREE.BoxGeometry(226, 0.8, 46), mats.cream, 0, wallH + 0.4, 0));
 
     // Panel dekorasi atap (coffered ceiling ilusi)
     for (let i = -GAL + 4; i <= GAL - 4; i += 8) {
@@ -1031,8 +810,11 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
 
     // Dinding samping & Jendela lengkung
     for (const s of [-1, 1]) {
-        const wall = mesh(new THREE.BoxGeometry(2 * GAL, wallH, 0.8), mats.cream, 0, wallH / 2, s * (W / 2 + 3.4));
-        masaaGroup.add(wall);
+        const wall = mesh(new THREE.BoxGeometry(226, wallH, 0.8), mats.cream, 0, wallH / 2, s * 22.5);
+        if(s===-1){
+            for(const [cx,w]of [[-96,34],[26,174]])masaaGroup.add(mesh(new THREE.BoxGeometry(w,wallH,.8),mats.cream,cx,wallH/2,-22.5));
+            masaaGroup.add(mesh(new THREE.BoxGeometry(18,wallH-30,.8),mats.cream,-70,30+(wallH-30)/2,-22.5));
+        }else masaaGroup.add(wall);
 
         // Dekorasi pilar tempel di dinding
         for (let i = -GAL + 4; i <= GAL - 4; i += 8) {
@@ -1127,11 +909,11 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
         const signOffset = isShafa ? fenceR : -fenceR; 
         const sign = mesh(new THREE.BoxGeometry(10, 2.5, 0.4),
             new THREE.MeshStandardMaterial({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.8 }),
-            signOffset, 5, 0, { cast: false });
+            signOffset, 18, 0, { cast: false });
         
         // Tiang penopang (2 tiang di bawah papan nama)
-        const pole1 = mesh(new THREE.CylinderGeometry(0.15, 0.15, 5, 8), frameMat, signOffset, 2.5, -4);
-        const pole2 = mesh(new THREE.CylinderGeometry(0.15, 0.15, 5, 8), frameMat, signOffset, 2.5, 4);
+        const pole1 = mesh(new THREE.CylinderGeometry(0.075, 0.075, 14.75, 8), frameMat, signOffset, 26.625, -4);
+        const pole2 = mesh(new THREE.CylinderGeometry(0.075, 0.075, 14.75, 8), frameMat, signOffset, 26.625, 4);
         g.add(sign, pole1, pole2);
 
         sign.rotation.y = isShafa ? Math.PI / 2 : -Math.PI / 2;
@@ -1192,6 +974,15 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
         engine.addPointLamp(i * 18 + ox, wallH - 1, -W/4 + oz, { intensity: 70, distance: 30 });
     }
 
+    masaaGroup.name='enclosed-safa-marwah-gallery';
+    masaaGroup.add(mesh(new THREE.BoxGeometry(226,.1,46),mats.cream,0,-.02,0));
+    for(const end of [-113,113])masaaGroup.add(mesh(new THREE.BoxGeometry(.8,34,46),mats.cream,end,17,0));
+    // The Haram connector enters the west end hall through its south wall.
+    engine.addBlocker(-113+ox,-23+oz,-79+ox,-22+oz);
+    engine.addBlocker(-61+ox,-23+oz,113+ox,-22+oz);
+    engine.addBlocker(-113+ox,22+oz,113+ox,23+oz);
+    engine.addBlocker(-114+ox,-23+oz,-113+ox,23+oz);
+    engine.addBlocker(113+ox,-23+oz,114+ox,23+oz);
     addMasaaDetails(masaaGroup);
     scene.add(masaaGroup);
 
@@ -1208,7 +999,7 @@ export function masaa(engine, origin = { x: 0, z: 0 }) {
 
 
 export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINAL 2U', arabic = false, madinah = false } = {}) {
-    if (!arabic && !madinah) return referenceAirport(engine);
+    if (!madinah) return referenceAirport(engine,{jeddah:arabic});
     const { scene, mats } = engine;
     engine.ground(500, mats.tarmac, -0.02);
 
@@ -1676,105 +1467,9 @@ export function airport(engine, { nameSign = 'BANDARA SOEKARNO-HATTA — TERMINA
     // Petugas boarding berdiri di samping pintu gate (bentang z 15.4…20.6), menghadap hall (−x)
     staffSpots.push({ x: 33.8, z: 15.2, ry: -Math.PI / 2, color: STAFF_AIRLINE });
 
-    // Pesawat di luar kaca (Realistik, skala besar)
-    const plane = new THREE.Group();
-    const pMat = mats.white;
-    const pLen = 42, pR = 3.2;
-    
-    // Fuselage utama
-    const fusGeo = new THREE.CylinderGeometry(pR, pR, pLen, 24);
-    fusGeo.rotateZ(Math.PI / 2);
-    plane.add(new THREE.Mesh(fusGeo, pMat));
-    
-    // Hidung aerodinamis (Nose)
-    const noseGeo = new THREE.SphereGeometry(pR, 24, 16);
-    noseGeo.scale(1.8, 1, 1);
-    const nose = new THREE.Mesh(noseGeo, pMat);
-    nose.position.set(pLen/2, 0, 0);
-    plane.add(nose);
-    
-    // Ekor meruncing (Tail Cone)
-    const tailConeGeo = new THREE.SphereGeometry(pR, 24, 16);
-    tailConeGeo.scale(2.2, 1, 1);
-    const tailCone = new THREE.Mesh(tailConeGeo, pMat);
-    tailCone.position.set(-pLen/2, 0, 0);
-    plane.add(tailCone);
-
-    // Kaca Cockpit (Hitam melengkung di hidung)
-    const winMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
-    const cpWin = new THREE.Mesh(new THREE.CylinderGeometry(pR+0.05, pR+0.05, 1.8, 16, 1, false, -1.0, 2.0), winMat);
-    cpWin.rotation.z = Math.PI / 2 - 0.25;
-    cpWin.position.set(pLen/2 + 2, 0.4, 0);
-    plane.add(cpWin);
-
-    // Sayap (Swept wings)
-    const wingShape = new THREE.Shape();
-    wingShape.moveTo(0, 0); wingShape.lineTo(-12, 20); wingShape.lineTo(-16, 20); wingShape.lineTo(-8, 0); wingShape.closePath();
-    const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: 0.5, bevelEnabled: true, bevelThickness: 0.2, bevelSize: 0.1 });
-    wingGeo.rotateX(Math.PI / 2);
-    const wings1 = new THREE.Mesh(wingGeo, pMat);
-    wings1.position.set(2, -1.0, 0);
-    plane.add(wings1);
-    const wings2 = new THREE.Mesh(wingGeo, pMat);
-    wings2.position.set(2, -1.0, 0);
-    wings2.rotation.x = Math.PI;
-    plane.add(wings2);
-
-    // Mesin Jet (Turbofans di bawah sayap)
-    for (const s of [-1, 1]) {
-        const pylon = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.5, 0.4), pMat);
-        pylon.position.set(-2, -1.5, s * 7);
-        plane.add(pylon);
-        const engGeo = new THREE.CylinderGeometry(1.6, 1.6, 5.0, 20);
-        engGeo.rotateZ(Math.PI / 2);
-        const eng = new THREE.Mesh(engGeo, pMat);
-        eng.position.set(-2.5, -2.2, s * 7);
-        plane.add(eng);
-        const fan = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 5.1, 16), winMat);
-        fan.rotation.z = Math.PI / 2;
-        fan.position.set(-2.5, -2.2, s * 7);
-        plane.add(fan);
-    }
-
-    // Vertical Stabilizer (Ekor vertikal - Hijau Zamrud)
-    const tailShape = new THREE.Shape();
-    tailShape.moveTo(0, 0); tailShape.lineTo(-6, 8.5); tailShape.lineTo(-9, 8.5); tailShape.lineTo(-7, 0); tailShape.closePath();
-    const tailMat = new THREE.MeshStandardMaterial({ color: 0x0f5c35, roughness: 0.4 });
-    const tailV = new THREE.Mesh(new THREE.ExtrudeGeometry(tailShape, { depth: 0.6, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1 }), tailMat);
-    tailV.position.set(-pLen/2 + 2, 2.5, -0.3);
-    plane.add(tailV);
-    
-    // Garis Emas di Ekor
-    const tailGoldShape = new THREE.Shape();
-    tailGoldShape.moveTo(-3, 2); tailGoldShape.lineTo(-7.5, 6); tailGoldShape.lineTo(-8.5, 6); tailGoldShape.lineTo(-4, 2); tailGoldShape.closePath();
-    const tGold = new THREE.Mesh(new THREE.ExtrudeGeometry(tailGoldShape, { depth: 0.7 }), mats.gold);
-    tGold.position.set(-pLen/2 + 2, 2.5, -0.35);
-    plane.add(tGold);
-
-    // Horizontal Stabilizers (Sayap ekor)
-    const hStabShape = new THREE.Shape();
-    hStabShape.moveTo(0, 0); hStabShape.lineTo(-5, 8); hStabShape.lineTo(-7, 8); hStabShape.lineTo(-4, 0); hStabShape.closePath();
-    const hStabGeo = new THREE.ExtrudeGeometry(hStabShape, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.05 });
-    hStabGeo.rotateX(Math.PI / 2);
-    const hStab = new THREE.Mesh(hStabGeo, pMat);
-    hStab.position.set(-pLen/2 - 1, 0.5, 0);
-    plane.add(hStab);
-    const hStab2 = hStab.clone();
-    hStab2.rotation.x = Math.PI;
-    plane.add(hStab2);
-
-    // Jendela Penumpang (Deretan kotak hitam)
-    const winStripe = new THREE.InstancedMesh(new THREE.BoxGeometry(0.4, 0.5, pR * 2 + 0.1), winMat, 30);
-    const wM = new THREE.Matrix4();
-    for(let i=0; i<30; i++) {
-        wM.makeTranslation(-12 + i * 1.2, 0.6, 0);
-        winStripe.setMatrixAt(i, wM);
-    }
-    plane.add(winStripe);
-
-    // Angkat pesawat ke ketinggian roda & atur posisi akhir
-    plane.position.set(78, 6, 8);
-    plane.rotation.y = 30 * DEG;
+    // Shared imported aircraft; the departure extension adjusts its placement.
+    const plane = createAirportAircraft('airbus');
+    plane.position.set(78, 4.5, 8);
     scene.add(plane);
 
     engine.addWalkRect(-42, -27, 42, 27);
@@ -3143,7 +2838,7 @@ export function miqat(engine) {
     miqatGroup.add(sajadahGroup);
 
     // 7. TAMAN & POHON KURMA DI HALAMAN
-    const palmPositions = [ [-15, 15], [15, 15], [-20, 25], [20, 25], [0, 20] ];
+    const palmPositions = [ [-15, 15], [15, 15], [-20, 25], [20, 25], [26, 20] ];
     for (const [tx, tz] of palmPositions) {
         const t = palmTree(mats, 1.2 + Math.random() * 0.4);
         t.position.set(tx, 0, tz);
@@ -4070,176 +3765,8 @@ export function jamratPillar(mats, { height = 18 } = {}) {
     return g;
 }
 
-export function mina(engine, { withAllJamarat = false } = {}) {
-    const { scene, mats } = engine;
-    engine.ground(700, mats.sand);
-
-    // Kota tenda putih ikonik — instanced
-    const tentBody = new THREE.BoxGeometry(4, 2.2, 4);
-    const tentRoof = new THREE.ConeGeometry(3.1, 1.6, 4);
-    const tentMat = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.85 });
-    const count = 220;
-    const bodies = new THREE.InstancedMesh(tentBody, tentMat, count);
-    const roofs = new THREE.InstancedMesh(tentRoof, tentMat, count);
-    const m4 = new THREE.Matrix4();
-    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-    const s1 = new THREE.Vector3(1, 1, 1);
-    let idx = 0;
-    for (let row = 0; row < 11 && idx < count; row++) {
-        for (let col = 0; col < 20 && idx < count; col++) {
-            const x = -95 + col * 10 + (row % 2) * 3;
-            const z = 26 + row * 9;
-            m4.makeTranslation(x, 1.1, z);
-            bodies.setMatrixAt(idx, m4);
-            m4.compose(new THREE.Vector3(x, 3.0, z), q, s1);
-            engine.addBlocker(x - 2, z - 2, x + 2, z + 2); // Tenda solid
-            roofs.setMatrixAt(idx, m4);
-            idx++;
-        }
-    }
-    bodies.castShadow = roofs.castShadow = true;
-    bodies.receiveShadow = true;
-    scene.add(bodies, roofs);
-
-    // Bukit di kejauhan
-    for (let i = 0; i < 8; i++) {
-        const hill = mesh(new THREE.ConeGeometry(40 + Math.random() * 50, 24 + Math.random() * 20, 7), mats.rock,
-            -200 + i * 60, 8, -160 - Math.random() * 60, { cast: false });
-        scene.add(hill);
-    }
-
-    // Jembatan Jamarat Megah (Struktur Bangunan Modern bertingkat)
-    // Lantai Pelataran Dalam Jamarat (Marmer/Beton) HANYA untuk Ula & Wustha (-110 s/d 25)
-    scene.add(mesh(new THREE.BoxGeometry(135, 1.2, 100), mats.marbleTile, -42.5, -0.55, -30, { cast: false }));
-    
-    // =========================================================================
-    // BANGUNAN JAMARAT KHAS ARAB (Hanya menutupi Jumrah Ula & Wustha)
-    // Jumrah Aqabah (x = 50) berada di luar ruangan!
-    // =========================================================================
-    
-    // Atap Bangunan Jamarat
-    scene.add(mesh(new THREE.BoxGeometry(105, 2.5, 80), mats.cream, -27.5, 18, -30, { cast: false }));
-    // Lantai Karpet Merah Khas Interior Arab (Hanya di dalam ruangan)
-    scene.add(mesh(new THREE.BoxGeometry(105, 1.3, 80), mats.carpetRed, -27.5, -0.5, -30, { cast: false }));
-    
-    const wallH = 18;
-    const wThick = 2;
-    // Dinding Belakang (Z = -70) - Full Solid
-    const minaWallBack = mesh(new THREE.BoxGeometry(105, wallH, wThick), mats.cream, -27.5, wallH/2, -70);
-    scene.add(minaWallBack);
-    if (engine.chunkManager) engine.chunkManager.addOccluder(minaWallBack);
-    engine.addBlocker(-80, -71, 25, -69);
-
-    // Dinding Kiri (X = -80) - Full Solid
-    const minaWallLeft = mesh(new THREE.BoxGeometry(wThick, wallH, 80), mats.cream, -80, wallH/2, -30);
-    scene.add(minaWallLeft);
-    if (engine.chunkManager) engine.chunkManager.addOccluder(minaWallLeft);
-    engine.addBlocker(-81, -70, -79, 10);
-
-    // Dinding Depan (Z = 10) - Solid dengan Gerbang Masuk Raksasa di tengah (X=-40 to 10)
-    scene.add(mesh(new THREE.BoxGeometry(40, wallH, wThick), mats.cream, -60, wallH/2, 10)); // Kiri
-    engine.addBlocker(-80, 9, -40, 11);
-    scene.add(mesh(new THREE.BoxGeometry(15, wallH, wThick), mats.cream, 17.5, wallH/2, 10)); // Kanan
-    engine.addBlocker(10, 9, 25, 11);
-
-    // Dinding Kanan (X = 25) - Solid dengan Gerbang Keluar ke Jumrah Aqabah (Z=-55 to -25)
-    scene.add(mesh(new THREE.BoxGeometry(wThick, wallH, 15), mats.cream, 25, wallH/2, -62.5)); // Belakang
-    engine.addBlocker(24, -70, 26, -55);
-    scene.add(mesh(new THREE.BoxGeometry(wThick, wallH, 35), mats.cream, 25, wallH/2, -7.5)); // Depan
-    engine.addBlocker(24, -25, 26, 10);
-    
-    // Pilar-Pilar Interior Khas Arab (Marmer & Emas)
-    for (let px = -60; px <= 10; px += 30) {
-        for (let pz = -60; pz <= 0; pz += 30) {
-            let skip = false;
-            for (const jx of [-50, 0, 50]) {
-                if (Math.abs(px - jx) < 25 && Math.abs(pz - (-40)) < 15) skip = true;
-            }
-            if (skip) continue; 
-            
-            const pillar = new THREE.Group();
-            pillar.add(mesh(new THREE.CylinderGeometry(1.5, 1.5, 16, 24), mats.marbleTile, 0, 8, 0));
-            pillar.add(mesh(new THREE.CylinderGeometry(1.8, 1.5, 2, 24), mats.gold, 0, 17, 0)); // Mahkota
-            pillar.add(mesh(new THREE.CylinderGeometry(1.7, 1.7, 1, 24), mats.gold, 0, 0.5, 0)); // Basis
-            pillar.position.set(px, 0, pz);
-            scene.add(pillar);
-            engine.addBlocker(px - 1.5, pz - 1.5, px + 1.5, pz + 1.5);
-        }
-    }
-
-    // Lampu Gantung Mewah (Chandelier Emas)
-    for (let lx = -60; lx <= 10; lx += 30) {
-        for (let lz = -50; lz <= 0; lz += 25) {
-            const ch = new THREE.Group();
-            ch.add(mesh(new THREE.CylinderGeometry(0.05, 0.05, 4), mats.gold, 0, 16, 0)); // Rantai
-            ch.add(mesh(new THREE.TorusGeometry(3, 0.1, 8, 24), mats.gold, 0, 14, 0, { rx: Math.PI/2 })); // Cincin
-            for(let ang=0; ang<Math.PI*2; ang+=Math.PI/4) {
-                ch.add(mesh(new THREE.SphereGeometry(0.4, 8, 8), mats.emissiveCool, Math.cos(ang)*3, 14, Math.sin(ang)*3));
-            }
-            ch.position.set(lx, 0, lz);
-            scene.add(ch);
-            engine.addPointLamp(lx, 13.5, lz, { intensity: 100, distance: 50, color: 0xffeedd });
-        }
-    }
-
-    const jamarat = {};
-    if (withAllJamarat) {
-        const positions = [
-            ['ula', -50, -40], ['wustha', 0, -40], ['aqabah', 50, -40]
-        ];
-        for (const [name, jx, jz] of positions) {
-            const p = jamratPillar(mats);
-            p.position.set(jx, 0, jz);
-            scene.add(p);
-            engine.addBlocker(jx - 16, jz - 5, jx + 16, jz + 5); // Tiang Jamrah elips solid
-            jamarat[name] = p;
-            const st = Tex.sign(
-                name === 'ula' ? 'JUMRAH ULA' : name === 'wustha' ? 'JUMRAH WUSTHA' : 'JUMRAH AQABAH',
-                { bg: '#333d33', fg: '#c8ffc8', w: 640, h: 100 });
-            // Papan nama ditempel langsung ke dinding elips tiang Jumrah
-            scene.add(mesh(new THREE.BoxGeometry(7, 1.1, 0.2),
-                new THREE.MeshStandardMaterial({ map: st, emissive: 0xffffff, emissiveMap: st, emissiveIntensity: 1.1 }),
-                jx, 8, jz + 1.3, { cast: false }));
-        }
-    } else {
-        const p = jamratPillar(mats);
-        p.position.set(0, 0, -40);
-        scene.add(p);
-        engine.addBlocker(-3, -43, 3, -37); // Tiang Jamrah solid
-        jamarat.aqabah = p;
-        const st = Tex.sign('JUMRAH AQABAH', { bg: '#0e3b26', fg: '#c8ffc8', w: 640, h: 100, font: 'bold 48px sans-serif' });
-        scene.add(mesh(new THREE.BoxGeometry(8, 1.4, 0.2),
-            new THREE.MeshStandardMaterial({ map: st, emissive: 0xffffff, emissiveMap: st, emissiveIntensity: 1.2 }),
-            0, 8, -38.7, { cast: false }));
-    }
-
-    // Papan Petunjuk Jalan Imersif (Immersive UI)
-    const signEntry = Tex.sign('⬇ JALUR MELONTAR (TO JAMARAT) ⬇', { bg: '#0e3b26', fg: '#ffe9a8', w: 1024, h: 120 });
-    scene.add(mesh(new THREE.BoxGeometry(16, 2.5, 0.4),
-        new THREE.MeshStandardMaterial({ map: signEntry, emissive: 0xffffff, emissiveMap: signEntry, emissiveIntensity: 1.1 }),
-        0, 15, 18, { cast: false }));
-        
-    // (Papan EXIT dihapus sesuai permintaan)
-
-    // Tenda fasilitas dekat jalan
-    for (let i = 0; i < 4; i++) {
-        const lp = lampPost(mats, 7);
-        lp.position.set(-45 + i * 30, 0, -18);
-        scene.add(lp);
-    }
-
-    engine.addWalkRect(-100, -58, 100, 130);
-    const features = [{ type: 'square', x: 0, z: 60, color: '#f2f0ea' }];
-    if (withAllJamarat) {
-        features.push(
-            { type: 'point', x: -50, z: -40, color: '#d95757' },
-            { type: 'point', x: 0, z: -40, color: '#d99a57' },
-            { type: 'point', x: 50, z: -40, color: '#d9d957' });
-    } else {
-        features.push({ type: 'point', x: 0, z: -40, color: '#d95757' });
-    }
-    engine.configureMinimap({ scale: 0.75, center: { x: 0, z: 10 }, features });
-    return { jamarat };
+export function mina(engine, options = {}) {
+    return buildMinaReference(engine, options);
 }
 
 

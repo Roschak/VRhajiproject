@@ -1,9 +1,11 @@
+import {decorateJeddah} from './jeddah-terminal.js';
+import {createAirportAircraft} from './airport-aircraft.js';
 import { THREE, Tex } from './engine.js';
 
 /** Terminal 1C check-in palette and the supplied Soekarno-Hatta checkpoint reference.
  * Repeated details use instancing; all textures are generated locally at small sizes. */
-export function referenceAirport(engine) {
-    const root = new THREE.Group(); root.name = 'soekarno-hatta-reference'; engine.scene.add(root);
+export function referenceAirport(engine, {jeddah=false} = {}) {
+    const root = new THREE.Group(); root.name = jeddah?'jeddah-terminal':'soekarno-hatta-reference'; engine.scene.add(root);
     root.add(new THREE.AmbientLight(0xfff6e7, 1.35));
     const material = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: .55, ...extra });
     const wood = material(0xc88b54), dark = material(0x252c30), silver = material(0xbfc9ca, { metalness: .25, roughness: .35 });
@@ -69,16 +71,19 @@ export function referenceAirport(engine) {
         const texture = Tex.sign(text, { w: 1024, h: height, bg, fg, font: `bold ${fontSize}px "Segoe UI", sans-serif` });
         return box(parent, size, pos, material(0xffffff, { map: texture, emissive: 0xffffff, emissiveMap: texture, emissiveIntensity: .35 }), text);
     }
+    if(jeddah){wood.map=null;wood.color.set(0xdce3e8);woven.map=null;woven.color.set(0xc6d2de);}
     // Bright, low check-in hall with warm timber walls and continuous white light bars.
     engine.ground(360, engine.mats.tarmac, -.12);
     box(root, [90, .12, 60], [0, -.06, 0], floor, 'polished-terminal-floor');
     box(root, [90, 8.6, .4], [0, 4.3, -30], wood);
+    if(!jeddah){
     box(root, [90, .3, 60], [0, 8.8, 0], wood);
     const slats = [], lights = [];
     for (let x = -44; x <= 44; x += 1.2) slats.push([x, 8.61, 0]);
     for (let x = -42; x <= 42; x += 5.25) lights.push([x, 8.4, 0]);
     instances(root, new THREE.BoxGeometry(.045, .05, 60), dark, slats);
     instances(root, new THREE.BoxGeometry(.22, .16, 59), glow, lights);
+    }
     for (const z of [-29.6, 29.6]) box(root, [90, .24, .45], [0, 6.6, z], silver);
     for (const x of [-44.8, 44.8]) box(root, [.15, 8.5, 60], [x, 4.25, 0], glass);
     box(root, [90, 8.5, .12], [0, 4.25, 29.8], glass);
@@ -87,7 +92,7 @@ export function referenceAirport(engine) {
     for (let x = -44; x <= 44; x += 4) mullions.push([x, 4.3, 29.8]);
     instances(root, new THREE.BoxGeometry(.14, 8.6, .14), silver, mullions);
     box(root, [57, 1.25, .4], [-13, 5.8, -27], dark);
-    sign(root, 'SOEKARNO–HATTA  /  TERMINAL 1C', [24, 1, .12], [-15, 7.55, -29.7]);
+    sign(root, jeddah?'JEDDAH / TERMINAL 1':'SOEKARNO-HATTA / TERMINAL 1C', [24,1,.12], [-15,7.55,-29.7]);
     const counters = new THREE.Group(); counters.name = 'check-in-counters'; root.add(counters);
     const staffSpots = [], seatSpots = [];
     // First desk deliberately stays at the existing mission coordinate.
@@ -119,7 +124,16 @@ export function referenceAirport(engine) {
         box(root, [x2 - x1, .12, .025], [(x1 + x2) / 2, .91, z], blue);
         engine.addBlocker(x1 - .12, z - .1, x2 + .12, z + .1);
     }
-    for (const z of [-17, -13, -9]) { queue(-39, -27, z); queue(-21, 9, z); }
+    // Separate straight lanes, open at the rear and at each counter.
+    for (const x of [-24,-32,-16,-8,0,8]) {
+        for (const side of [-1,1]) {
+            const px=x+side*1.3;
+            box(root,[.06,.9,12],[px,.45,-15.5],chrome);
+            box(root,[.09,.12,12],[px,.95,-15.5],blue);
+            engine.addBlocker(px-.08,-21.5,px+.08,-9.5);
+        }
+        sign(root,x===-24?'31 - ANTRE DI SINI':'ANTREAN',[2.3,.5,.1],[x,2.5,-9]);
+    }
     sign(root, '↑  CHECK-IN     |     PEMERIKSAAN TIKET  →', [16, 1.2, .2], [-12, 5.5, -5]);
 
     function checkpoint(x, z, lanes, name) {
@@ -153,7 +167,7 @@ export function referenceAirport(engine) {
     const gate = boarding.bank;
     for (const z of [-22, -18, -10, -6]) queue(13, 22, z);
     box(root, [26, .14, 28], [30, 8.55, -12], material(0xffffff, { map: triangles }));
-    sign(root, 'PEMERIKSAAN TIKET   /   BOARDING PASS', [14, .9, .15], [22, 5.8, -25.5]);
+    sign(root, jeddah?'IMMIGRATION / PASSPORT CONTROL':'PEMERIKSAAN TIKET   /   BOARDING PASS', [14, .9, .15], [22, 5.8, -25.5]);
     sign(root, 'GATE 12   /   KEBERANGKATAN', [13, .85, .15], [30, 5.7, 24]);
     for (const z of [-24, -4]) {
         box(root, [4, 1.05, 3.4], [27, 6.4, z], brown);
@@ -164,26 +178,24 @@ export function referenceAirport(engine) {
     }
     // Coordinated lounge, courtyard planting, and apron beyond the glazing.
     for (const z of [8, 15, 22]) for (let x = -34; x < 15; x += 3) {
-        box(root, [2.1, .12, .8], [x, .55, z], silver);
-        box(root, [2.1, .7, .1], [x, .92, z - .4], silver);
-        for (const dx of [-.8, .8]) box(root, [.07, .55, .6], [x + dx, .28, z], dark);
+        const bench=new THREE.Group();bench.name='terminal-waiting-bench';
+        bench.position.set(x,0,z);bench.rotation.y=jeddah?0:Math.PI;root.add(bench);
+        box(bench, [2.1, .12, .8], [0, .55, 0], silver);
+        box(bench, [2.1, .7, .1], [0, .92, -.4], silver);
+        for (const dx of [-.8, .8]) box(bench, [.07, .55, .6], [dx, .28, 0], dark);
         engine.addBlocker(x - 1.1, z - .5, x + 1.1, z + .5);
-        seatSpots.push({ x, z: z + .2, ry: 0 });
+        seatSpots.push({ x, z: z + (jeddah?.2:-.2), ry: bench.rotation.y });
     }
     for (let x = -36; x <= 30; x += 11) {
         box(root, [6, .45, 3.5], [x, .15, 35], ivory);
         instances(root, new THREE.SphereGeometry(.85, 8, 6), material(0x48704a), [[x - 1.6, .85, 35], [x, .85, 35], [x + 1.6, .85, 35]]);
     }
-    const plane = new THREE.Group(); plane.name = 'apron-aircraft'; plane.position.set(76, 4.5, 6); root.add(plane);
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.8, 23, 6, 16), ivory); body.rotation.z = Math.PI / 2; plane.add(body);
-    box(plane, [8, .2, 26], [-3, -.3, 0], silver);
-    box(plane, [5, .15, 10], [-11, .4, 0], ivory);
-    box(plane, [3.5, 5, .24], [-11, 2.4, 0], material(0x40774d));
-    for (const z of [-5, 5]) { const jet = new THREE.Mesh(new THREE.CylinderGeometry(.85, .85, 3, 12), ivory); jet.rotation.z = Math.PI / 2; jet.position.set(-1, -1.2, z); plane.add(jet); }
+    const plane = createAirportAircraft(jeddah?'airbus':'boeing'); plane.position.set(76,4.5,6); root.add(plane);
     engine.addWalkRect(-43, -22, 43, 27);
     engine.addWalkRect(-43, -28, 43, -18);
     engine.addPointLamp(-20, 7, -12, { intensity: 110, distance: 55 });
     engine.addPointLamp(22, 7, 4, { intensity: 110, distance: 55 });
+    const arrival=jeddah?decorateJeddah(engine,root,{box,sign,material}):{};
     root.updateMatrixWorld(true);
-    return { counters, imigrasi, gate, plane, seatSpots, staffSpots };
+    return { ...arrival, counters, imigrasi, gate, plane, seatSpots, staffSpots };
 }
