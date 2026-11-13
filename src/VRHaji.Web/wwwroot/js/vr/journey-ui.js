@@ -1,16 +1,23 @@
+import {briefGuide} from './guide-voice.js';
+import {beginActivity} from '../avatar-activities.js';
 import * as THREE from 'three';
+import {prayerText,prayerBody} from './prayer-guide.js';
 
 /** One interaction surface for mouse, touch and WebXR controller rays. */
 export class JourneyUI {
     constructor(engine) { this.engine = engine; this.pending = null; }
 
-    choose(title, text, choices = ['Lanjutkan']) {
+    choose(title, text, choices = ['Lanjutkan'], options = {}) {
         this.close();
         const engine = this.engine;
+        const previousLock=engine.locomotionLocked;
+        const endActivity=options.pose?beginActivity(engine,options.pose):()=>{};
         engine.locomotionLocked = true;
         engine.setUiOpen(false);
         engine.setObjective(title);
-        engine.subtitle(text);
+        const brief=options.prayer?text:briefGuide(text);
+        engine.subtitle(brief);
+        if(options.narration!==false)void engine.narrator.guide(text);
         const group = new THREE.Group();
         group.name = 'journey-dialog';
         const head = engine.playerPos(new THREE.Vector3());
@@ -27,7 +34,8 @@ export class JourneyUI {
             const g = canvas.getContext('2d');
             g.fillStyle = color; g.fillRect(0, 0, canvas.width, canvas.height);
             g.fillStyle = '#ffffff'; g.font = `${font}px sans-serif`; g.textAlign = 'center';
-            const lines = wrap(g, label, 930);
+            let lines = wrap(g, label, 930);
+            while(lines.length*font*1.3>canvas.height-30&&font>20){font--;g.font=`${font}px sans-serif`;lines=wrap(g,label,930);}
             const lineHeight = font * 1.3;
             lines.forEach((line, i) => g.fillText(line, 512, (canvas.height - lines.length * lineHeight) / 2 + (i + .9) * lineHeight));
             const texture = new THREE.CanvasTexture(canvas);
@@ -37,15 +45,15 @@ export class JourneyUI {
             resources.push(mesh, texture);
             return mesh;
         };
-        panel(`${title}\n${text}`, 2.5, .95, .25, '#102d29', 37);
+        const description=panel(`${title}\n${brief}`, 2.5, options.prayer?1.65:.95, options.prayer?.55:.25, '#102d29', options.prayer?30:37);
         const dom = document.createElement('div');
         dom.className = 'journey-dialog'; dom.setAttribute('role', 'dialog');
         dom.setAttribute('aria-label', title);
         const heading = document.createElement('h2'); heading.textContent = title;
-        const body = document.createElement('p'); body.textContent = text;
-        dom.append(heading, body); document.getElementById('vr-root').append(dom);
+        const body = document.createElement('p'); body.textContent = brief;
+        dom.append(heading, options.prayer?prayerBody(options.prayer):body); document.getElementById('vr-root').append(dom);
         return new Promise(resolve => {
-            this.pending = { group, resources, dom, resolve, visibility };
+            this.pending = {previousLock,endActivity, group, resources, dom, resolve, visibility };
             choices.forEach((choice, index) => {
                 const mesh = panel(choice, 2.3, .25, -.4 - index * .31, '#476638', 50);
                 const select = () => { if (this.pending?.group === group) this.close(index); };
@@ -53,13 +61,36 @@ export class JourneyUI {
                 const button = document.createElement('button'); button.className = 'btn btn--gold';
                 button.textContent = choice; button.onclick = select; dom.append(button);
             });
+            if(!options.prayer&&brief!==text){
+                // Both desktop and controller users can open the complete explanation.
+                // Expand in place: preserve the original choice promise and interaction state.
+                const expand=()=>{
+                    body.textContent=text;
+                    panel(`${title}\n${text}`,2.5,1.65,.6,'#102d29',30);
+                    description.visible=false;
+                    button.disabled=true;
+                    engine.removeInteractable(more);
+                };
+                const more=panel('Penjelasan lengkap',2.3,.25,-.4-choices.length*.31,'#34584c',40);
+                engine.addInteractable(more,{label:'Penjelasan lengkap',onClick:expand,radius:8});
+                const button=document.createElement('button');button.type='button';button.className='btn btn--ghost';button.textContent='Penjelasan lengkap';button.onclick=expand;dom.append(button);
+            }
+            if(options.prayer){
+                const read=()=>{void engine.narrator.say(options.prayer.arabic,{repeat:true,lang:'ar-SA'});};
+                const audio=panel('Dengarkan bacaan',2.3,.25,-.4-choices.length*.31,'#476638',45);
+                engine.addInteractable(audio,{label:'Dengarkan bacaan',onClick:read,radius:8});
+                const button=document.createElement('button');button.className='btn btn--ghost';button.textContent='Dengarkan bacaan';button.onclick=read;dom.append(button);
+            }
         });
     }
+
+    prayer(id){const p=this.prayers?.find(p=>p.id===id);if(!p)return Promise.resolve();this.engine.currentPrayer=id;return this.choose(p.title,prayerText(p),['Lanjutkan'],{prayer:p,narration:false,pose:['rabbana','diterima','safa-dzikir'].includes(id)?'dua':null});}
 
     close(result = null) {
         const pending = this.pending;
         if (!pending) return;
         this.pending = null;
+        this.engine.narrator.stop();
         pending.visibility.done = true;
         for (const item of pending.resources) {
             if (item.isMesh) {
@@ -68,7 +99,8 @@ export class JourneyUI {
             } else item.dispose();
         }
         pending.group.removeFromParent(); pending.dom.remove();
-        this.engine.locomotionLocked = false;
+        pending.endActivity();
+        this.engine.locomotionLocked = pending.previousLock;
         pending.resolve(result);
     }
 }

@@ -1,0 +1,77 @@
+[
+    {
+        "Path":  "assets/arab_man",
+        "Files":  15,
+        "Bytes":  1878346
+    },
+    {
+        "Path":  "assets/arab_man_sale_at_mark_1129163447_refine",
+        "Files":  4,
+        "Bytes":  2033437
+    },
+    {
+        "Path":  "assets/arab_man_wearing_arab_1129154524_refine",
+        "Files":  4,
+        "Bytes":  2550862
+    },
+    {
+        "Path":  "assets/barber_shop",
+        "Files":  3,
+        "Bytes":  4531280
+    },
+    {
+        "Path":  "assets/hijab_muslim_woman",
+        "Files":  15,
+        "Bytes":  3831416
+    },
+    {
+        "Path":  "assets/middle_eastern_hajj",
+        "Files":  4,
+        "Bytes":  1295231
+    },
+    {
+        "Path":  "assets/prayer_carpet",
+        "Files":  4,
+        "Bytes":  1478489
+    },
+    {
+        "Path":  "assets/shalwar_kameez_man__pakistani__muslim",
+        "Files":  15,
+        "Bytes":  6332812
+    },
+    {
+        "Path":  "assets/woman_hijab",
+        "Files":  4,
+        "Bytes":  3911832
+    },
+    {
+        "Path":  "assets/women_in_hijab",
+        "Files":  8,
+        "Bytes":  6725809
+    },
+    {
+        "Path":  "assets/date_palm",
+        "Files":  15,
+        "Bytes":  7306044
+    },
+    {
+        "Path":  "assets/holy_kaaba_-_mecca_-_low_poly_1",
+        "Files":  11,
+        "Bytes":  2973540
+    },
+    {
+        "Path":  "src/VRHaji.Web/wwwroot/assets/autogate_imigrasi.glb",
+        "Files":  1,
+        "Bytes":  1769452
+    },
+    {
+        "Path":  "src/VRHaji.Web/wwwroot/assets/lampu_miqat.glb",
+        "Files":  1,
+        "Bytes":  40524
+    },
+    {
+        "Path":  "src/VRHaji.Web/wwwroot/assets/maqomIbrohim",
+        "Files":  3,
+        "Bytes":  14955
+    }
+]

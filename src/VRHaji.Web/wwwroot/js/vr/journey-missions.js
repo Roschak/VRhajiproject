@@ -1,4 +1,8 @@
+import {createDriveMap} from './drive-map.js';
+import {enterSeat,leaveSeat,pulseActivity} from '../avatar-activities.js';
+import {enterPrivateCar,leavePrivateCar} from './private-vehicle.js';
 import * as THREE from 'three';
+import {SCENE_GUIDES,SCENE_BRIEFS} from './guide-scenes.js';
 import { LOCATIONS } from './journey-world.js';
 import { setRitualAppearance } from '../character-ritual.js';
 import { HAJJ_MISSIONS, runRouteMission } from './route-missions.js';
@@ -26,41 +30,80 @@ export class MissionContext {
     }
     check() { this.signal.throwIfAborted(); }
     async wait(promise) { const value = await promise; this.check(); return value; }
-    say(text) { this.check(); return this.wait(this.engine.narrate(text, { sub: text })); }
-    confirm(title, text, choices) { this.check(); return this.wait(this.ui.choose(title, text, choices)); }
+    say(text) { this.check(); return this.wait(this.engine.narrate(text, { context: true })); }
+    async guide(key){
+        this.engine.prayerContext=key;
+        this.engine.guidedLocations||=new Set();
+        if(!SCENE_GUIDES[key])return;
+        this.check();this.engine.guidedLocations.add(key);await this.wait(this.engine.narrator.guide(SCENE_GUIDES[key],{context:true,brief:SCENE_BRIEFS[key]}));
+    }
+    async prayer(id){
+        this.engine.readPrayers||=new Set();
+        if(!this.ui.prayer||this.engine.readPrayers.has(id))return;
+        this.engine.readPrayers.add(id);await this.wait(this.ui.prayer(id));
+    }
+    confirm(title, text, choices, options) { this.check(); return this.wait(this.ui.choose(title, text, choices, options)); }
     async go(key, x, z, label, radius = 3) {
         this.check(); this.world.ensure(key); const p = this.world.point(key, x, z); this.location = key;
-        await this.wait(this.engine.goto(p.x, p.z, { label, radius }));
+        this.engine.prayerContext=key;
+        void this.engine.narrator?.guide(label);
+        this.world.locationSidebar?.travel(key);
+        try { await this.wait(this.engine.goto(p.x, p.z, { label, radius })); this.world.locationSidebar?.arrive(key); }
+        finally { this.engine.narrator?.stop(); }
     }
-    touch(object, label, radius = 10) {
-        this.check(); return this.wait(this.engine.interact(object, { label, radius }));
+    touch(object, label, radius = 10, pose = 'reach') {
+        this.check(); void this.engine.narrator?.guide(label);
+        return this.wait(this.engine.interact(object, { label, radius })).then(async()=>{const locked=this.engine.locomotionLocked;this.engine.locomotionLocked=true;pulseActivity(this.engine,pose);try{await this.wait(this.engine.wait(650));}finally{this.engine.locomotionLocked=locked;}}).finally(()=>this.engine.narrator?.stop());
     }
     async travel(key, x, z, { vehicle = 'Bus', walking = false } = {}) {
         this.check(); this.world.ensure(key);
+        const requested={x,z};
+        if(key==='haram'){
+            if(this.location==='haram'&&!this.engine.haramEntryPending){await this.go(key,x,z,'Lanjutkan menuju lokasi ibadah');return;}
+            x=30;z=124;
+        }
+        if(walking)this.world.prepareRoads();
         const destination = LOCATIONS[key].label;
         const choice = await this.confirm(`Menuju ${destination}`,
-            walking ? 'Pilih perjalanan singkat dengan bus atau ikuti penunjuk tujuan dengan berjalan.' : `${vehicle} siap berangkat. Waktu perjalanan disingkat dalam simulasi.`,
+            walking ? 'Pilih bus atau berjalan mengikuti panah di jalan penghubung. Bus menuju lokasi awal, bukan untuk pelaksanaan sai.' : `${vehicle} siap berangkat. Waktu perjalanan disingkat dalam simulasi.`,
             walking ? ['Naik bus', 'Berjalan ke tujuan'] : [`Naik ${vehicle.toLowerCase()}`]);
         if (walking && choice === 1) {
             await this.go(key, x, z, `Ikuti jalan penghubung menuju ${destination}`);
         } else {
             const e = this.engine;
+            this.world.locationSidebar?.travel(key,vehicle);
             await this.wait(e.fadeOut(250));
             // Stationary seated interior avoids moving the user's head along an imposed camera path.
-            let bus = null;
+            let bus = null,driveMap=null,driveUpdater=null;
             if (vehicle !== 'Pesawat') {
                 bus = this.world.vehicle(vehicle);
-                e.spawn(vehicle === 'Mobil' ? -7599.55 : -7500, 0, vehicle === 'Mobil' ? 0 : -90);
+                if(vehicle === 'Mobil'){
+                    await this.wait(bus.userData.ready);
+                    enterPrivateCar(e,bus);
+                    driveMap=createDriveMap({returning:key==='home'});driveMap.update(0);
+                }else enterSeat(e,{x:-7500,z:.9,y:1.65,yaw:-90,kind:'bus'});
                 this.world.update(0, 0);
             } else {
-                this.world.spawn('cabin', 0, 0, 90);
+                e.flightState={progress:0,target:1,origin:LOCATIONS[this.location]?.label||'Arab Saudi',destination,status:'Dalam penerbangan'};
+                const seat=this.world.ensure('cabin').refs.assignedSeat;this.world.spawn('cabin',seat.x,seat.z,seat.yaw);enterSeat(e,{x:-4000+seat.x,z:seat.z,y:seat.y,yaw:seat.yaw,kind:'plane'});
             }
             e.locomotionLocked = true;
             try {
                 await this.wait(e.fadeIn(250));
+                await this.guide(vehicle==='Pesawat'?'cabin':vehicle==='Mobil'?'car':'bus');
+                await this.prayer('kendaraan');
                 await this.say(`${vehicle} menuju ${destination}. Perjalanan berlangsung dalam sesi simulasi yang sama.`);
+                if(vehicle==='Mobil'){e.setObjective('Menuju bandara melalui kota Jakarta - Nikmati pemandangan atau lewati perjalanan');let elapsed=0;driveUpdater=e.onUpdate(dt=>{elapsed+=dt;driveMap?.update(elapsed/35);});await this.wait(e.skippable(e.wait(35000),()=>{}));driveMap?.update(1);}
+                if(vehicle==='Bus'){e.setObjective(`Di dalam bus menuju ${destination} - Nikmati pemandangan atau lewati perjalanan`);await this.wait(e.skippable(e.wait(45000),()=>{}));}
+                if(vehicle==='Pesawat'){
+                    e.setObjective(`Kursi 11C - Ikuti posisi penerbangan pada layar di depan Anda`);
+                    await this.wait(e.skippable(e.wait(18000),()=>{e.flightState.progress=1;}));
+                    e.flightState.progress=1;e.flightState.status='Sudah mendarat';
+                }
                 await this.wait(e.fadeOut(250));
             } finally {
+                if(driveUpdater)driveUpdater.done=true;driveMap?.dispose();
+                leavePrivateCar(e);leaveSeat(e);
                 e.locomotionLocked = false;
                 if (bus) bus.visible = false;
             }
@@ -68,16 +111,35 @@ export class MissionContext {
             await this.wait(e.fadeIn(250));
         }
         this.location = key;
+        await this.guide(key);
+        if(key==='haram'){
+            this.engine.haramEntryPending=true;
+            await this.enterHaram();
+            await this.go(key,requested.x,requested.z,'Ikuti jalan menuju tujuan di Masjidil Haram');
+        }
+    }
+
+    async enterHaram() {
+        if(!this.engine.haramEntryPending)return;
+        await this.prayer('masuk-masjid');
+        await this.go('haram',27,121,'Temui petugas pemeriksaan penginapan di pintu masuk',1.5);
+        await this.touch(this.world.ensure('haram').refs.entryOfficer,'Tunjukkan kartu penginapan langsung kepada petugas',4);
+        await this.confirm('Pemeriksaan penginapan','Tunjukkan kartu hotel atau penginapan kepada petugas. Cocokkan nama hotel dan identitas rombongan bersama pembimbing.', ['Tunjukkan kartu penginapan']);
+        await this.confirm('Pemeriksaan selesai','Identitas penginapan rombongan sudah diperiksa dalam latihan. Masuk dengan tertib dan ikuti petunjuk ibadah.');
+        this.engine.haramEntryPending=false;
+        await this.go('haram',30,100,'Lewati pintu masuk Masjidil Haram',2);
     }
 
     async tawaf(name) {
         const e = this.engine;
+        await this.prayer('takbir');await this.prayer('rabbana');
         await this.go('haram', 24, 5.3, 'Menuju garis awal tawaf sejajar Hajar Aswad');
         await this.say(`${name}: mulai dengan istilam. Kelilingi Kabah tujuh putaran berlawanan arah jarum jam, dengan Kabah di sebelah kiri.`);
+        await this.confirm('Panduan thawaf','Mulai sejajar Hajar Aswad sambil bertakbir: Allahu Akbar. Jaga Kabah di sisi kiri. Anda boleh berdzikir dan berdoa sepanjang putaran; tidak ada bacaan khusus yang diwajibkan untuk setiap putaran. Ikuti arahan pembimbing.');
         const p = e.playerPos(new THREE.Vector3());
         let previous = Math.atan2(p.z, p.x), angle = 0, lap = 0;
         let lastPosition = p.clone(), teleport = e.teleportSerial || 0, updater;
-        e.setObjective(`${name} - tujuh putaran, Kabah di sisi kiri`);
+        e.setObjective(`${name} - 7 putaran - Kabah di kiri - Baca takbir saat sejajar Hajar Aswad; berdoa sepanjang tawaf`);
         e.setCounter('Putaran 0 / 7');
         const completed = new Promise(resolve => {
             updater = e.onUpdate((_dt, _time, self) => {
@@ -105,20 +167,46 @@ export class MissionContext {
 
     async sai(name) {
         await this.go('haram', 80, -30, 'Menuju jalan penghubung ke Safa');
-        await this.go('masaa', -60, -5, 'Ikuti jalan masuk ke galeri sai');
+        await this.travel('masaa',-70,-5,{vehicle:'Bus',walking:true});
         await this.go('masaa', -70, -5, 'Berjalan dari Masjidil Haram menuju Safa');
+        await this.prayer('safa-awal');await this.prayer('tauhid');await this.prayer('safa-dzikir');
         await this.say(`${name}: mulai di Safa, tujuh perjalanan dan berakhir di Marwah. Safa ke Marwah dihitung satu perjalanan.`);
+        await this.confirm('Panduan sai','Di Safa dan Marwah, menghadap kiblat, bertakbir dan berdoa. Sepanjang lintasan, berdzikir atau berdoa sesuai kemampuan. Ikuti panah dan penghitung tujuh perjalanan; selesai di Marwah.');
         try {
             for (let trip = 1; trip <= 7; trip++) {
                 this.engine.setCounter(`Perjalanan ${trip - 1} / 7`);
                 const toMarwah = trip % 2 === 1;
+                if(trip>1)await this.go('masaa',toMarwah?-70:70,toMarwah?-5:5,'Berpindah jalur di ujung bukit, ikuti arus jamaah',1.5);
                 await this.go('masaa', toMarwah ? 70 : -70, toMarwah ? -5 : 5,
                     `${name}: menuju ${toMarwah ? 'Marwah' : 'Safa'} (${trip}/7)`, 4);
             }
         } finally { this.engine.setCounter(''); }
     }
 
+    async haircut(chair,title,text){
+        this.check();
+        const e=this.engine,previous=e.playerPos(new THREE.Vector3()),yaw=e.playerYaw()*180/Math.PI;
+        const seat=chair.localToWorld(new THREE.Vector3(0,1.52,-.5));
+        enterSeat(e,{x:seat.x,y:seat.y,z:seat.z,yaw:180,kind:'barber'});
+        try{await this.confirm(title,text,undefined,{pose:'haircut'});}
+        finally{leaveSeat(e);if(!this.signal.aborted)e.spawn(previous.x,previous.z,yaw,previous.y);}
+    }
+
+    async salah(){
+        this.check();
+        const e=this.engine,p=e.playerPos(new THREE.Vector3());
+        e.spawn(p.x,p.z,Math.atan2(p.x,p.z)*180/Math.PI,p.y);
+        // Explicit practice steps; no automatic timer declares a prayer complete.
+        for(let rakah=1;rakah<=2;rakah++){
+            for(const [pose,label] of [['takbir','Takbir'],['qiyam','Berdiri dan membaca'],['ruku','Rukuk'],['stand','Iktidal'],['sujud','Sujud pertama'],['salah-sit','Duduk di antara dua sujud'],['sujud','Sujud kedua']]){
+                await this.confirm(`Rakaat ${rakah}: ${label}`,'Ikuti gerakan latihan, kemudian lanjutkan.',['Lanjutkan'],{pose});
+            }
+        }
+        await this.confirm('Duduk akhir dan salam','Selesaikan latihan shalat dua rakaat.',['Selesai'],{pose:'salah-sit'});
+    }
+
     async stones(key, name) {
+        await this.prayer('takbir');
         const e = this.engine, pillar = this.world.ensure('mina').refs.jamarat[key];
         const localX = { ula: -50, wustha: 0, aqabah: 50 }[key];
         await this.go('mina', localX, -22, `Dekati ${name}`, 5);
@@ -130,7 +218,7 @@ export class MissionContext {
             onClick: () => {
                 if (performance.now() - lastClick < 350 || count >= 7) return;
                 lastClick = performance.now(); count++;
-                e.audio.sfx('throw'); e.setCounter(`Lontaran ${count} / 7`);
+                pulseActivity(e,'throw',.65);e.audio.sfx('throw'); e.setCounter(`Lontaran ${count} / 7`);
                 e.subtitle(`Allahu Akbar - lontaran ${count}`);
                 if (count === 7) resolve();
             }

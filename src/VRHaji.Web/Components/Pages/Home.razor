@@ -28,8 +28,8 @@
                     @if (_menuOpen) { <span class="hub-eyebrow">PERJALANAN IBADAH</span><h1>Pilih perjalanan Anda.</h1> }
                     <p class="hub-lead">Pilih perjalanan ibadah. Setiap rangkaian berlangsung dalam satu dunia dan satu sesi VR yang berkelanjutan.</p>
                     <div class="hub-route-cards">
-                        <article class="hub-route-card"><span>12 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Haji</h2><p>Jeddah, Makkah, Arafah, Muzdalifah, dan Mina.</p><progress max="12" value="@_totalDone"></progress><a class="hub-primary" href="@(_highest > 0 && _highest < 12 ? $"/simulasi/haji?tahap={_highest + 1}" : "/simulasi/haji")">@(_highest > 0 && _highest < 12 ? "Lanjutkan Haji" : "Mulai perjalanan Haji") <span>↗</span></a></article>
-                        <article class="hub-route-card"><span>6 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Umrah</h2><p>Miqat, thawaf, shalat sunnah, sa’i, dan tahallul.</p><progress max="6" value="@_umrahDone"></progress><a class="hub-primary" href="@(_umrahDone > 0 && _umrahDone < 6 ? $"/simulasi/umrah?tahap={_umrahDone + 1}" : "/simulasi/umrah")">@(_umrahDone > 0 && _umrahDone < 6 ? "Lanjutkan Umrah" : "Mulai perjalanan Umrah") <span>↗</span></a></article>
+                        <article class="hub-route-card"><span>12 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Haji</h2><p>Jeddah, Makkah, Arafah, Muzdalifah, dan Mina.</p><progress max="12" value="@_totalDone"></progress><a class="hub-primary" href="/simulasi/haji">Buka perjalanan Haji <span>↗</span></a></article>
+                        <article class="hub-route-card"><span>6 TAHAP · RUMAH HINGGA PULANG</span><h2>Perjalanan Umrah</h2><p>Miqat, thawaf, shalat sunnah, sa’i, dan tahallul.</p><progress max="6" value="@_umrahDone"></progress><a class="hub-primary" href="/simulasi/umrah">Buka perjalanan Umrah <span>↗</span></a></article>
                     </div>
                     <div class="hub-tiles"><button @onclick='() => SetTab("character")' disabled="@(!_ready)"><span>01 / KARAKTER</span><strong>Persiapkan diri</strong><small>Pilih karakter dan pakaian →</small></button><div><span>02 / ZIARAH</span><strong>Jelajahi sejarah</strong><small>Segera hadir</small></div></div>
                 }
@@ -137,7 +137,12 @@
         _highest = 0; while (orders.Contains(_highest + 1)) _highest++;
         _totalDone = orders.Count;
     }
-    private async Task ResetProgress() { await ProgressService.ResetAsync(_userId); await LoadProgress(); _confirmReset = false; _message = "Progres perjalanan sudah diulang."; }
+    private async Task ResetProgress() {
+        await ProgressService.ResetAsync(_userId);
+        await using var session = await JS.InvokeAsync<IJSObjectReference>("import", "./js/journey-session.js");
+        await session.InvokeVoidAsync("restartRoute", "haji");
+        await LoadProgress(); _confirmReset = false; _message = "Progres perjalanan sudah diulang.";
+    }
     public async ValueTask DisposeAsync() {
         _disposed = true;
         try {

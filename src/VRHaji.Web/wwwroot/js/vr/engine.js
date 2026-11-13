@@ -1,9 +1,11 @@
+import { Narrator } from './guide-voice.js';
 /**
  * VR Education Haji & Umrah — Core Engine (Three.js, WebGL 2.0)
  * Renderer HD: ACES Filmic tone mapping, PBR + PMREM environment,
  * PCF soft shadows, UnrealBloom, physical Sky, instanced crowds.
  */
 import * as THREE from 'three';
+import { walkingRoute } from './walking-route.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -425,59 +427,6 @@ class AudioBed {
 /* ============================================================
  * Narasi: Web Speech API + subtitle
  * ============================================================ */
-class Narrator {
-    constructor(subtitleEl) {
-        this.el = subtitleEl;
-        this.audio = new Audio();
-        this.audio.crossOrigin = "anonymous";
-    }
-    stop() {
-        this.audio.pause();
-        this.audio.currentTime = 0;
-        if (this.el) this.el.textContent = '';
-    }
-    say(text, { sub = null, rate = 1.0 } = {}) {
-        const subtitle = sub ?? text;
-        if (this.el) this.el.textContent = subtitle;
-        
-        // Perkiraan waktu selesai sebagai fallback
-        const minMs = Math.max(2200, subtitle.length * 62);
-        if (this.enabled === false) return new Promise(resolve => setTimeout(() => {
-            if (this.el && this.el.textContent === subtitle) this.el.textContent = '';
-            resolve();
-        }, minMs));
-        
-        return new Promise(resolve => {
-            let done = false;
-            const finish = () => {
-                if (done) return;
-                done = true;
-                if (this.el && this.el.textContent === subtitle) this.el.textContent = '';
-                resolve();
-            };
-
-            try {
-                // Memanggil endpoint API lokal yang meneruskan ke Cloud TTS
-                this.audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q=${encodeURIComponent(text)}`;
-                this.audio.playbackRate = rate;
-                this.audio.onended = finish;
-                this.audio.onerror = finish;
-                
-                // Mulai memutar suara
-                this.audio.play().catch(e => {
-                    console.warn("Audio play blocked or failed:", e);
-                    setTimeout(finish, minMs);
-                });
-                
-                // Pengaman jika audio macet
-                setTimeout(finish, minMs + 10000); 
-            } catch { 
-                setTimeout(finish, minMs); 
-            }
-        });
-    }
-}
-
 /* ============================================================
  * Kerumunan jamaah — figur manusia instanced (kepala, torso,
  * dua kaki berporos pinggul, dua lengan berporos bahu) dengan
@@ -1363,6 +1312,10 @@ export class Engine {
             if (this._dragMoved > 5 && !locked) {
                 try { this.renderer.domElement.requestPointerLock(); } catch { }
             }
+            if (this.droneActive && this.rotateDrone) {
+                this.rotateDrone(mx * LOOK_SENS * (this.lookSensitivity ?? 1), my * LOOK_SENS * (this.lookSensitivity ?? 1));
+                return;
+            }
             if (this._camTargetYaw === undefined) {
                 const initEul = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
                 this._camTargetYaw = initEul.y;
@@ -1559,7 +1512,16 @@ export class Engine {
     /** Bisa dilewati secara geometri statis (blocker + area jalan). Tanpa kerumunan. */
     _walkableStatic(x, z, pad = 0, level = this.navigationLevel || 0) {
         if (level === 1 && this.haramUpperWalkable && !this.haramUpperWalkable(x, z)) return false;
-        for (const b of this.blockers) {
+        // Static bounds are indexed once; proximity doors still toggle the same objects.
+        // This also keeps thousands of Mina tents out of Makkah's per-step checks.
+        if(this._blockerSource!==this.blockers||this._blockerCount!==this.blockers.length){
+            this._blockerSource=this.blockers;this._blockerCount=this.blockers.length;this._blockerGrid=new Map();
+            for(const b of this.blockers)for(let gx=Math.floor((b.x1-2)/16);gx<=Math.floor((b.x2+2)/16);gx++)for(let gz=Math.floor((b.z1-2)/16);gz<=Math.floor((b.z2+2)/16);gz++){
+                const key=gx+','+gz;if(!this._blockerGrid.has(key))this._blockerGrid.set(key,[]);this._blockerGrid.get(key).push(b);
+            }
+        }
+        const nearby=pad<=2?(this._blockerGrid.get(Math.floor(x/16)+','+Math.floor(z/16))||[]):this.blockers;
+        for (const b of nearby) {
             if (b.disabled) continue;
             if (x > b.x1 - pad && x < b.x2 + pad && z > b.z1 - pad && z < b.z2 + pad) return false;
         }
@@ -1680,6 +1642,7 @@ export class Engine {
         };
         const cfg = POSES[pose] || POSES.stand;
         this._prayerActive = true;
+        this._avatarPrayerPose = pose==='stand'?'qiyam':pose==='sit'?'salah-sit':pose;
         this._prayerTargetY = cfg.y;
         this._prayerTargetY = cfg.y;
         
@@ -1701,6 +1664,7 @@ export class Engine {
     /** Kembalikan kontrol normal setelah sesi shalat selesai. */
     prayerEndPose() {
         this._prayerActive = false;
+        delete this._avatarPrayerPose;
         this._prayerTargetY = 1.7;
         this._camTargetPitch = 0;
         if (this.fadeEl) {
@@ -2230,7 +2194,7 @@ export class Engine {
         if (this.interactables.length === 0) return null;
         // saat drag pakai tengah layar, selain itu ikuti posisi kursor
         const ndc = this._dragging ? _NDC_CENTER : this._pointerNDC;
-        this._raycaster.setFromCamera(ndc, this.camera);
+        this._raycaster.setFromCamera(ndc, this.viewCamera || this.camera);
         this._raycaster.far = 30;
         const hits = this._raycaster.intersectObjects(this.interactables, true);
         for (const h of hits) {
@@ -2310,11 +2274,13 @@ export class Engine {
         grp.position.set(x, groundH, z);
         this.scene.add(grp);
         this.waypoint = grp;
+        this.guideRoute=walkingRoute(this,this.playerPos(new THREE.Vector3()),{x,z});
         this._waypointRing = ring;
         // Jalur cahaya dari pemain menuju waypoint (titik mengalir di lantai)
-        const dotGeo = new THREE.SphereGeometry(0.15, 8, 6);
+        const shape=new THREE.Shape();shape.moveTo(0,.38);shape.lineTo(-.28,-.18);shape.lineTo(0,-.04);shape.lineTo(.28,-.18);shape.closePath();
+        const dotGeo = new THREE.ShapeGeometry(shape);dotGeo.rotateX(Math.PI/2);
         const dotMat = new THREE.MeshBasicMaterial({
-            color, transparent: true, opacity: 0.95, depthWrite: false
+            color, transparent: true, opacity: 0.95, depthWrite: false, side:THREE.DoubleSide
         });
         this._guide = new THREE.InstancedMesh(dotGeo, dotMat, 36);
         this._guide.frustumCulled = false;
@@ -2338,25 +2304,32 @@ export class Engine {
     _updateGuide(t) {
         if (!this._guide || !this.waypoint) return;
         const p = this.playerPos(_playerW), w = this.waypoint.position;
-        const dx = w.x - p.x, dz = w.z - p.z;
-        const dist = Math.hypot(dx, dz);
-        const n = this._guide.count;
-        const flow = (t * 0.35) % (1 / n);
-        for (let i = 0; i < n; i++) {
-            const u = i / n + flow;
-            const d = u * dist;
-            // sembunyikan titik yang terlalu dekat pemain / sudah sampai target
-            if (d < 1.4 || d > dist - 0.9 || dist < 3) {
-                this._guideM.makeScale(0, 0, 0);
-            } else {
-                const pulse = 0.75 + 0.45 * Math.sin(t * 5 - u * 14);
-                const gX = p.x + dx * u;
-                const gZ = p.z + dz * u;
-                const gH = this.getGroundHeight(gX, gZ);
-                this._guideM.makeScale(pulse, pulse, pulse);
-                this._guideM.setPosition(gX, gH + 0.18 + Math.sin(u * Math.PI) * 0.1, gZ);
+        let route=this.guideRoute||[];
+        let nearest=0,best=Infinity;
+        for(let j=0;j<route.length-1;j++){
+            const a=route[j],b=route[j+1],dx=b.x-a.x,dz=b.z-a.z;
+            const u=THREE.MathUtils.clamp(((p.x-a.x)*dx+(p.z-a.z)*dz)/(dx*dx+dz*dz||1),0,1);
+            const d=Math.hypot(p.x-a.x-dx*u,p.z-a.z-dz*u);if(d<best){best=d;nearest=j;}
+        }
+        if(best>.6&&t-(this._lastRoutePlan||0)>.5){
+            this._lastRoutePlan=t;route=this.guideRoute=walkingRoute(this,p,w);nearest=0;
+        }else if(best>.6){
+            // Do not draw a shortcut from an off-route player through nearby walls.
+            route=[];
+        }
+        const points=[p,...route.slice(nearest+1)],lengths=[];let dist=0;
+        for(let j=1;j<points.length;j++){const d=Math.hypot(points[j].x-points[j-1].x,points[j].z-points[j-1].z);lengths.push(d);dist+=d;}
+        this.navigationDistance=Math.round(dist);this.navigationNext=points[1]||null;
+        for(let i=0;i<this._guide.count;i++){
+            let d=1.5+i*1.1+(t*.8)%1.1;
+            if(d>dist-.6||route.length<2){this._guideM.makeScale(0,0,0);}
+            else{
+                let j=0;while(j<lengths.length-1&&d>lengths[j]){d-=lengths[j];j++;}
+                const a=points[j],b=points[j+1],u=d/(lengths[j]||1),x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u;
+                this._guideM.makeRotationY(Math.atan2(b.x-a.x,b.z-a.z));
+                this._guideM.setPosition(x,this.getGroundHeight(x,z)+.16,z);
             }
-            this._guide.setMatrixAt(i, this._guideM);
+            this._guide.setMatrixAt(i,this._guideM);
         }
         this._guide.instanceMatrix.needsUpdate = true;
     }
@@ -2413,7 +2386,7 @@ export class Engine {
     setProgress(pct) { if (this.hud.progress) this.hud.progress.style.width = Math.round(pct) + '%'; }
 
     narrate(text, opts) {
-        return this.skippable(this.narrator.say(text, opts), () => this.narrator.stop());
+        return this.narrator.guide(text, opts);
     }
     subtitle(t) { if (this.hud.subtitle) this.hud.subtitle.textContent = t || ''; }
 
@@ -2639,6 +2612,7 @@ export class Engine {
                 this.waypoint.rotation.y = t * 0.8;
                 this._updateGuide(t);
             }
+            this.updateViewCamera?.();
             // Raycast & gambar-ulang HUD tak perlu tiap frame: keduanya tak terlihat
             // lebih halus di 60fps, tapi ongkosnya memakan anggaran frame.
             if (!this.uiOpen && t >= this._nextHover) {

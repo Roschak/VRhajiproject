@@ -1,0 +1,37 @@
+{
+ "slug": "man-rigged",
+ "triangles": 244257,
+ "texture_px": 2048,
+ "triangles_light": null,
+ "texture_px_light": null,
+ "files": {
+  "glb": {
+   "name": "man-rigged.glb",
+   "bytes": 13051272
+  },
+  "fbx": {
+   "name": "man-rigged.fbx",
+   "bytes": 19466764
+  },
+  "blend": {
+   "name": "man-rigged.blend",
+   "bytes": 13035875
+  }
+ },
+ "extras": {
+  "license": "CC0-1.0",
+  "source": "grab3d.com",
+  "generator": "Created by grab3d",
+  "created": "2026-09-28",
+  "variant": "download",
+  "dimensions_m": "1.152 x 0.356 x 1.800",
+  "triangles": 244257,
+  "notes": "rigged man (Meshy auto-rig with 24 humanoid bones, plus 30 finger bones added in Blender, 54 bones in total, relaxed hand pose) with two animation clips: walk, run",
+  "animations": "walk, run"
+ },
+ "origin": {
+  "method": "ai-assisted",
+  "detail": "Base mesh and textures generated with an AI image-to-3D tool (Meshy), then cleaned up, scaled, textured and checked in Blender. Skeleton, skinning and the walk and run clips were added automatically with Meshy Auto-Rig. Finger bones and a relaxed hand pose were added in Blender.",
+  "ai_content": true
+ }
+}

@@ -1,9 +1,11 @@
+import {HOTEL} from './makkah-landmarks.js';
 import {setRitualAppearance} from '../character-ritual.js';
+import {departureFromHome, landMiqat, airportProcedure} from './departure-flow.js';
 
 export const HAJJ_MISSIONS=[
  {title:'Berangkat dari rumah ke Bandara Indonesia',location:'home',spawn:[0,3]},
- {title:'Tiba di Jeddah dan menuju hotel Makkah',location:'jeddah',spawn:[0,10]},
- {title:'Ihram Haji - 8 Dzulhijjah dari hotel Makkah',location:'haram',spawn:[-95,50]},
+ {title:'Tiba di Arab Saudi, miqat dan menuju hotel Makkah',location:'jeddah',spawn:[0,10]},
+ {title:'Persiapan Haji - 8 Dzulhijjah di Makkah',location:'haram',spawn:[HOTEL.x,HOTEL.z]},
  {title:'Wukuf di Arafah - 9 Dzulhijjah',location:'arafah',spawn:[14,26]},
  {title:'Mabit dan mengambil kerikil di Muzdalifah',location:'muzdalifah',spawn:[0,0]},
  {title:'Lempar Jumrah Aqabah - 10 Dzulhijjah',location:'mina',spawn:[0,30]},
@@ -31,34 +33,26 @@ export async function runRouteMission(index,c,route='haji'){
  const e=c.engine,w=c.world;
  if(route==='umrah')return runUmrah(index,c);
  switch(index){
-  case 1:{
-   await c.say('Perjalanan dimulai di rumah. Periksa dokumen dan perlengkapan, lalu menuju bandara untuk penerbangan ke Jeddah.');
-   await c.go('home',0,-1,'Periksa koper dan dokumen perjalanan');
-   await c.touch(w.ensure('home').refs.checklist,'Periksa perlengkapan keberangkatan');
-   await c.travel('indonesia',0,10,{vehicle:'Mobil'});
-   const airport=w.ensure('indonesia').refs;
-   await c.go('indonesia',-24,-20,'Menuju konter check-in');
-   await c.touch(airport.counters.children[0],'Check-in dan serahkan bagasi');
-   await c.go('indonesia',22,-14,'Menuju pemeriksaan imigrasi');
-   await c.touch(airport.imigrasi.children[0],'Pemeriksaan dokumen perjalanan');
-   await c.go('indonesia',36,18,'Menuju gerbang keberangkatan');
-   await c.touch(airport.gate,'Boarding pesawat menuju Jeddah');
-   await c.travel('jeddah',0,10,{vehicle:'Pesawat'});
+  case 1:
+   await departureFromHome(c,'haji');
    break;
-  }
   case 2:{
-   await c.say('Anda tiba di Bandara Jeddah. Selesaikan imigrasi dan berkumpul dengan rombongan sebelum menuju hotel di Makkah.');
-   await c.go('jeddah',22,-14,'Menuju pemeriksaan imigrasi Jeddah');
-   await c.touch(w.ensure('jeddah').refs.imigrasi.children[0],'Selesaikan pemeriksaan kedatangan');
-   await c.travel('haram',-95,50,{vehicle:'Bus'});
-   await c.go('haram',-95,42,'Masuk ke hotel dan tempat pemondokan');
+   const arrival=e.departureState.miqatChoice==='air'?'jeddah':'madinah';
+   await c.say('Anda tiba di Arab Saudi. Selesaikan pemeriksaan kedatangan dan berkumpul bersama rombongan.');
+   // Also runs when resuming directly at stage two.
+   await airportProcedure(c,arrival,false);
+   if(e.departureState.miqatChoice==='land'&&!e.departureState.ihram)await landMiqat(c,'haji');
+   await c.travel('haram',HOTEL.x,HOTEL.z,{vehicle:'Bus',walking:e.departureState.miqatChoice==='land'});
+   await c.go('haram',HOTEL.x,HOTEL.z,'Masuk ke hotel dan tempat pemondokan');
    await c.touch(w.ensure('haram').refs.hotel,'Check-in di hotel Makkah dan beristirahat');
-   await c.confirm('Persiapan di Makkah','Simpan kartu identitas, kenali lokasi hotel, lalu siapkan diri untuk ihram haji pada 8 Dzulhijjah.');
+   await c.confirm('Tiba di pemondokan Makkah','Kenali lokasi hotel, simpan perlengkapan dengan rapi, dan ikuti pembimbing. Ihram yang sudah dimulai di miqat tetap dijaga.');
    break;
   }
   case 3:
-   await c.go('haram',-95,42,'Menuju tempat persiapan di hotel');
+   if(e.departureState.ihram){await c.confirm('Persiapan keberangkatan haji','Anda sudah memulai ihram di miqat. Jaga ketentuannya dan bersiap bersama rombongan untuk melanjutkan rangkaian haji.');break;}
+   await c.go('haram',HOTEL.x,HOTEL.z,'Menuju tempat persiapan di hotel');
    await c.touch(w.ensure('haram').refs.hotel,'Persiapan kebersihan dan pakaian ihram haji');
+   await c.prayer('niat-haji');await c.prayer('talbiyah');
    await c.confirm('Niat haji - 8 Dzulhijjah','Berniat haji dari pemondokan di Makkah: Labbaika Allahumma hajjan. Pakai ihram, mulai talbiyah dan ikuti pembimbing rombongan.');
    setRitualAppearance(e,{ihram:true});
    await c.say('Labbaik Allahumma labbaik. Rombongan bersiap menuju Arafah untuk wukuf pada 9 Dzulhijjah.');
@@ -67,16 +61,18 @@ export async function runRouteMission(index,c,route='haji'){
    e.setEnvironment('day');
    await c.travel('arafah',14,26,{walking:true});
    await c.go('arafah',14,35,'Menuju area wukuf di Arafah');
-   await c.confirm('Wukuf - 9 Dzulhijjah','Wukuf berlangsung sejak waktu Dzuhur sampai Maghrib. Perbanyak doa dan dzikir. Simulasi memadatkan waktu; ikuti jadwal dan arahan pembimbing saat ibadah sebenarnya.');
+   await c.prayer('tauhid');await c.prayer('rabbana');
+   await c.confirm('Wukuf - 9 Dzulhijjah','Wukuf berlangsung sejak waktu Dzuhur sampai Maghrib. Perbanyak doa dan dzikir. Simulasi memadatkan waktu; ikuti jadwal dan arahan pembimbing saat ibadah sebenarnya.',undefined,{pose:'dua'});
    break;
   case 5:{
    e.setEnvironment('night');
    await c.travel('muzdalifah',0,0,{walking:true});
-   await c.confirm('Mabit di Muzdalifah - malam 10 Dzulhijjah','Beristirahat sejenak di Muzdalifah setelah dari Arafah. Siapkan kerikil yang diperlukan untuk melontar Jumrah Aqabah.');
+   await c.prayer('istighfar');
+   await c.confirm('Mabit di Muzdalifah - malam 10 Dzulhijjah','Beristirahat sejenak di Muzdalifah setelah dari Arafah. Siapkan kerikil yang diperlukan untuk melontar Jumrah Aqabah.',undefined,{pose:'sit-ground'});
    const rocks=w.ensure('muzdalifah').refs.clusters.slice(0,7);
    for(let i=0;i<rocks.length;i++){
     rocks[i].visible=true;rocks[i].position.set(-3+i,.12,3);
-    await c.touch(rocks[i],`Ambil kerikil ${i+1} / 7`,12);rocks[i].visible=false;
+    await c.touch(rocks[i],`Ambil kerikil ${i+1} / 7`,12,'pickup');rocks[i].visible=false;
    }
    await c.confirm('Menuju Mina','Tujuh kerikil latihan sudah dikumpulkan. Rombongan melanjutkan perjalanan ke Mina pada 10 Dzulhijjah.');
    break;
@@ -89,8 +85,9 @@ export async function runRouteMission(index,c,route='haji'){
    break;
   case 7:
    await c.go('mina',100,25,'Menuju tempat tahallul di Mina');
-   await c.touch(w.ensure('mina').refs.chair,'Latihan mencukur atau memendekkan rambut');
-   await c.confirm('Tahallul Awal','Pelajari mencukur atau memendekkan rambut setelah melontar Jumrah Aqabah. Setelah tahallul awal, jamaah dapat berganti dari ihram sesuai ketentuan.');
+   await c.touch(w.ensure('mina').refs.chair,'Latihan mencukur atau memendekkan rambut',10,'reach');
+   await c.prayer('diterima');
+   await c.haircut(w.ensure('mina').refs.chair,'Tahallul Awal','Pelajari mencukur atau memendekkan rambut setelah melontar Jumrah Aqabah. Setelah tahallul awal, jamaah dapat berganti dari ihram sesuai ketentuan.');
    setRitualAppearance(e,{ihram:false,shaved:true});
    break;
   case 8:
@@ -105,20 +102,22 @@ export async function runRouteMission(index,c,route='haji'){
    e.setEnvironment('day');
    await c.travel('mina',0,30,{walking:true});
    for(const day of [11,12,13]){
-    await c.confirm(`${day} Dzulhijjah - Mabit di Mina`,'Bermalam di Mina. Urutan lontar setiap hari: Jumrah Ula, Wustha, lalu Aqabah; masing-masing tujuh kerikil.');
+    await c.confirm(`${day} Dzulhijjah - Mabit di Mina`,'Bermalam di Mina. Urutan lontar setiap hari: Jumrah Ula, Wustha, lalu Aqabah; masing-masing tujuh kerikil.',undefined,{pose:'sit-ground'});
     for(const [key,name] of [['ula','Jumrah Ula'],['wustha','Jumrah Wustha'],['aqabah','Jumrah Aqabah']]){
      await c.stones(key,name);
-     if(key!=='aqabah')await c.confirm('Doa setelah melontar','Berdoa di tempat aman tanpa menghalangi jalur jamaah, lalu lanjutkan ke jumrah berikutnya.');
+     if(key!=='aqabah')await c.confirm('Doa setelah melontar','Berdoa di tempat aman tanpa menghalangi jalur jamaah, lalu lanjutkan ke jumrah berikutnya.',undefined,{pose:'dua'});
     }
    }
    break;
   case 11:
    await c.travel('haram',24,20,{walking:true});
    await c.tawaf('Thawaf Wada’');
+   await c.prayer('keluar-masjid');
    await c.confirm('Thawaf Wada’','Thawaf perpisahan menjadi penutup sebelum meninggalkan Makkah. Setelah menyelesaikannya, lanjutkan perjalanan pulang.');
    break;
   case 12:
    await c.travel('jeddah',0,10,{vehicle:'Bus'});
+   await airportProcedure(c,'jeddah',true);
    await c.travel('indonesia',0,10,{vehicle:'Pesawat'});
    await c.confirm('Tiba di Indonesia','Selesaikan pemeriksaan kedatangan dan pastikan bagasi lengkap sebelum menuju rumah.');
    await c.travel('home',0,3,{vehicle:'Mobil'});
@@ -132,49 +131,38 @@ async function runUmrah(index,c){
  const e=c.engine,w=c.world;
  switch(index){
   case 1:{
-   await c.say('Periksa dokumen dan perlengkapan di rumah. Perjalanan latihan menuju Madinah, lalu ke Miqat Bir Ali.');
-   await c.go('home',0,-1,'Periksa koper dan dokumen');
-   await c.touch(w.ensure('home').refs.checklist,'Periksa perlengkapan keberangkatan');
-   await c.travel('indonesia',0,10,{vehicle:'Mobil'});
-   const refs=w.ensure('indonesia').refs;
-   await c.go('indonesia',-24,-20,'Menuju konter check-in');
-   await c.touch(refs.counters.children[0],'Check-in penerbangan');
-   await c.go('indonesia',36,18,'Menuju gerbang keberangkatan');
-   await c.touch(refs.gate,'Boarding pesawat menuju Madinah');
-   await c.travel('madinah',0,10,{vehicle:'Pesawat'});
-   await c.say('Setelah tiba di Madinah, berkumpul dengan rombongan dan melanjutkan perjalanan ke Miqat Bir Ali.');
-   await c.travel('miqat',0,44,{vehicle:'Bus'});
-   const miqat=w.ensure('miqat').refs;
-   await c.go('miqat',-20,-10,'Persiapan di tempat miqat');
-   await c.touch(miqat.bilik,'Persiapan kebersihan sebelum ihram');
-   await c.go('miqat',-6,-12,'Menuju perlengkapan ihram');
-   await c.touch(miqat.rak,'Kenakan pakaian ihram');
-   await c.confirm('Niat Umrah di Miqat','Niat umrah: Labbaika Allahumma umratan. Kenakan pakaian ihram, pahami larangannya dan lanjutkan dengan talbiyah.');
-   setRitualAppearance(e,{ihram:true,shaved:false});
-   await c.say('Labbaik Allahumma labbaik. Miqat Bir Ali adalah tempat memulai ihram untuk perjalanan ini.');
+   const choice=await departureFromHome(c,'umrah');
+   if(choice==='land')await landMiqat(c,'umrah');
+   await c.say('Ihram sudah dimulai di miqat. Rombongan bersiap melanjutkan perjalanan ke Makkah.');
    break;
   }
   case 2:
-   await c.travel('haram',24,20,{walking:true});
+   await c.travel('haram',24,20,{walking:e.departureState.miqatChoice==='land'});
    await c.tawaf('Thawaf Umrah');
    break;
   case 3:
    await c.go('haram',14,13,'Menuju area shalat di belakang Maqam Ibrahim');
    await c.touch(w.ensure('haram').refs.maqam,'Berdiri untuk shalat sunnah thawaf');
    await c.confirm('Shalat Sunnah Thawaf','Latih dua rakaat di belakang Maqam Ibrahim jika memungkinkan dan tidak mengganggu arus jamaah. Jika padat, shalat di tempat lain dalam Masjidil Haram.');
+   await c.salah();
    await c.confirm('Dua rakaat selesai','Latihan shalat sunnah thawaf dua rakaat selesai. Berikutnya menuju Safa untuk memulai Sa’i.');
    break;
   case 4:
    await c.sai('Sa’i Umrah');
    break;
   case 5:
+   await c.go('masaa',70,5,'Pindah ke jalur kembali di ujung Marwah',1.5);
+   await c.go('masaa',-70,5,'Ikuti arus jalur kembali menuju Safa',2);
+   await c.go('masaa',-70,-5,'Keluar melalui ujung Safa',1.5);
    await c.go('haram',82,-30,'Menuju tempat tahallul setelah Sa’i');
-   await c.touch(w.ensure('haram').refs.halq,'Latihan mencukur atau memendekkan rambut');
-   await c.confirm('Tahallul Umrah','Setelah Sa’i, pelajari mencukur atau memendekkan rambut sesuai ketentuan. Umrah selesai dan jamaah keluar dari ihram.');
+   await c.touch(w.ensure('haram').refs.halq,'Latihan mencukur atau memendekkan rambut',10,'reach');
+   await c.prayer('diterima');
+   await c.haircut(w.ensure('haram').refs.halq,'Tahallul Umrah','Setelah Sa’i, pelajari mencukur atau memendekkan rambut sesuai ketentuan. Umrah selesai dan jamaah keluar dari ihram.');
    setRitualAppearance(e,{ihram:false,shaved:true});
    break;
   case 6:
    await c.travel('madinah',0,10,{vehicle:'Bus'});
+   await airportProcedure(c,'madinah',true);
    await c.travel('indonesia',0,10,{vehicle:'Pesawat'});
    await c.confirm('Tiba di Indonesia','Pastikan barang bawaan lengkap sebelum melanjutkan perjalanan pulang.');
    await c.travel('home',0,3,{vehicle:'Mobil'});

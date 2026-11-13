@@ -1,0 +1,26 @@
+[
+  {
+    "gender": "man",
+    "lod": "near",
+    "vertices": 5820,
+    "polygons": 8830
+  },
+  {
+    "gender": "man",
+    "lod": "far",
+    "vertices": 689,
+    "polygons": 601
+  },
+  {
+    "gender": "woman",
+    "lod": "near",
+    "vertices": 7955,
+    "polygons": 13187
+  },
+  {
+    "gender": "woman",
+    "lod": "far",
+    "vertices": 791,
+    "polygons": 778
+  }
+]

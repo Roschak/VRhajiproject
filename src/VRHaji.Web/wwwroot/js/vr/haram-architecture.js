@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {batchArchitecture} from './static-batches.js';
 import { addHaramFacilities, addGateFacade, addPrayerCarpet, tileMaterial } from './haram-facilities.js';
 
 // Architectural interpretation of the supplied exterior/interior references.
@@ -154,6 +155,7 @@ export function buildHaramArchitecture(engine) {
         instances.computeBoundingSphere(); root.add(instances);
     }
     addHaramFacilities(engine, root);
+    batchArchitecture(root, engine);
     return root;
 }
 

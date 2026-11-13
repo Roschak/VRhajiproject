@@ -33,7 +33,6 @@
         <div id="vr-crosshair" class="hud__crosshair">+</div>
         <div id="vr-interact-label" class="hud__interact-label"></div>
         <div id="vr-subtitle" class="hud__subtitle"></div>
-        <div id="vr-hint" class="hud__hint"></div>
         <canvas id="vr-minimap" class="hud__minimap" width="200" height="200"></canvas>
         <div id="vr-counter" class="hud__counter"></div>
     </div>
@@ -43,17 +42,24 @@
         <div class="overlay overlay--intro">
             <div class="intro-card">
                 <div class="intro-card__no">PERJALANAN @_routeLabel.ToUpperInvariant()</div>
-                <h1 class="intro-card__title">@_scene?.Nama</h1>
+                <h1 class="intro-card__title">@(_chooseResume ? "Lanjutkan perjalanan Anda?" : _scene?.Nama)</h1>
+                @if (!_chooseResume)
+                {
                 <p class="intro-card__desc">Dari rumah hingga pulang kembali dalam satu sesi. Seluruh tahap berjalan pada halaman dan sesi VR yang sama.</p>
-                <div class="intro-card__controls">
-                    <p>Komputer: WASD untuk berjalan, tahan klik dan geser untuk melihat, klik objek untuk interaksi.</p>
-                    <p>VR: thumbstick untuk berjalan, trigger untuk memilih. Arahkan controller ke lantai dan tekan grip untuk teleport dekat.</p>
-                    <p>Tekan Lanjutkan saat tahap selesai. Jarak antarlokasi dan waktu perjalanan disingkat untuk latihan.</p>
-                </div>
+                }
                 @if (_error is not null)
                 {
                     <p role="alert">@_error</p>
+                    <button class="btn btn--gold" @onclick="ReloadSimulation">Muat ulang simulasi</button>
                     <a class="btn btn--ghost" href="/">Kembali ke menu</a>
+                }
+                else if (_chooseResume)
+                {
+                    <h2>Perjalanan sebelumnya tersimpan</h2>
+                    <p>Tahap @_resumeStage: @(_route == "umrah" ? UmrahTitles[_resumeStage - 1] : HajjTitles[_resumeStage - 1])</p>
+                    <p>Lanjutkan dari awal tahap terakhir dengan perlengkapan yang tersimpan, atau mulai perjalanan baru dari rumah.</p>
+                    <button class="btn btn--gold btn--big" @onclick="ResumeJourney">Lanjutkan perjalanan</button>
+                    <button class="btn btn--ghost" @onclick="RestartJourney">Mulai dari awal</button>
                 }
                 else if (_loading)
                 {
@@ -103,6 +109,9 @@
     private string _route = "haji";
     private string _routeLabel => _route == "umrah" ? "Umrah" : "Haji";
     private IJSObjectReference? _routeProgress;
+    private IJSObjectReference? _session;
+    private bool _chooseResume;
+    private int _resumeStage;
     private SceneData? _scene;
     private bool _initialized, _showIntro = true, _loading = true, _showMap, _vrActive, _disposed;
     private string? _error, _notification;
@@ -128,13 +137,23 @@
             await using var userModule = await JS.InvokeAsync<IJSObjectReference>("import", "/js/user.js");
             _userId = await userModule.InvokeAsync<string>("getUserId");
             _selfRef = DotNetObjectReference.Create(this);
+            _session = await JS.InvokeAsync<IJSObjectReference>("import", "/js/journey-session.js");
+            _resumeStage = await _session.InvokeAsync<int>("getResumeStage", _route);
+            if (_resumeStage == 0)
+            {
+                _routeProgress ??= await JS.InvokeAsync<IJSObjectReference>("import", "/js/journey-progress.js");
+                var completed = _route == "umrah" ? await _routeProgress.InvokeAsync<int>("getCompleted", _route) : await ProgressService.GetHighestCompletedSceneAsync(_userId);
+                if (completed > 0 && completed < _stageCount) _resumeStage = completed + 1;
+            }
+            if (_resumeStage > 0) { _chooseResume = true; _loading = false; StateHasChanged(); return; }
             _module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/vr/main.js");
             await _module.InvokeVoidAsync("preload", "vr-container", _current, _selfRef, _route);
             _loading = false;
         }
-        catch (JSException)
+        catch (JSException error)
         {
-            _error = "Lingkungan 3D belum berhasil dimuat. Periksa dukungan WebGL dan koneksi, lalu buka kembali simulasi.";
+            Console.Error.WriteLine($"Gagal memuat simulasi {_route}: {error.Message}");
+            _error = "Simulasi belum berhasil dimuat. Muat ulang halaman untuk mencoba kembali. Jika tetap gagal, periksa koneksi dan server simulasi.";
         }
         if (!_disposed) StateHasChanged();
     }
@@ -144,6 +163,34 @@
         if (_loading || _module is null) return;
         _showIntro = false;
         await _module.InvokeVoidAsync("start");
+    }
+
+    private void ReloadSimulation() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+
+    private Task ResumeJourney() => _chooseResume ? PrepareChoice(_resumeStage, true) : Task.CompletedTask;
+    private async Task RestartJourney()
+    {
+        if (!_chooseResume) return;
+        _chooseResume = false; _loading = true;
+        if (_session is not null) await _session.InvokeVoidAsync("restartRoute", _route);
+        if (_route == "haji") await ProgressService.ResetAsync(_userId);
+        await PrepareChoice(1, false);
+    }
+    private async Task PrepareChoice(int index, bool resume)
+    {
+        _chooseResume = false; _loading = true; _current = index;
+        await LoadScene(index);
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "/js/vr/main.js");
+            await _module.InvokeVoidAsync("preload", "vr-container", _current, _selfRef, _route, resume);
+            _loading = false;
+        }
+        catch (JSException error)
+        {
+            Console.Error.WriteLine($"Gagal melanjutkan simulasi {_route}: {error.Message}");
+            _error = "Perjalanan belum berhasil dimuat. Muat ulang halaman untuk mencoba kembali; progres tersimpan tetap tersedia.";
+        }
     }
 
     private async Task ToggleMap()
@@ -216,6 +263,7 @@
                 await _module.DisposeAsync();
             }
             if (_routeProgress is not null) await _routeProgress.DisposeAsync();
+            if (_session is not null) await _session.DisposeAsync();
         }
         catch (JSDisconnectedException) { }
         _selfRef?.Dispose();

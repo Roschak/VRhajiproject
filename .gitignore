@@ -25,3 +25,4 @@ Thumbs.db
 .DS_Store
 
 release_output/
+tools/tts-deps/

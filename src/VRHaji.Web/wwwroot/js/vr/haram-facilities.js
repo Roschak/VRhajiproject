@@ -243,24 +243,24 @@ function addConnector(engine,root) {
     box(g,tile,[34,.12,10],[118,0,-30]);
     const turnTile=tileMaterial();turnTile.map.repeat.set(5,12);
     box(g,turnTile,[10,.12,25],[130,0,-17.5]);
-    box(g,stone,[34,.5,11],[118,8,-30]);box(g,stone,[11,.5,29],[130,8,-17.5]);
-    box(g,stone,[22,8,.6],[114,4,-35]);box(g,stone,[22,8,.6],[114,4,-25]);
-    box(g,stone,[.6,8,21],[135,4,-24.5]);box(g,stone,[.6,8,15],[125,4,-12.5]);
+    box(g,stone,[34,.5,11],[118,34,-30]);box(g,stone,[11,.5,29],[130,34,-17.5]);
+    box(g,stone,[22,34,.6],[114,17,-35]);box(g,stone,[22,34,.6],[114,17,-25]);
+    box(g,stone,[.6,34,21],[135,17,-24.5]);box(g,stone,[.6,34,15],[125,17,-12.5]);
     engine.addWalkRect(101,-34.5,134.5,-25.5);engine.addWalkRect(125.5,-30,134.5,-5);
     engine.addBlocker(103,-35.3,125,-34.7);engine.addBlocker(103,-25.3,124.7,-24.7);
     engine.addBlocker(134.7,-35,135.3,-14);engine.addBlocker(124.7,-20,125.3,-5);
     for(let x=106;x<130;x+=6) {
-        box(g,stone,[.5,.6,10],[x,7.4,-30]);
+        box(g,stone,[.5,.6,10],[x,33.4,-30]);
         const gold=new THREE.MeshStandardMaterial({color:0xb09a61,metalness:.4,roughness:.5});
         for(const z of [-34.5,-25.5]) {
-            box(g,stone,[.65,7,.65],[x,3.5,z]);
-            box(g,gold,[.85,.2,.85],[x,5.8,z]);
-            box(g,new THREE.MeshStandardMaterial({color:0x304b3d}),[.7,.8,.7],[x,6.5,z]);
+            box(g,stone,[.65,33,.65],[x,16.5,z]);
+            box(g,gold,[.85,.2,.85],[x,31.8,z]);
+            box(g,new THREE.MeshStandardMaterial({color:0x304b3d}),[.7,.8,.7],[x,32.5,z]);
         }
-        box(g,gold,[.04,1.3,.04],[x,6.7,-30]);
+        box(g,gold,[.04,3,.04],[x,31.7,-30]);
         const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.25,.4,.65,8),new THREE.MeshBasicMaterial({color:0xf3dfac}));
-        lamp.position.set(x,5.8,-30);g.add(lamp);
-        box(g,gold,[.85,.12,.85],[x,5.45,-30]);
+        lamp.position.set(x,29.8,-30);g.add(lamp);
+        box(g,gold,[.85,.12,.85],[x,29.45,-30]);
     }
     const sign=label(g,'← MASJIDIL HARAM     SAFA / MARWAH →',[111,5.8,-29],10);sign.rotation.y=-Math.PI/2;
 }
@@ -270,16 +270,24 @@ export function addMasaaDetails(parent) {
     const green=new THREE.MeshStandardMaterial({color:0x245b42,roughness:.7});
     const glow=new THREE.MeshBasicMaterial({color:0xffe4ad});
     for(let x=-60;x<=60;x+=8) {
-        box(parent,stone,[.45,.6,24],[x,11.3,0]);
-        for(const z of [-9,9]) {
-            box(parent,stone,[1.1,9.5,1.1],[x,4.75,z]);
-            box(parent,gold,[1.3,.18,1.3],[x,8.2,z]);
-            box(parent,green,[1.15,1.2,1.15],[x,9.7,z]);
-            box(parent,gold,[.04,3,.04],[x,9,z*.65]);
-            const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.32,.44,.7,8),glow);lamp.position.set(x,7.2,z*.65);parent.add(lamp);
-            box(parent,gold,[.9,.12,.9],[x,6.8,z*.65]);
+        box(parent,stone,[.45,.6,42],[x,33.3,0]);
+        for(const z of [-20,20]) {
+            box(parent,stone,[1.1,32,1.1],[x,16,z]);
+            box(parent,gold,[1.3,.18,1.3],[x,30.2,z]);
+            box(parent,green,[1.15,1.2,1.15],[x,31.7,z]);
+            box(parent,gold,[.04,3,.04],[x,31,z*.65]);
+            const lamp=new THREE.Mesh(new THREE.CylinderGeometry(.32,.44,.7,8),glow);lamp.position.set(x,29.2,z*.65);parent.add(lamp);
+            box(parent,gold,[.9,.12,.9],[x,28.8,z*.65]);
         }
     }
-    for(const x of [-16,16]) box(parent,green,[.5,.6,24],[x,10.8,0]);
-    label(parent,'SAFA  ←                  →  MARWAH',[-62,7,-5],9).rotation.y=-Math.PI/2;
+    for(const x of [-16,16]) box(parent,green,[.5,.6,24],[x,32.8,0]);
+    // Each arrow points in the lane's direction; turns happen beyond the divider.
+    for(let x=-56;x<=56;x+=14)for(const z of [-5,5]){
+        const arrow=new THREE.Shape();arrow.moveTo(0,.8);arrow.lineTo(-.5,-.5);arrow.lineTo(0,-.2);arrow.lineTo(.5,-.5);arrow.closePath();
+        const geometry=new THREE.ShapeGeometry(arrow);geometry.rotateX(Math.PI/2);
+        const mesh=new THREE.Mesh(geometry,green);mesh.material.side=THREE.DoubleSide;
+        mesh.rotation.y=z<0?Math.PI/2:-Math.PI/2;mesh.position.set(x,.17,z);parent.add(mesh);
+    }
+    const towardMarwah=label(parent,'MARWAH - LANJUTKAN LINTASAN',[-62,7,-5],9);towardMarwah.rotation.y=-Math.PI/2;towardMarwah.material.side=THREE.FrontSide;
+    const towardSafa=label(parent,'SAFA - UJUNG LINTASAN',[-62.02,7,5],9);towardSafa.rotation.y=Math.PI/2;towardSafa.material.side=THREE.FrontSide;
 }
