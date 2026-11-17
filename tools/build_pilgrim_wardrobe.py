@@ -425,21 +425,7 @@ else:
  draped_skirt('Tunic_Skirt',[(1.0,.205,.15,.02),(.75,.24,.17,.02),(.40,.29,.21,.02),(.095,.345,.24,.02)])
  gown('Abaya',hem=.085,wide=.045)
  hijab('Hijab');hijab('Khimar',long=True)
-# Footwear weighted to each foot. Neutral straps remain below the ankle.
-for side,sign in [('L',1),('R',-1)]:
- center=turn@rig.matrix_world@rig.data.bones[f'Bip01 {side} Foot'].head_local
- z=.004;x=center.x;y=-.045
- profiles=[(z,.061,.145,y),(z+.015,.061,.145,y)]
- shoe=loft('Sandal_'+side,profiles,fold=0,mat=solemat,weights=lambda v,i,s=side:{f'Bip01 {s} Foot':1})
- # Move the loft from the centre line to the foot.
- delta=to_local.to_3x3()@Vector((x,0,0))
- for v in shoe.data.vertices:v.co+=delta
- # Flat strap over the toes.
- verts=[]
- for yy in [-.13,-.065]:
-  for j in range(17):
-   a=math.pi*j/16;verts.append(pt(x+.058*math.cos(a),yy,.04+.035*math.sin(a)))
- mesh('Sandal_Strap_'+side,verts,[(j,j+1,j+18,j+17) for j in range(16)],solemat,lambda v,i,s=side:{f'Bip01 {s} Foot':1})
+# Barefoot pilgrimage characters: no sandals are generated.
 bpy.data.objects.remove(body,do_unlink=True)
 # Clean untouched helpers imported from the source.
 for o in list(bpy.context.scene.objects):
@@ -466,7 +452,7 @@ for filename,prefix,cover in variants:
  bpy.ops.object.select_all(action='DESELECT')
  for obj in bpy.context.scene.objects:
   name=obj.name
-  include=obj.type!='MESH' or name.startswith(('Skin_Head','Skin_Hands','Skin_Feet','Sandal')) or name.startswith(prefix)
+  include=obj.type!='MESH' or name.startswith(('Skin_Head','Skin_Hands','Skin_Feet')) or name.startswith(prefix)
   if gender=='woman' and name.startswith(cover):include=True
   if prefix=='Ihram' and name.startswith('Skin_IhramBody'):include=True
   if name.startswith('Ihram_Rida_'):include=prefix=='Ihram' and name.endswith(cover)

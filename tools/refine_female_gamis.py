@@ -447,7 +447,7 @@ if idle and idle.slots:rig.animation_data.action_slot=idle.slots[0]
 scene.frame_set(0)
 for obj in scene.objects:
     obj.select_set(False)
-    if obj.type=='MESH':obj.hide_set(not obj.name.startswith(('Robe','Skin_Head','Skin_Hands','Skin_Feet','Sandal','Hijab')))
+    if obj.type=='MESH':obj.hide_set(not obj.name.startswith(('Robe','Skin_Head','Skin_Hands','Skin_Feet','Hijab')))
     if obj.type=='ARMATURE':obj.hide_set(True)
 bpy.context.view_layer.objects.active=dress;dress.select_set(True)
 bpy.ops.wm.save_as_mainfile(filepath=str(project))
@@ -458,7 +458,7 @@ scene.frame_set(0)
 def export(path,standalone=False):
     bpy.ops.object.select_all(action='DESELECT')
     for o in scene.objects:
-        include=o.type!='MESH' or not standalone or o.name.startswith(('Robe','Skin_Head','Skin_Hands','Skin_Feet','Sandal','Hijab'))
+        include=o.type!='MESH' or (not standalone and not o.name.startswith('Sandal')) or o.name.startswith(('Robe','Skin_Head','Skin_Hands','Skin_Feet','Hijab'))
         o.hide_set(False);o.select_set(include)
     temp=path.with_name('.building-'+path.name)
     bpy.ops.export_scene.gltf(filepath=str(temp),export_format='GLB',use_selection=True,export_animations=True,export_image_format='JPEG',export_jpeg_quality=90,export_yup=True,export_extras=True)

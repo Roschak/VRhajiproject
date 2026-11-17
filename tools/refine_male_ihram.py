@@ -355,7 +355,7 @@ for t in rig.animation_data.nla_tracks:t.mute=True
 scene.frame_set(0)
 for obj in scene.objects:
     obj.select_set(False)
-    if obj.type=='MESH':obj.hide_set(not obj.name.startswith(('Ihram_Izar','Ihram_Rida_Tawaf','Skin_','Sandal')))
+    if obj.type=='MESH':obj.hide_set(not obj.name.startswith(('Ihram_Izar','Ihram_Rida_Tawaf','Skin_')))
     if obj.name=='Skin_IhramBody_TorsoCovered':obj.hide_set(True)
     if obj.type=='ARMATURE':obj.hide_set(True)
 bpy.context.view_layer.objects.active=izar;izar.select_set(True)
@@ -368,7 +368,7 @@ def export(path,variant=None):
     bpy.ops.object.select_all(action='DESELECT')
     for obj in scene.objects:
         obj.hide_set(False)
-        include=variant is None or obj.type!='MESH' or obj.name.startswith(('Skin_','Sandal','Ihram_Izar')) or obj.name=='Ihram_Rida_'+variant
+        include=(variant is None and not obj.name.startswith('Sandal')) or obj.type!='MESH' or obj.name.startswith(('Skin_','Ihram_Izar')) or obj.name=='Ihram_Rida_'+str(variant)
         if variant and obj.name.startswith('Skin_IhramBody'):
             if obj.name.endswith('Tawaf'):include=variant=='Tawaf'
             if obj.name.endswith('Covered'):include=variant=='Covered'

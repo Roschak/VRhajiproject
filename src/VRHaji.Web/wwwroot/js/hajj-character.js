@@ -3,9 +3,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { sanitize } from './game-preferences.js';
 export async function createCharacter(preferences) {
     const p=sanitize(preferences);
-    const assetVersion=p.gender==='man'?'ihram-fitted-20261025-v5':'female-wardrobe-reference-20261025-v3';
+    const assetVersion=p.gender==='man'?'ihram-barefoot-20261115-v1':'female-barefoot-20261115-v5';
     const gltf=await new GLTFLoader().loadAsync('/assets/characters/'+p.gender+'.glb?v='+assetVersion);
     const model=gltf.scene, root=new THREE.Group();root.name='JemaahAvatar';root.add(model);
+    const sandals=[];model.traverse(o=>{if(/^Sandal/.test(o.name))sandals.push(o);});sandals.forEach(o=>o.removeFromParent());
     model.updateMatrixWorld(true);
     const bounds=new THREE.Box3().setFromObject(model), size=bounds.getSize(new THREE.Vector3());
     const factor=1.78/Math.max(size.y,.01);model.scale.multiplyScalar(factor);
@@ -38,6 +39,7 @@ export async function createCharacter(preferences) {
                 else if(/^Hijab/.test(o.name))o.visible=prefs.gender==='woman'&&outfit!=='abaya'&&(outfit!=='robe'||!hasGamisHijab);
                 if(/^Khimar/.test(o.name))o.visible=prefs.gender==='woman'&&outfit==='abaya';
                 if(/^Beard/.test(o.name))o.visible=false;
+                if(/^Sandal/.test(o.name))o.visible=false;
             });
             const tone=new THREE.Color(prefs.skinTone),base=new THREE.Color('#e5bfa5');
             for(const m of materials){

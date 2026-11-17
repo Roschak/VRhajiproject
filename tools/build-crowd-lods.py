@@ -12,7 +12,7 @@ for gender in ['man','woman']:
   for o in list(bpy.context.scene.objects):
    if o.type!='MESH': continue
    name=o.name
-   common=name.startswith(('Skin_Head','Skin_Hands','Skin_Feet','Sandal'))
+   common=name.startswith(('Skin_Head','Skin_Hands','Skin_Feet'))
    keep=common or (gender=='man' and name.startswith(('BeardFull','Ihram_Izar','Ihram_Rida_Tawaf','Skin_IhramBody_Arms','Skin_IhramBody_LowerLegs','Skin_IhramBody_RightArmTawaf','Skin_IhramBody_TorsoTawaf'))) or (gender=='woman' and name.startswith(('Robe_Dress','Robe_Lining','Hijab_Gamis')))
    if not keep: bpy.data.objects.remove(o,do_unlink=True);continue
    bpy.context.view_layer.objects.active=o;o.select_set(True)

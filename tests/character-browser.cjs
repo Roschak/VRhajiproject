@@ -18,7 +18,7 @@ const assert=require('node:assert/strict');
     const snapshots=[];
     for(const outfit of gender==='man'?['robe','ihram']:['robe','abaya']){
      c.apply({gender,outfit,beardStyle:'full',skinTone:SKIN_TONES[3]});
-     const visible=[];c.model.traverse(o=>{if(o.visible&&/^(Robe|Ihram|Tunic|Abaya|Hijab|Khimar|Beard|Skin_IhramBody)/.test(o.name))visible.push(o.name)});
+     const visible=[];c.model.traverse(o=>{if(o.visible&&/^(Robe|Ihram|Tunic|Abaya|Hijab|Khimar|Beard|Sandal|Skin_IhramBody)/.test(o.name))visible.push(o.name)});
      snapshots.push({outfit,visible,appearance:c.root.userData.appearance});
     }
     const foot=c.model.getObjectByName('Bip01_L_Foot')||c.model.getObjectByName('Bip01 L Foot');
@@ -57,6 +57,7 @@ const assert=require('node:assert/strict');
    for(const s of asset.snapshots){
     const prefix={robe:'Robe',ihram:'Ihram',abaya:'Abaya'}[s.outfit];assert.ok(s.visible.some(n=>n.startsWith(prefix)));
     assert.ok(!s.visible.some(n=>n.startsWith('Beard')),'Additional beards stay hidden, including legacy preferences');
+    assert.ok(!s.visible.some(n=>n.startsWith('Sandal')),'Characters must not wear sandals');
     for(const other of ['Robe','Ihram','Tunic','Abaya'].filter(x=>x!==prefix))assert.ok(!s.visible.some(n=>n.startsWith(other)),`${s.outfit}: overlaps ${other}`);
     if(asset.gender==='woman'){
      const headwear=s.visible.filter(n=>/^(Hijab|Khimar)/.test(n));

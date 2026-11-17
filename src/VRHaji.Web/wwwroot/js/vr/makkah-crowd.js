@@ -6,7 +6,8 @@ const loader=new GLTFLoader();
 
 // The existing character silhouettes and walk clips are baked once, not thousands of times.
 async function bakeCharacter(gender,lod){
- const gltf=await loader.loadAsync(`/assets/characters/crowd/${gender}-${lod}.glb?v=1`),model=gltf.scene;
+ const gltf=await loader.loadAsync(`/assets/characters/crowd/${gender}-${lod}.glb?v=6`),model=gltf.scene;
+ const sandals=[];model.traverse(o=>{if(/^Sandal/.test(o.name))sandals.push(o);});sandals.forEach(o=>o.removeFromParent());
  model.updateMatrixWorld(true);
  const bounds=new THREE.Box3().setFromObject(model),scale=1.78/(bounds.max.y-bounds.min.y);
  model.scale.multiplyScalar(scale);model.position.y-=bounds.min.y*scale;model.updateMatrixWorld(true);

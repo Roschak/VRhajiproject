@@ -442,7 +442,7 @@ assert signature()==before_signature,'Original skin or unrelated wardrobe was al
 (OUT/'cloth-report.json').write_text(json.dumps(draper.report,indent=2))
 (OUT/'construction.json').write_text(json.dumps({'pattern_vertices':len(vs),'pattern_faces':len(fs),'dress_vertices':len(dress.data.vertices),'dress_faces':len(dress.data.polygons),'source_body':'rocketbox-woman.glb','scarf_method':f'Continuous head-to-hem cloth, {scarf_frames}-frame idle-pose simulation with a smooth scalp collision proxy','body_bounds':[[min(v[i] for v in bodyv),max(v[i] for v in bodyv)] for i in range(3)],'bones':{k:list(v) for k,v in bone.items() if k in ['Bip01 Neck','Bip01 L UpperArm','Bip01 L Forearm','Bip01 L Hand']}},indent=2))
 
-def is_gamis(o):return o.name.startswith((PREFIX,HEADWEAR,'Skin_Head','Skin_Hands','Skin_Feet','Sandal'))
+def is_gamis(o):return o.name.startswith((PREFIX,HEADWEAR,'Skin_Head','Skin_Hands','Skin_Feet'))
 rig.animation_data.action=idle
 if idle.slots:rig.animation_data.action_slot=idle.slots[0]
 scene.frame_set(0)
